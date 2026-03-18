@@ -169,6 +169,89 @@ const TEMPLATE_QUESTIONS: Record<string, Question[]> = {
 // ── 스텝 정의 ──────────────────────────────────────────
 type Step = 'select-template' | 'questionnaire' | 'select-theme' | 'customize' | 'generating' | 'complete';
 
+// ── 동적 미리보기 HTML 생성 ─────────────────────────────
+const THEME_COLORS: Record<string, { accent: string; accentLight: string; bg: string; card: string }> = {
+  'basic-light': { accent: '#3b82f6', accentLight: '#dbeafe', bg: '#f8fafc', card: '#ffffff' },
+  'basic-dark': { accent: '#3b82f6', accentLight: '#1e3a5f', bg: '#0f172a', card: '#1e293b' },
+  'ocean-blue': { accent: '#0ea5e9', accentLight: '#e0f2fe', bg: '#f0f9ff', card: '#ffffff' },
+  'forest-green': { accent: '#16a34a', accentLight: '#dcfce7', bg: '#f0fdf4', card: '#ffffff' },
+  'warm-amber': { accent: '#d97706', accentLight: '#fef3c7', bg: '#fffbeb', card: '#ffffff' },
+  'rose-pink': { accent: '#f43f5e', accentLight: '#ffe4e6', bg: '#fff1f2', card: '#ffffff' },
+  'korean-naver': { accent: '#03C75A', accentLight: '#dcfce7', bg: '#f8fafc', card: '#ffffff' },
+  'korean-kakao': { accent: '#FEE500', accentLight: '#fefce8', bg: '#fefce8', card: '#ffffff' },
+};
+
+function generatePreviewHtml(templateId: string, name: string, features: Set<string>, themeId: string): string {
+  const c = THEME_COLORS[themeId] || THEME_COLORS['basic-light'];
+  const appName = name || '내 서비스';
+
+  if (templateId === 'beauty-salon') {
+    const hasDashboard = features.has('dashboard');
+    const hasOnlineBooking = features.has('online-booking');
+    return `<div style="font-family:system-ui;background:${c.bg};min-height:100vh">
+      <div style="background:${c.accent};color:white;padding:14px 20px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:700;font-size:16px">✂️ ${appName}</span>
+        <span style="font-size:12px;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:6px">관리자</span>
+      </div>
+      ${hasDashboard ? `<div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div style="background:${c.card};padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:11px;color:#64748b">오늘 매출</div><div style="font-size:20px;font-weight:700;color:${c.accent}">₩1,280,000</div></div>
+        <div style="background:${c.card};padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:11px;color:#64748b">오늘 예약</div><div style="font-size:20px;font-weight:700">12건</div></div>
+      </div>` : ''}
+      <div style="padding:0 16px">
+        <div style="background:${c.card};padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+          <div style="font-size:13px;font-weight:600;margin-bottom:10px;color:#1e293b">예약 현황</div>
+          <div style="font-size:12px;padding:8px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span><b style="color:${c.accent}">10:00</b> 김지현 - 커트+염색</span><span style="background:${c.accentLight};color:${c.accent};padding:2px 8px;border-radius:10px;font-size:10px">확정</span></div>
+          <div style="font-size:12px;padding:8px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span><b style="color:${c.accent}">11:30</b> 이서윤 - 디지털펌</span><span style="background:#dbeafe;color:#2563eb;padding:2px 8px;border-radius:10px;font-size:10px">시술중</span></div>
+          <div style="font-size:12px;padding:8px 0;display:flex;justify-content:space-between"><span><b style="color:${c.accent}">14:30</b> 최하은 - 매직셋팅</span><span style="background:#fef9c3;color:#ca8a04;padding:2px 8px;border-radius:10px;font-size:10px">대기</span></div>
+        </div>
+      </div>
+      ${hasOnlineBooking ? `<div style="padding:16px"><div style="background:${c.accent};color:white;text-align:center;padding:12px;border-radius:12px;font-size:13px;font-weight:600">온라인 예약 페이지 →</div></div>` : ''}
+      <div style="padding:12px 16px;display:flex;gap:8px">
+        <div style="flex:1;text-align:center;padding:10px;font-size:11px;color:${c.accent};font-weight:600">예약</div>
+        <div style="flex:1;text-align:center;padding:10px;font-size:11px;color:#94a3b8">매출</div>
+        <div style="flex:1;text-align:center;padding:10px;font-size:11px;color:#94a3b8">고객</div>
+        <div style="flex:1;text-align:center;padding:10px;font-size:11px;color:#94a3b8">설정</div>
+      </div>
+    </div>`;
+  }
+
+  if (templateId === 'ecommerce') {
+    return `<div style="font-family:system-ui;min-height:100vh;background:${c.bg}">
+      <div style="background:${c.accent};color:white;padding:14px 20px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:700;font-size:16px">🛍 ${appName}</span><span>🛒 3</span>
+      </div>
+      <div style="background:linear-gradient(135deg,${c.accent},#764ba2);padding:32px 20px;text-align:center;color:white">
+        <div style="font-size:20px;font-weight:700">GRAND OPEN</div>
+        <div style="font-size:13px;opacity:.8;margin-top:4px">신상품 최대 30% OFF</div>
+      </div>
+      <div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div style="background:${c.card};border-radius:10px;overflow:hidden;border:1px solid #e2e8f0"><div style="background:#fef3c7;padding:28px;text-align:center;font-size:32px">👗</div><div style="padding:10px"><div style="font-size:12px;font-weight:600">린넨 원피스</div><div style="color:#ef4444;font-weight:700;font-size:13px">₩62,300</div></div></div>
+        <div style="background:${c.card};border-radius:10px;overflow:hidden;border:1px solid #e2e8f0"><div style="background:#dbeafe;padding:28px;text-align:center;font-size:32px">👜</div><div style="padding:10px"><div style="font-size:12px;font-weight:600">미니 크로스백</div><div style="color:#ef4444;font-weight:700;font-size:13px">₩31,500</div></div></div>
+      </div>
+    </div>`;
+  }
+
+  // booking-crm
+  return `<div style="font-family:system-ui;background:${c.bg};min-height:100vh">
+    <div style="background:${c.accent};color:white;padding:14px 20px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-weight:700;font-size:16px">📅 ${appName}</span>
+      <span style="font-size:12px;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:6px">관리자</span>
+    </div>
+    <div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div style="background:${c.card};padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:11px;color:#64748b">오늘 예약</div><div style="font-size:20px;font-weight:700;color:${c.accent}">18건</div></div>
+      <div style="background:${c.card};padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:11px;color:#64748b">온라인 예약</div><div style="font-size:20px;font-weight:700">34%</div></div>
+    </div>
+    <div style="padding:0 16px">
+      <div style="background:${c.card};padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+        <div style="font-size:13px;font-weight:600;margin-bottom:10px">일정</div>
+        <div style="font-size:12px;padding:8px 0;border-bottom:1px solid #f1f5f9"><b style="color:${c.accent}">09:00</b> 김철수 - 일반 진료</div>
+        <div style="font-size:12px;padding:8px 0;border-bottom:1px solid #f1f5f9"><b style="color:${c.accent}">09:30</b> 박영희 - 건강검진</div>
+        <div style="font-size:12px;padding:8px 0"><b style="color:${c.accent}">10:00</b> 이민호 - 재활치료</div>
+      </div>
+    </div>
+  </div>`;
+}
+
 // ── 디자인 테마 20종 ──────────────────────────────────
 const THEMES = [
   { id: 'basic-light', name: '베이직 라이트', tier: 'free', credits: 0, description: '깔끔한 화이트 기본', preview: { bg: 'bg-slate-50', accent: 'bg-blue-500', style: '화이트 / 미니멀' } },
@@ -700,56 +783,76 @@ export default function Home() {
           </div>
         )}
 
-        {/* ── Step 3: 최종 확인 ──────────────── */}
+        {/* ── Step 3: 최종 확인 + 미리보기 ────── */}
         {step === 'customize' && selectedTemplate && (
-          <div className="mx-auto max-w-2xl">
+          <div className="mx-auto max-w-5xl">
             <h2 className="mb-8 text-3xl font-bold text-center tracking-tight">최종 확인</h2>
 
-            <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-8">
-              <div className="mb-6 space-y-4">
-                {[
-                  ['템플릿', `${selectedTemplate.icon} ${selectedTemplate.name}`],
-                  ['프로젝트 이름', projectName],
-                  ['선택된 기능', `${selectedFeatures.size}개`],
-                  ['디자인 테마', `${selectedTheme.name}${selectedTheme.credits > 0 ? ` (+${selectedTheme.credits})` : ''}`],
-                  ['기술 스택', 'Next.js + NestJS + PostgreSQL'],
-                ].map(([label, value]) => (
-                  <div key={label} className="flex justify-between text-sm">
-                    <span className="text-[#8b95a1]">{label}</span>
-                    <span className="font-medium text-[#f2f4f6]">{value}</span>
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* 왼쪽: 요약 + 버튼 */}
+              <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-8">
+                <div className="mb-6 space-y-4">
+                  {[
+                    ['템플릿', `${selectedTemplate.icon} ${selectedTemplate.name}`],
+                    ['프로젝트 이름', projectName],
+                    ['선택된 기능', `${selectedFeatures.size}개`],
+                    ['디자인 테마', `${selectedTheme.name}${selectedTheme.credits > 0 ? ` (+${selectedTheme.credits})` : ''}`],
+                    ['기술 스택', 'Next.js + NestJS + PostgreSQL'],
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex justify-between text-sm">
+                      <span className="text-[#8b95a1]">{label}</span>
+                      <span className="font-medium text-[#f2f4f6]">{value}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mb-6 rounded-xl bg-[#2c2c35] p-5">
+                  <h4 className="mb-3 text-sm font-bold text-[#8b95a1]">생성될 항목</h4>
+                  <ul className="space-y-1.5 text-sm text-[#8b95a1]">
+                    <li>Prisma DB 스키마 + 마이그레이션</li>
+                    <li>NestJS 백엔드 API (CRUD + 인증)</li>
+                    <li>Next.js 프론트엔드 (반응형 UI)</li>
+                    <li>JWT 로그인/회원가입</li>
+                    <li>관리자 대시보드</li>
+                  </ul>
+                </div>
+
+                <div className="mb-6 flex justify-between border-t border-[#2c2c35] pt-5 text-xl font-bold">
+                  <span>소모 크레딧</span>
+                  <span className="text-[#3182f6]">{credits.total.toLocaleString()}</span>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setStep('select-theme')}
+                    className="flex-1 rounded-xl border border-[#2c2c35] py-3.5 text-[15px] font-semibold text-[#8b95a1] transition-colors hover:bg-[#2c2c35] hover:text-[#f2f4f6]"
+                  >
+                    뒤로
+                  </button>
+                  <button
+                    onClick={handleGenerate}
+                    className="flex-1 rounded-xl bg-[#3182f6] py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-[#1b64da]"
+                  >
+                    AI 생성 시작
+                  </button>
+                </div>
+              </div>
+
+              {/* 오른쪽: 아이폰 프레임 미리보기 */}
+              <div className="flex flex-col items-center">
+                <p className="mb-3 text-sm text-[#6b7684]">미리보기</p>
+                <div className="w-[300px] rounded-[2rem] border-4 border-[#2c2c35] bg-[#1b1b21] p-2 shadow-2xl">
+                  {/* 노치 */}
+                  <div className="mx-auto mb-1 h-5 w-24 rounded-full bg-[#17171c]" />
+                  <div className="overflow-hidden rounded-2xl bg-white" style={{ height: '520px' }}>
+                    <iframe
+                      srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,-apple-system,sans-serif;font-size:14px}</style></head><body>${generatePreviewHtml(selectedTemplate.id, projectName, selectedFeatures, selectedTheme.id)}</body></html>`}
+                      className="h-full w-full border-0"
+                      title="Preview"
+                    />
                   </div>
-                ))}
-              </div>
-
-              <div className="mb-6 rounded-xl bg-[#2c2c35] p-5">
-                <h4 className="mb-3 text-sm font-bold text-[#8b95a1]">생성될 항목</h4>
-                <ul className="space-y-1.5 text-sm text-[#8b95a1]">
-                  <li>Prisma DB 스키마 + 마이그레이션</li>
-                  <li>NestJS 백엔드 API (CRUD + 인증)</li>
-                  <li>Next.js 프론트엔드 (반응형 UI)</li>
-                  <li>JWT 로그인/회원가입</li>
-                  <li>관리자 대시보드</li>
-                </ul>
-              </div>
-
-              <div className="mb-6 flex justify-between border-t border-[#2c2c35] pt-5 text-xl font-bold">
-                <span>소모 크레딧</span>
-                <span className="text-[#3182f6]">{credits.total.toLocaleString()}</span>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setStep('questionnaire')}
-                  className="flex-1 rounded-xl border border-[#2c2c35] py-3.5 text-[15px] font-semibold text-[#8b95a1] transition-colors hover:bg-[#2c2c35] hover:text-[#f2f4f6]"
-                >
-                  뒤로
-                </button>
-                <button
-                  onClick={handleGenerate}
-                  className="flex-1 rounded-xl bg-[#3182f6] py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-[#1b64da]"
-                >
-                  AI 생성 시작
-                </button>
+                </div>
+                <p className="mt-3 text-xs text-[#6b7684]">실제 앱과 다를 수 있습니다</p>
               </div>
             </div>
           </div>
