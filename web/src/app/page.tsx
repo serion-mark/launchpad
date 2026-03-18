@@ -203,6 +203,7 @@ export default function Home() {
   const [customRequirements, setCustomRequirements] = useState('');
   const [progress, setProgress] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
+  const [refImages, setRefImages] = useState<{ file: File; preview: string }[]>([]);
 
   const handleSelectTemplate = (template: typeof TEMPLATES[0]) => {
     setSelectedTemplate(template);
@@ -482,24 +483,69 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* 레퍼런스 URL */}
+                {/* 레퍼런스 URL + 스크린샷 */}
                 <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6">
-                  <h3 className="mb-1 text-[15px] font-semibold">따라하고 싶은 홈페이지가 있나요?</h3>
-                  <p className="mb-4 text-xs text-[#6b7684]">참고할 사이트나 경쟁사 URL을 알려주시면 디자인/기능을 참고합니다.</p>
+                  <h3 className="mb-1 text-[15px] font-semibold">참고하고 싶은 서비스가 있나요?</h3>
+                  <p className="mb-4 text-xs text-[#6b7684]">URL을 입력하거나, 캡처 이미지를 올려주세요. AI가 디자인/기능을 참고합니다.</p>
+
+                  {/* URL 입력 */}
                   <input
                     type="url"
                     value={(answers['ref-url-1'] as string) || ''}
                     onChange={e => setAnswers(prev => ({ ...prev, 'ref-url-1': e.target.value }))}
-                    placeholder="https://따라하고싶은사이트.com"
+                    placeholder="https://참고사이트.com (선택)"
                     className="mb-2.5 w-full rounded-xl border border-[#2c2c35] bg-[#2c2c35] px-4 py-3.5 text-sm text-[#f2f4f6] placeholder-[#6b7684] focus:border-[#3182f6] focus:outline-none transition-colors"
                   />
-                  <input
-                    type="url"
-                    value={(answers['ref-url-2'] as string) || ''}
-                    onChange={e => setAnswers(prev => ({ ...prev, 'ref-url-2': e.target.value }))}
-                    placeholder="https://경쟁사사이트.com (선택)"
-                    className="w-full rounded-xl border border-[#2c2c35] bg-[#2c2c35] px-4 py-3.5 text-sm text-[#f2f4f6] placeholder-[#6b7684] focus:border-[#3182f6] focus:outline-none transition-colors"
-                  />
+
+                  {/* 이미지 업로드 */}
+                  <div className="mt-3">
+                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#2c2c35] bg-[#2c2c35]/50 px-4 py-5 text-sm text-[#8b95a1] transition-colors hover:border-[#3182f6]/40 hover:text-[#f2f4f6]">
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
+                      </svg>
+                      캡처 이미지 올리기 (최대 3장)
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={e => {
+                          const files = Array.from(e.target.files || []);
+                          const remaining = 3 - refImages.length;
+                          const newFiles = files.slice(0, remaining).map(file => ({
+                            file,
+                            preview: URL.createObjectURL(file),
+                          }));
+                          setRefImages(prev => [...prev, ...newFiles]);
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                  </div>
+
+                  {/* 업로드된 이미지 미리보기 */}
+                  {refImages.length > 0 && (
+                    <div className="mt-3 flex gap-2.5 flex-wrap">
+                      {refImages.map((img, i) => (
+                        <div key={i} className="group relative">
+                          <img
+                            src={img.preview}
+                            alt={`레퍼런스 ${i + 1}`}
+                            className="h-24 w-24 rounded-xl border border-[#2c2c35] object-cover"
+                          />
+                          <button
+                            onClick={() => {
+                              URL.revokeObjectURL(img.preview);
+                              setRefImages(prev => prev.filter((_, idx) => idx !== i));
+                            }}
+                            className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#f45452] text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* 추가 요구사항 */}
