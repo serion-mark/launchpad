@@ -1,11 +1,15 @@
 import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ProjectService } from './project.service';
+import { DeployService } from './deploy.service';
 
 @Controller('projects')
 @UseGuards(AuthGuard('jwt'))
 export class ProjectController {
-  constructor(private projectService: ProjectService) {}
+  constructor(
+    private projectService: ProjectService,
+    private deployService: DeployService,
+  ) {}
 
   @Get()
   list(@Req() req: any) {
@@ -46,5 +50,17 @@ export class ProjectController {
   @Delete(':id')
   remove(@Req() req: any, @Param('id') id: string) {
     return this.projectService.remove(id, req.user.userId);
+  }
+
+  // ── 배포 ──────────────────────────────────────────
+  @Post(':id/deploy')
+  deploy(@Req() req: any, @Param('id') id: string) {
+    return this.deployService.deploy(id, req.user.userId);
+  }
+
+  // ── 코드 다운로드 (매니페스트 조회 → 프론트에서 JSZip 조립) ──
+  @Get(':id/download')
+  download(@Req() req: any, @Param('id') id: string) {
+    return this.deployService.getDownloadManifest(id, req.user.userId);
   }
 }

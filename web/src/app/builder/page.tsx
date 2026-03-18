@@ -160,6 +160,55 @@ function BuilderContent() {
     }, 2000);
   };
 
+  // 배포하기
+  const handleDeploy = async () => {
+    if (!projectId) return;
+    try {
+      const res = await authFetch(`/projects/${projectId}/deploy`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(prev => [...prev, {
+          id: Date.now().toString(), role: 'assistant',
+          content: `배포가 완료되었습니다!\n\n**URL**: ${data.deployedUrl}\n**서브도메인**: ${data.subdomain}\n\n아직 실제 서버 배포는 준비 중이지만, 프로젝트가 "배포됨" 상태로 변경되었습니다.`,
+          timestamp: new Date().toISOString(), type: 'text',
+        }]);
+        setBuildPhase('done');
+      }
+    } catch { /* */ }
+  };
+
+  // 코드 다운로드 (JSZip으로 ZIP 생성)
+  const handleDownload = async () => {
+    if (!projectId) return;
+    try {
+      const res = await authFetch(`/projects/${projectId}/download`);
+      if (!res.ok) return;
+      const manifest = await res.json();
+
+      // 동적으로 JSZip 로드
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+
+      for (const file of manifest.files) {
+        zip.file(file.path, file.content);
+      }
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${manifest.projectName}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(), role: 'assistant',
+        content: `코드 다운로드가 시작되었습니다!\n\n**파일명**: ${manifest.projectName}.zip\n**파일 수**: ${manifest.files.length}개\n\n다운로드한 코드를 로컬에서 실행하려면:\n\`\`\`\nnpm install\nnpm run dev\n\`\`\``,
+        timestamp: new Date().toISOString(), type: 'text',
+      }]);
+    } catch { /* */ }
+  };
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -373,9 +422,20 @@ function BuilderContent() {
               </button>
             )}
             {buildPhase === 'done' && (
-              <button className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-bold hover:bg-blue-500 transition">
-                배포하기
-              </button>
+              <>
+                <button
+                  onClick={handleDeploy}
+                  className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-bold hover:bg-blue-500 transition"
+                >
+                  배포하기
+                </button>
+                <button
+                  onClick={handleDownload}
+                  className="rounded-lg bg-purple-600 px-3 py-1.5 text-sm font-bold hover:bg-purple-500 transition"
+                >
+                  다운로드
+                </button>
+              </>
             )}
             <a href="/dashboard" className="rounded-lg bg-gray-700 px-3 py-1.5 text-sm hover:bg-gray-600 transition">
               프로젝트 목록

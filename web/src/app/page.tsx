@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { authFetch, getUser } from '@/lib/api';
 
 // ── 템플릿 데이터 ──────────────────────────────────────
 const TEMPLATES = [
@@ -138,10 +139,48 @@ export default function Home() {
     return { base, extra, themeCredits, total: base + extra + themeCredits };
   };
 
-  // 생성 시작
+  // 생성 시작 → 프로젝트 생성 + Builder로 이동
   const handleGenerate = async () => {
+    const user = getUser();
+    if (!user) {
+      // 비로그인 → 로그인 후 돌아올 수 있도록 시뮬레이션만
+      setStep('generating');
+      for (let i = 0; i <= 100; i += 5) {
+        await new Promise(r => setTimeout(r, 200));
+        setProgress(i);
+      }
+      setStep('complete');
+      return;
+    }
+
+    // 로그인 상태 → 실제 프로젝트 생성
     setStep('generating');
-    // 시뮬레이션 (실제로는 API 호출)
+    try {
+      const selectedFeatureIds = Array.from(selectedFeatures);
+      const res = await authFetch('/projects', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: projectName,
+          template: selectedTemplate!.id,
+          theme: selectedTheme.id,
+          features: { selected: selectedFeatureIds, themeId: selectedTheme.id },
+          description: customRequirements || undefined,
+        }),
+      });
+
+      if (res.ok) {
+        const project = await res.json();
+        // 프로젝트 생성 후 Builder로 이동
+        for (let i = 0; i <= 80; i += 10) {
+          await new Promise(r => setTimeout(r, 150));
+          setProgress(i);
+        }
+        window.location.href = `/builder?projectId=${project.id}`;
+        return;
+      }
+    } catch { /* fallback to simulation */ }
+
+    // 실패 시 시뮬레이션
     for (let i = 0; i <= 100; i += 5) {
       await new Promise(r => setTimeout(r, 200));
       setProgress(i);
