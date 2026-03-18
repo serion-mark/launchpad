@@ -164,7 +164,7 @@ export default function Home() {
               <span className="font-bold text-yellow-400">10,000</span>
             </div>
             <a href="/credits" className="rounded-lg bg-blue-600 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-medium hover:bg-blue-500 transition">
-              충전
+              요금제
             </a>
           </div>
         </div>

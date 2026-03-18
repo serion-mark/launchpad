@@ -10,10 +10,13 @@
 - **위치**: `/Users/mark/Desktop/정부지원사업 MVP 빌더(가칭)/launchpad/`
 - **GitHub**: `https://github.com/serion-mark/launchpad` (private)
 - **스택**: Next.js 16 (web) + NestJS (api) — 세리온과 동일 스택
-- **NCP 서버**: launchpad / s2-g3a (2vCPU, 8GB) — **생성 중 (2026-03-18)**
-  - 인증키: serion-key (세리온과 공유)
+- **NCP 서버 (운영)**: `175.45.200.162` / s2-g3a (2vCPU, 8GB, 50GB)
+  - SSH: `ssh -i ~/.ssh/serion-key.pem root@175.45.200.162`
+  - root PW: `J7?RdhuD*G=h`
+  - PM2: `launchpad-web` (포트 3000)
+  - nginx: HTTP 리버스 프록시 (80 → 3000)
   - VPC: serion-vpc / ACG: serion-vpc-default-acg
-  - 공인 IP: **할당 대기**
+  - 비공인 IP: 10.0.1.8
 
 ## 기술 아키텍처
 
@@ -56,7 +59,7 @@
 - ✅ 미리보기 페이지 (데모 앱 프리뷰, /preview)
 - ✅ 모바일 반응형 UI
 - ✅ GitHub 레포 (serion-mark/launchpad) — 첫 커밋 완료
-- ✅ NCP 서버 생성 요청 (launchpad, 공인IP 대기)
+- ✅ NCP 서버 배포 완료 (175.45.200.162, PM2+nginx)
 
 ## 메인 UI 플로우 (5단계)
 1. 업종 선택 (미용실/예약/쇼핑몰)
@@ -100,7 +103,6 @@
 ```
 Launchpad 이어서 작업해줘. memory/MEMORY.md 참고.
 
-[완료] GitHub 레포 + 프론트엔드 UI(5단계 플로우) + 테마 20종 + 토스결제 + 미리보기 + 모바일반응형
-[진행중] NCP 서버 생성 (공인IP 대기)
-[다음] Anthropic API 키 발급 → AI 연동 → 회원가입/DB → 코드 다운로드 → NCP 배포
+[완료] GitHub 레포 + 프론트엔드 UI(5단계 플로우) + 테마 20종 + 토스결제 + 미리보기 + 모바일반응형 + NCP 서버 배포(175.45.200.162)
+[다음] Anthropic API 키 발급 → AI 연동 → 회원가입/DB → 코드 다운로드 → 도메인+HTTPS
 ```
