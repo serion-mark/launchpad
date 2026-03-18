@@ -307,10 +307,10 @@ export default function Home() {
                     <span className="text-gray-400">추가 기능</span>
                     <span className="text-yellow-400">+{credits.extra.toLocaleString()}</span>
                   </div>
-                  {credits.themeCredits > 0 && (
+                  {(credits.themeCredits ?? 0) > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-400">디자인 테마</span>
-                      <span className="text-purple-400">+{credits.themeCredits.toLocaleString()}</span>
+                      <span className="text-purple-400">+{(credits.themeCredits ?? 0).toLocaleString()}</span>
                     </div>
                   )}
                   <div className="flex justify-between border-t border-gray-700 pt-2 text-lg font-bold">
