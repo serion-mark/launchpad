@@ -67,8 +67,107 @@ const TEMPLATES = [
   },
 ];
 
+// ── 업종별 맞춤 질문지 ─────────────────────────────────
+type QuestionType = 'radio' | 'checkbox' | 'text';
+interface Question {
+  id: string;
+  question: string;
+  type: QuestionType;
+  options?: { label: string; value: string; featureMap?: string[] }[];
+  placeholder?: string;
+}
+
+const COMMON_QUESTIONS: Question[] = [
+  { id: 'biz-name', question: '매장(서비스) 이름이 뭔가요?', type: 'text', placeholder: '예: 마크헤어, 해피카페' },
+  { id: 'visit-method', question: '고객이 주로 어떻게 찾아오나요?', type: 'checkbox', options: [
+    { label: '미리 예약하고 온다', value: 'reservation', featureMap: ['online-booking', 'booking'] },
+    { label: '그냥 와서 기다린다 (워크인)', value: 'walkin' },
+    { label: '전화로 문의 후 방문', value: 'phone', featureMap: ['alimtalk', 'notification'] },
+    { label: 'SNS/인스타 DM으로 예약', value: 'sns', featureMap: ['online-booking', 'booking'] },
+  ]},
+  { id: 'pain-point', question: '지금 가장 불편한 점은? (복수 선택)', type: 'checkbox', options: [
+    { label: '예약이 꼬여서 더블부킹 됨', value: 'double-booking', featureMap: ['reservation', 'booking'] },
+    { label: '매출 정산이 수기라 힘듦', value: 'manual-settlement', featureMap: ['dashboard', 'admin-dashboard', 'settlement'] },
+    { label: '단골 관리가 안 됨', value: 'no-crm', featureMap: ['customer'] },
+    { label: '노쇼가 많아서 스트레스', value: 'no-show', featureMap: ['alimtalk', 'notification'] },
+    { label: '재고/상품 관리가 복잡', value: 'inventory', featureMap: ['product'] },
+  ]},
+];
+
+const TEMPLATE_QUESTIONS: Record<string, Question[]> = {
+  'beauty-salon': [
+    { id: 'target-gender', question: '주로 어떤 고객이 오시나요?', type: 'radio', options: [
+      { label: '여성 위주', value: 'female' },
+      { label: '남성 위주 (바버샵)', value: 'male' },
+      { label: '남녀 모두', value: 'both' },
+    ]},
+    { id: 'staff-count', question: '디자이너가 몇 명인가요?', type: 'radio', options: [
+      { label: '나 혼자', value: 'solo' },
+      { label: '2~5명', value: 'small', featureMap: ['staff', 'settlement'] },
+      { label: '6명 이상', value: 'large', featureMap: ['staff', 'settlement', 'dashboard'] },
+    ]},
+    { id: 'booking-type', question: '예약 방식이 어떻게 되나요?', type: 'radio', options: [
+      { label: '예약제 (미리 잡고 온다)', value: 'reservation', featureMap: ['reservation', 'online-booking'] },
+      { label: '워크인 (와서 기다린다)', value: 'walkin' },
+      { label: '둘 다', value: 'both', featureMap: ['reservation', 'online-booking'] },
+    ]},
+    { id: 'extras', question: '이런 기능도 필요하세요?', type: 'checkbox', options: [
+      { label: '고객한테 카톡 알림 보내기', value: 'alimtalk', featureMap: ['alimtalk'] },
+      { label: '정액권/선불권 판매', value: 'prepaid', featureMap: ['prepaid'] },
+      { label: '온라인 예약 페이지', value: 'online', featureMap: ['online-booking'] },
+      { label: '매출 통계 대시보드', value: 'stats', featureMap: ['dashboard'] },
+    ]},
+  ],
+  'booking-crm': [
+    { id: 'biz-type', question: '어떤 업종이세요?', type: 'radio', options: [
+      { label: '병원/클리닉', value: 'clinic' },
+      { label: '피트니스/요가', value: 'fitness' },
+      { label: '학원/교육', value: 'education' },
+      { label: '카페/식당', value: 'cafe' },
+      { label: '기타 서비스', value: 'other' },
+    ]},
+    { id: 'staff-count', question: '담당자(직원)가 몇 명인가요?', type: 'radio', options: [
+      { label: '나 혼자', value: 'solo' },
+      { label: '2~5명', value: 'small', featureMap: ['staff'] },
+      { label: '6명 이상', value: 'large', featureMap: ['staff', 'dashboard'] },
+    ]},
+    { id: 'extras', question: '추가로 필요한 기능은?', type: 'checkbox', options: [
+      { label: '온라인 예약 페이지', value: 'online', featureMap: ['online-booking'] },
+      { label: '결제 관리 (카드/현금)', value: 'payment', featureMap: ['payment'] },
+      { label: '알림 (카톡/문자)', value: 'notification', featureMap: ['notification'] },
+      { label: '회원권/정기권', value: 'membership', featureMap: ['membership'] },
+      { label: '리뷰/평점', value: 'review', featureMap: ['review'] },
+    ]},
+  ],
+  'ecommerce': [
+    { id: 'product-type', question: '어떤 상품을 판매하세요?', type: 'radio', options: [
+      { label: '의류/패션', value: 'fashion' },
+      { label: '식품/음료', value: 'food' },
+      { label: '핸드메이드/수공예', value: 'handmade' },
+      { label: '전자제품/가전', value: 'electronics' },
+      { label: '기타', value: 'other' },
+    ]},
+    { id: 'delivery', question: '배송은 어떻게 하시나요?', type: 'radio', options: [
+      { label: '택배 배송', value: 'delivery', featureMap: ['shipping'] },
+      { label: '직접 배송/퀵', value: 'direct', featureMap: ['shipping'] },
+      { label: '매장 픽업', value: 'pickup' },
+      { label: '디지털 상품 (배송 없음)', value: 'digital' },
+    ]},
+    { id: 'subscription', question: '정기 구독(정기배송) 서비스도 하시나요?', type: 'radio', options: [
+      { label: '네, 정기배송 있어요', value: 'yes', featureMap: ['coupon'] },
+      { label: '아니요, 단건 판매만', value: 'no' },
+    ]},
+    { id: 'extras', question: '추가로 필요한 기능은?', type: 'checkbox', options: [
+      { label: '쿠폰/프로모션', value: 'coupon', featureMap: ['coupon'] },
+      { label: '상품 리뷰', value: 'review', featureMap: ['review'] },
+      { label: '위시리스트/찜', value: 'wishlist', featureMap: ['wishlist'] },
+      { label: 'SEO 최적화', value: 'seo', featureMap: ['seo'] },
+    ]},
+  ],
+};
+
 // ── 스텝 정의 ──────────────────────────────────────────
-type Step = 'select-template' | 'select-features' | 'select-theme' | 'customize' | 'generating' | 'complete';
+type Step = 'select-template' | 'questionnaire' | 'select-theme' | 'customize' | 'generating' | 'complete';
 
 // ── 디자인 테마 20종 ──────────────────────────────────
 const THEMES = [
@@ -106,26 +205,41 @@ export default function Home() {
   const [projectName, setProjectName] = useState('');
   const [customRequirements, setCustomRequirements] = useState('');
   const [progress, setProgress] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
 
   // 템플릿 선택
   const handleSelectTemplate = (template: typeof TEMPLATES[0]) => {
     setSelectedTemplate(template);
     const requiredIds = new Set(template.features.filter(f => f.required).map(f => f.id));
     setSelectedFeatures(requiredIds);
-    setStep('select-features');
+    setAnswers({});
+    setStep('questionnaire');
   };
 
-  // 기능 토글
-  const toggleFeature = (featureId: string) => {
-    const feature = selectedTemplate?.features.find(f => f.id === featureId);
-    if (feature?.required) return; // 필수 기능은 해제 불가
-
-    setSelectedFeatures(prev => {
-      const next = new Set(prev);
-      if (next.has(featureId)) next.delete(featureId);
-      else next.add(featureId);
-      return next;
+  // 질문지 답변 처리
+  const handleAnswer = (questionId: string, value: string, type: QuestionType, featureMap?: string[]) => {
+    setAnswers(prev => {
+      if (type === 'checkbox') {
+        const current = (prev[questionId] as string[]) || [];
+        const next = current.includes(value) ? current.filter(v => v !== value) : [...current, value];
+        return { ...prev, [questionId]: next };
+      }
+      return { ...prev, [questionId]: value };
     });
+    // 기능 자동 매핑
+    if (featureMap) {
+      setSelectedFeatures(prev => {
+        const next = new Set(prev);
+        featureMap.forEach(f => next.add(f));
+        return next;
+      });
+    }
+  };
+
+  // 질문지 → 테마 선택으로
+  const handleQuestionnaireNext = () => {
+    if (!projectName.trim()) { alert('매장/서비스 이름을 입력해주세요.'); return; }
+    setStep('select-theme');
   };
 
   // 크레딧 계산
@@ -257,7 +371,7 @@ export default function Home() {
         )}
 
         {/* ── Step 2: 기능 선택 ───────────────────────── */}
-        {step === 'select-features' && selectedTemplate && (
+        {step === 'questionnaire' && selectedTemplate && (
           <div>
             <button
               onClick={() => setStep('select-template')}
@@ -267,105 +381,178 @@ export default function Home() {
             </button>
 
             <div className="mb-8">
-              <h2 className="mb-2 text-3xl font-bold">
-                {selectedTemplate.icon} {selectedTemplate.name} — 기능 선택
+              <h2 className="mb-2 text-2xl md:text-3xl font-bold">
+                {selectedTemplate.icon} 몇 가지만 알려주세요!
               </h2>
-              <p className="text-gray-400">필수 기능은 자동 포함됩니다. 추가 기능을 선택하세요.</p>
+              <p className="text-gray-400">답변에 맞춰 최적의 앱을 구성해드립니다.</p>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">
-              {/* 기능 체크리스트 */}
-              <div className="lg:col-span-2 space-y-2 md:space-y-3">
-                {selectedTemplate.features.map(feature => (
-                  <button
-                    key={feature.id}
-                    onClick={() => toggleFeature(feature.id)}
-                    className={`flex w-full items-center justify-between rounded-xl border p-4 text-left transition-all ${
-                      selectedFeatures.has(feature.id)
-                        ? 'border-blue-500/50 bg-blue-500/10'
-                        : 'border-gray-700/50 bg-gray-800/30 hover:border-gray-600'
-                    } ${feature.required ? 'opacity-80' : ''}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={`flex h-6 w-6 items-center justify-center rounded-md border ${
-                        selectedFeatures.has(feature.id)
-                          ? 'border-blue-500 bg-blue-500 text-white'
-                          : 'border-gray-600'
-                      }`}>
-                        {selectedFeatures.has(feature.id) && (
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </div>
-                      <div>
-                        <div className="font-medium">
-                          {feature.name}
-                          {feature.required && (
-                            <span className="ml-2 rounded bg-gray-700 px-2 py-0.5 text-xs text-gray-300">필수</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    {feature.credits > 0 && (
-                      <span className="text-sm text-yellow-400">+{feature.credits}</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-
-              {/* 요약 사이드바 */}
-              <div className="rounded-2xl border border-gray-700/50 bg-gray-800/50 p-6">
-                <h3 className="mb-4 text-lg font-bold">생성 요약</h3>
-
-                <div className="mb-4">
-                  <label className="mb-1 block text-sm text-gray-400">프로젝트 이름</label>
+              {/* 질문지 */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* 이름 입력 (첫 번째 공통 질문) */}
+                <div className="rounded-xl border border-gray-700/50 bg-gray-800/30 p-5">
+                  <h3 className="mb-3 font-medium">{COMMON_QUESTIONS[0].question}</h3>
                   <input
                     type="text"
                     value={projectName}
                     onChange={e => setProjectName(e.target.value)}
-                    placeholder="my-beauty-app"
-                    className="w-full rounded-lg border border-gray-600 bg-gray-700/50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                    placeholder={COMMON_QUESTIONS[0].placeholder}
+                    className="w-full rounded-lg border border-gray-600 bg-gray-700/50 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none"
                   />
                 </div>
 
-                <div className="mb-6">
-                  <label className="mb-1 block text-sm text-gray-400">추가 요구사항 (선택)</label>
+                {/* 업종별 질문 */}
+                {(TEMPLATE_QUESTIONS[selectedTemplate.id] || []).map(q => (
+                  <div key={q.id} className="rounded-xl border border-gray-700/50 bg-gray-800/30 p-5">
+                    <h3 className="mb-3 font-medium">{q.question}</h3>
+                    {q.type === 'radio' && q.options && (
+                      <div className="space-y-2">
+                        {q.options.map(opt => (
+                          <button
+                            key={opt.value}
+                            onClick={() => handleAnswer(q.id, opt.value, 'radio', opt.featureMap)}
+                            className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left text-sm transition ${
+                              answers[q.id] === opt.value
+                                ? 'border-blue-500 bg-blue-500/10 text-white'
+                                : 'border-gray-700/50 hover:border-gray-500 text-gray-300'
+                            }`}
+                          >
+                            <div className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${
+                              answers[q.id] === opt.value ? 'border-blue-500' : 'border-gray-600'
+                            }`}>
+                              {answers[q.id] === opt.value && <div className="h-2.5 w-2.5 rounded-full bg-blue-500" />}
+                            </div>
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {q.type === 'checkbox' && q.options && (
+                      <div className="space-y-2">
+                        {q.options.map(opt => {
+                          const checked = ((answers[q.id] as string[]) || []).includes(opt.value);
+                          return (
+                            <button
+                              key={opt.value}
+                              onClick={() => handleAnswer(q.id, opt.value, 'checkbox', opt.featureMap)}
+                              className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left text-sm transition ${
+                                checked
+                                  ? 'border-blue-500 bg-blue-500/10 text-white'
+                                  : 'border-gray-700/50 hover:border-gray-500 text-gray-300'
+                              }`}
+                            >
+                              <div className={`flex h-5 w-5 items-center justify-center rounded border ${
+                                checked ? 'border-blue-500 bg-blue-500' : 'border-gray-600'
+                              }`}>
+                                {checked && (
+                                  <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                )}
+                              </div>
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {/* 공통 질문: 불편한 점 */}
+                <div className="rounded-xl border border-gray-700/50 bg-gray-800/30 p-5">
+                  <h3 className="mb-3 font-medium">{COMMON_QUESTIONS[2].question}</h3>
+                  <div className="space-y-2">
+                    {COMMON_QUESTIONS[2].options!.map(opt => {
+                      const checked = ((answers['pain-point'] as string[]) || []).includes(opt.value);
+                      return (
+                        <button
+                          key={opt.value}
+                          onClick={() => handleAnswer('pain-point', opt.value, 'checkbox', opt.featureMap)}
+                          className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left text-sm transition ${
+                            checked
+                              ? 'border-yellow-500 bg-yellow-500/10 text-white'
+                              : 'border-gray-700/50 hover:border-gray-500 text-gray-300'
+                          }`}
+                        >
+                          <div className={`flex h-5 w-5 items-center justify-center rounded border ${
+                            checked ? 'border-yellow-500 bg-yellow-500' : 'border-gray-600'
+                          }`}>
+                            {checked && (
+                              <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 레퍼런스 URL */}
+                <div className="rounded-xl border border-gray-700/50 bg-gray-800/30 p-5">
+                  <h3 className="mb-1 font-medium">따라하고 싶은 홈페이지가 있나요?</h3>
+                  <p className="mb-3 text-xs text-gray-500">참고할 사이트나 경쟁사 URL을 알려주시면 디자인/기능을 참고합니다.</p>
+                  <input
+                    type="url"
+                    value={(answers['ref-url-1'] as string) || ''}
+                    onChange={e => setAnswers(prev => ({ ...prev, 'ref-url-1': e.target.value }))}
+                    placeholder="https://따라하고싶은사이트.com"
+                    className="mb-2 w-full rounded-lg border border-gray-600 bg-gray-700/50 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none"
+                  />
+                  <input
+                    type="url"
+                    value={(answers['ref-url-2'] as string) || ''}
+                    onChange={e => setAnswers(prev => ({ ...prev, 'ref-url-2': e.target.value }))}
+                    placeholder="https://경쟁사사이트.com (선택)"
+                    className="w-full rounded-lg border border-gray-600 bg-gray-700/50 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+
+                {/* 추가 요구사항 */}
+                <div className="rounded-xl border border-gray-700/50 bg-gray-800/30 p-5">
+                  <h3 className="mb-3 font-medium">추가로 원하시는 게 있다면 자유롭게 적어주세요</h3>
                   <textarea
                     value={customRequirements}
                     onChange={e => setCustomRequirements(e.target.value)}
-                    placeholder="예: 고객별 포인트 적립 기능 추가해주세요"
+                    placeholder="예: 인스타그램 연동, 포인트 적립, 쿠폰 기능..."
                     rows={3}
-                    className="w-full rounded-lg border border-gray-600 bg-gray-700/50 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                    className="w-full rounded-lg border border-gray-600 bg-gray-700/50 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none"
                   />
+                </div>
+              </div>
+
+              {/* 자동 구성 요약 사이드바 */}
+              <div className="rounded-2xl border border-gray-700/50 bg-gray-800/50 p-6">
+                <h3 className="mb-4 text-lg font-bold">자동 구성된 기능</h3>
+                <p className="mb-4 text-xs text-gray-500">답변에 따라 자동으로 선택됩니다</p>
+
+                <div className="mb-6 space-y-2">
+                  {selectedTemplate.features.map(feature => (
+                    <div key={feature.id} className="flex items-center gap-2 text-sm">
+                      <span className={selectedFeatures.has(feature.id) ? 'text-green-400' : 'text-gray-600'}>
+                        {selectedFeatures.has(feature.id) ? '\u2713' : '\u2717'}
+                      </span>
+                      <span className={selectedFeatures.has(feature.id) ? 'text-white' : 'text-gray-500'}>
+                        {feature.name}
+                        {feature.required && <span className="ml-1 text-xs text-gray-500">(필수)</span>}
+                      </span>
+                    </div>
+                  ))}
                 </div>
 
                 <div className="mb-6 space-y-2 border-t border-gray-700 pt-4">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">기본 (필수 기능)</span>
-                    <span>{credits.base.toLocaleString()}</span>
+                    <span className="text-gray-400">선택된 기능</span>
+                    <span className="text-blue-400 font-bold">{selectedFeatures.size}개</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">추가 기능</span>
-                    <span className="text-yellow-400">+{credits.extra.toLocaleString()}</span>
-                  </div>
-                  {(credits.themeCredits ?? 0) > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-400">디자인 테마</span>
-                      <span className="text-purple-400">+{(credits.themeCredits ?? 0).toLocaleString()}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between border-t border-gray-700 pt-2 text-lg font-bold">
-                    <span>합계</span>
-                    <span className="text-blue-400">{credits.total.toLocaleString()} 크레딧</span>
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    ≈ {(credits.total * 100).toLocaleString()}원 (외주 대비 {Math.round(30000000 / (credits.total * 100))}배 절약)
-                  </p>
                 </div>
 
                 <button
-                  onClick={() => setStep('select-theme')}
+                  onClick={handleQuestionnaireNext}
                   disabled={!projectName.trim()}
                   className="w-full rounded-xl bg-blue-600 py-3 font-bold transition hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -380,7 +567,7 @@ export default function Home() {
         {step === 'select-theme' && selectedTemplate && (
           <div>
             <button
-              onClick={() => setStep('select-features')}
+              onClick={() => setStep('questionnaire')}
               className="mb-6 text-sm text-gray-400 hover:text-white transition"
             >
               &larr; 기능 선택으로 돌아가기
@@ -529,7 +716,7 @@ export default function Home() {
 
               <div className="flex gap-3">
                 <button
-                  onClick={() => setStep('select-features')}
+                  onClick={() => setStep('questionnaire')}
                   className="flex-1 rounded-xl border border-gray-600 py-3 font-medium transition hover:bg-gray-700"
                 >
                   뒤로
