@@ -1,0 +1,89 @@
+{
+  "id": "booking-crm",
+  "name": "범용 예약/CRM",
+  "description": "업종 무관 예약 시스템 + 고객 관리 + 매출 통계. 병원, 피트니스, 학원, 컨설팅 등 모든 예약 기반 비즈니스에 적용 가능",
+  "category": "예약/서비스",
+  "icon": "📅",
+  "features": [
+    {
+      "id": "booking",
+      "name": "예약 관리",
+      "description": "캘린더 뷰, 시간대별 슬롯, 예약 생성/수정/취소",
+      "required": true,
+      "credits": 0
+    },
+    {
+      "id": "customer",
+      "name": "고객 관리 (CRM)",
+      "description": "고객 DB, 방문 내역, 메모, 태그 분류",
+      "required": true,
+      "credits": 0
+    },
+    {
+      "id": "service-menu",
+      "name": "서비스 메뉴 관리",
+      "description": "서비스 항목, 가격, 소요시간, 카테고리",
+      "required": true,
+      "credits": 0
+    },
+    {
+      "id": "staff",
+      "name": "담당자 관리",
+      "description": "담당자별 스케줄, 배정, 근무 관리",
+      "required": true,
+      "credits": 0
+    },
+    {
+      "id": "payment",
+      "name": "결제 관리",
+      "description": "카드/현금/계좌이체, 결제 내역, 환불",
+      "required": false,
+      "credits": 300
+    },
+    {
+      "id": "dashboard",
+      "name": "통계 대시보드",
+      "description": "예약/매출/고객 통계, 기간별 분석",
+      "required": false,
+      "credits": 300
+    },
+    {
+      "id": "online-booking",
+      "name": "온라인 예약 페이지",
+      "description": "고객용 모바일 예약 페이지 (공유 링크)",
+      "required": false,
+      "credits": 300
+    },
+    {
+      "id": "notification",
+      "name": "알림 (이메일/SMS)",
+      "description": "예약 확정/리마인더 알림 자동 발송",
+      "required": false,
+      "credits": 400
+    },
+    {
+      "id": "membership",
+      "name": "회원권/정기권",
+      "description": "월 정기권, 횟수권, 잔여 횟수 관리",
+      "required": false,
+      "credits": 300
+    },
+    {
+      "id": "review",
+      "name": "리뷰/평점",
+      "description": "고객 리뷰 수집, 별점, 후기 관리",
+      "required": false,
+      "credits": 200
+    }
+  ],
+  "techStack": {
+    "frontend": "Next.js 16 + TypeScript + Tailwind CSS",
+    "backend": "NestJS + Prisma ORM",
+    "database": "PostgreSQL",
+    "auth": "JWT + bcrypt"
+  },
+  "estimatedCredits": {
+    "base": 1500,
+    "allFeatures": 3300
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "id": "beauty-salon",
+  "name": "미용실 POS",
+  "description": "예약 관리 + 매출/정산 + 고객 CRM + 디자이너 관리가 포함된 미용실 통합 관리 시스템",
+  "category": "뷰티/미용",
+  "icon": "✂️",
+  "features": [
+    {
+      "id": "reservation",
+      "name": "예약 관리",
+      "description": "타임라인 뷰, 디자이너별 스케줄, 예약 생성/수정/취소",
+      "required": true,
+      "credits": 0
+    },
+    {
+      "id": "sales",
+      "name": "매출/결제 관리",
+      "description": "시술별 결제, 카드/현금, 할인, 일일마감",
+      "required": true,
+      "credits": 0
+    },
+    {
+      "id": "customer",
+      "name": "고객 관리 (CRM)",
+      "description": "고객 DB, 시술 내역, 메모, VIP 관리",
+      "required": true,
+      "credits": 0
+    },
+    {
+      "id": "staff",
+      "name": "스태프/디자이너 관리",
+      "description": "근무 일정, 휴무일, 시술 배정, 성과 통계",
+      "required": true,
+      "credits": 0
+    },
+    {
+      "id": "service-menu",
+      "name": "시술 메뉴 관리",
+      "description": "카테고리별 시술, 가격, 소요시간 관리",
+      "required": true,
+      "credits": 0
+    },
+    {
+      "id": "dashboard",
+      "name": "매출 대시보드",
+      "description": "일/주/월 매출 통계, 디자이너 성과 KPI",
+      "required": false,
+      "credits": 300
+    },
+    {
+      "id": "online-booking",
+      "name": "온라인 예약 페이지",
+      "description": "고객이 직접 예약할 수 있는 모바일 페이지",
+      "required": false,
+      "credits": 300
+    },
+    {
+      "id": "alimtalk",
+      "name": "카카오 알림톡",
+      "description": "예약 확정/리마인더 알림톡 자동 발송",
+      "required": false,
+      "credits": 500
+    },
+    {
+      "id": "settlement",
+      "name": "디자이너 정산",
+      "description": "인센티브 자동 계산, 월별 정산서",
+      "required": false,
+      "credits": 300
+    },
+    {
+      "id": "prepaid",
+      "name": "정액권/선불권",
+      "description": "고객 선불 충전, 잔액 차감, 이용 내역",
+      "required": false,
+      "credits": 200
+    }
+  ],
+  "techStack": {
+    "frontend": "Next.js 16 + TypeScript + Tailwind CSS",
+    "backend": "NestJS + Prisma ORM",
+    "database": "PostgreSQL",
+    "auth": "JWT + bcrypt"
+  },
+  "estimatedCredits": {
+    "base": 2000,
+    "allFeatures": 3600
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "id": "ecommerce",
+  "name": "쇼핑몰/커머스",
+  "description": "상품 등록/관리 + 장바구니 + 주문/결제 + 배송 관리. 의류, 식품, 핸드메이드, 디지털 상품 등 모든 커머스에 적용 가능",
+  "category": "커머스/유통",
+  "icon": "🛒",
+  "features": [
+    {
+      "id": "product",
+      "name": "상품 관리",
+      "description": "상품 등록, 카테고리, 옵션(사이즈/색상), 재고",
+      "required": true,
+      "credits": 0
+    },
+    {
+      "id": "cart",
+      "name": "장바구니",
+      "description": "장바구니 담기, 수량 변경, 삭제",
+      "required": true,
+      "credits": 0
+    },
+    {
+      "id": "order",
+      "name": "주문/결제",
+      "description": "주문서 작성, PG 결제 연동, 주문 내역",
+      "required": true,
+      "credits": 0
+    },
+    {
+      "id": "shipping",
+      "name": "배송 관리",
+      "description": "배송지 관리, 운송장 입력, 배송 추적",
+      "required": true,
+      "credits": 0
+    },
+    {
+      "id": "member",
+      "name": "회원 관리",
+      "description": "회원가입/로그인, 회원 등급, 포인트",
+      "required": true,
+      "credits": 0
+    },
+    {
+      "id": "admin-dashboard",
+      "name": "관리자 대시보드",
+      "description": "매출/주문/방문자 통계, 기간별 분석",
+      "required": false,
+      "credits": 300
+    },
+    {
+      "id": "coupon",
+      "name": "쿠폰/프로모션",
+      "description": "할인 쿠폰 생성, 자동 적용, 사용 내역",
+      "required": false,
+      "credits": 200
+    },
+    {
+      "id": "review",
+      "name": "상품 리뷰",
+      "description": "구매 후기, 별점, 포토 리뷰, 적립금 지급",
+      "required": false,
+      "credits": 200
+    },
+    {
+      "id": "wishlist",
+      "name": "위시리스트/찜",
+      "description": "관심 상품 저장, 재입고 알림",
+      "required": false,
+      "credits": 100
+    },
+    {
+      "id": "seo",
+      "name": "SEO 최적화",
+      "description": "메타태그, OG 이미지, 사이트맵, 검색 최적화",
+      "required": false,
+      "credits": 200
+    }
+  ],
+  "techStack": {
+    "frontend": "Next.js 16 + TypeScript + Tailwind CSS",
+    "backend": "NestJS + Prisma ORM",
+    "database": "PostgreSQL",
+    "auth": "JWT + bcrypt",
+    "payment": "토스페이먼츠 PG"
+  },
+  "estimatedCredits": {
+    "base": 2000,
+    "allFeatures": 3000
+  }
+}
