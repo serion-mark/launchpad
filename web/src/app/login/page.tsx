@@ -39,7 +39,7 @@ export default function LoginPage() {
       // 토큰 저장 + 리다이렉트
       localStorage.setItem('launchpad_token', data.token);
       localStorage.setItem('launchpad_user', JSON.stringify({ userId: data.userId, email: data.email }));
-      window.location.href = '/builder';
+      window.location.href = '/dashboard';
     } catch {
       setError('서버에 연결할 수 없습니다');
     } finally {

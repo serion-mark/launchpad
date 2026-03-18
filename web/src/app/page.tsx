@@ -160,14 +160,14 @@ export default function Home() {
             <span className="text-blue-400">Launch</span>pad
           </h1>
           <div className="flex items-center gap-2 md:gap-4">
-            <div className="rounded-lg bg-gray-700/50 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm">
-              <span className="font-bold text-yellow-400">10,000</span>
-            </div>
-            <a href="/builder" className="rounded-lg bg-green-600 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-medium hover:bg-green-500 transition">
-              AI 빌더
+            <a href="/dashboard" className="rounded-lg bg-green-600 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-medium hover:bg-green-500 transition">
+              내 프로젝트
             </a>
             <a href="/credits" className="rounded-lg bg-blue-600 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-medium hover:bg-blue-500 transition">
               요금제
+            </a>
+            <a href="/login" className="rounded-lg bg-gray-700/50 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm text-gray-300 hover:text-white hover:bg-gray-600 transition">
+              로그인
             </a>
           </div>
         </div>
