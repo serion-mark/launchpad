@@ -163,6 +163,9 @@ export default function Home() {
             <div className="rounded-lg bg-gray-700/50 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm">
               <span className="font-bold text-yellow-400">10,000</span>
             </div>
+            <a href="/builder" className="rounded-lg bg-green-600 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-medium hover:bg-green-500 transition">
+              AI 빌더
+            </a>
             <a href="/credits" className="rounded-lg bg-blue-600 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-medium hover:bg-blue-500 transition">
               요금제
             </a>

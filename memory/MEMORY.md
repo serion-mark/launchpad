@@ -53,8 +53,9 @@
 - ✅ 디자인 테마 20종 (무료2 + 스탠다드12 + 프리미엄6)
 - ✅ AI 코드 생성 엔진 — 멀티 LLM 라우터 (llm-router.ts)
 - ✅ 앱 생성 파이프라인 (app-generator.ts)
-- ✅ 토스페이먼츠 크레딧 결제 (테스트키, /credits)
-- ✅ 미리보기 페이지 (데모 앱 프리뷰, /preview)
+- ✅ 토스페이먼츠 구독 결제 (테스트키, /credits → 요금제 페이지)
+- ✅ 과금 모델 전환: 크레딧제 → 구독제+Exit (Base44 Lock-in 전략)
+- ✅ 미리보기 페이지 — 템플릿별 고유 데모 (미용실3+예약CRM3+쇼핑몰3)
 - ✅ 모바일 반응형 UI
 - ✅ GitHub 레포 (serion-mark/launchpad) — 첫 커밋 완료
 - ✅ NCP 서버 배포 완료 (175.45.200.162, PM2+nginx)
@@ -101,6 +102,7 @@
 ```
 Launchpad 이어서 작업해줘. memory/MEMORY.md 참고.
 
-[완료] GitHub 레포 + 프론트엔드 UI(5단계 플로우) + 테마 20종 + 토스결제 + 미리보기 + 모바일반응형 + NCP 서버 배포(175.45.200.162)
+[완료] GitHub + UI(5단계) + 테마20종 + NCP배포(175.45.200.162) + 구독제전환(Free/Starter/Pro/Exit) + 템플릿별 고유 데모화면(미용실3+예약3+쇼핑몰3)
+[BM] 구독제+Exit Lock-in (Base44전략): Pro월29만→가두리 / Exit1,500만→코드소유권이전
 [다음] Anthropic API 키 발급 → AI 연동 → 회원가입/DB → 코드 다운로드 → 도메인+HTTPS
 ```
