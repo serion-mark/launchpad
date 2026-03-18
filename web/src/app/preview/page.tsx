@@ -229,44 +229,44 @@ export default function PreviewPage() {
   const currentScreen = screens[selectedScreen];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
-      <header className="border-b border-gray-700/50 px-4 py-3 sm:px-6">
+    <div className="min-h-screen bg-[#17171c] text-[#f2f4f6]">
+      <header className="border-b border-[#2c2c35] px-5 py-4 md:px-8">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-4 sm:gap-6">
-            <a href="/" className="text-xl font-bold"><span className="text-blue-400">Launch</span>pad</a>
-            <span className="text-sm text-gray-400">미리보기</span>
+            <a href="/"><img src="/logo.svg" alt="Foundry" className="h-7" /></a>
+            <span className="text-sm text-[#8b95a1]">미리보기</span>
           </div>
           <div className="flex items-center gap-2">
             {Object.keys(DEMO_SCREENS).map(tid => (
               <button key={tid} onClick={() => { setSelectedTemplate(tid); setSelectedScreen(0); }}
-                className={`rounded-lg px-3 py-1.5 text-sm transition ${selectedTemplate === tid ? 'bg-blue-600 text-white' : 'bg-gray-700/50 text-gray-400 hover:text-white'}`}>
+                className={`rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${selectedTemplate === tid ? 'bg-[#3182f6] text-white' : 'bg-[#2c2c35] text-[#8b95a1] hover:text-[#f2f4f6]'}`}>
                 {tid === 'beauty-salon' ? '✂️ 미용실' : tid === 'booking-crm' ? '🏥 예약' : '🛍 쇼핑몰'}
               </button>
             ))}
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setViewMode('desktop')} className={`rounded-lg px-3 py-1.5 text-sm ${viewMode === 'desktop' ? 'bg-gray-600' : 'bg-gray-700/50 text-gray-400'}`}>🖥 데스크톱</button>
-            <button onClick={() => setViewMode('mobile')} className={`rounded-lg px-3 py-1.5 text-sm ${viewMode === 'mobile' ? 'bg-gray-600' : 'bg-gray-700/50 text-gray-400'}`}>📱 모바일</button>
-            <a href="/" className="ml-2 rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium hover:bg-blue-500 transition sm:ml-4">내 프로젝트로 생성</a>
+            <button onClick={() => setViewMode('desktop')} className={`rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${viewMode === 'desktop' ? 'bg-[#3a3a45] text-[#f2f4f6]' : 'bg-[#2c2c35] text-[#8b95a1]'}`}>🖥 데스크톱</button>
+            <button onClick={() => setViewMode('mobile')} className={`rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${viewMode === 'mobile' ? 'bg-[#3a3a45] text-[#f2f4f6]' : 'bg-[#2c2c35] text-[#8b95a1]'}`}>📱 모바일</button>
+            <a href="/" className="ml-2 rounded-xl bg-[#3182f6] px-5 py-2 text-sm font-bold text-white hover:bg-[#1b64da] transition-colors sm:ml-4">내 프로젝트로 생성</a>
           </div>
         </div>
       </header>
 
       <div className="flex">
-        <aside className="w-40 border-r border-gray-700/50 p-4 sm:w-48">
-          <h3 className="mb-3 text-xs font-bold uppercase text-gray-500">화면 목록</h3>
+        <aside className="w-40 border-r border-[#2c2c35] p-4 sm:w-48">
+          <h3 className="mb-3 text-xs font-bold uppercase text-[#6b7684]">화면 목록</h3>
           <div className="space-y-1">
             {screens.map((screen, i) => (
               <button key={i} onClick={() => setSelectedScreen(i)}
-                className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${selectedScreen === i ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:bg-gray-700/50 hover:text-white'}`}>
+                className={`w-full rounded-xl px-3.5 py-2.5 text-left text-sm transition-colors ${selectedScreen === i ? 'bg-[#3182f6]/15 text-[#3182f6] font-medium' : 'text-[#8b95a1] hover:bg-[#2c2c35] hover:text-[#f2f4f6]'}`}>
                 {screen.name}
               </button>
             ))}
           </div>
         </aside>
 
-        <main className="flex-1 flex items-start justify-center p-4 sm:p-8">
-          <div className={`overflow-hidden rounded-xl border border-gray-600 bg-white shadow-2xl transition-all ${viewMode === 'mobile' ? 'w-[375px]' : 'w-full max-w-5xl'}`}
+        <main className="flex-1 flex items-start justify-center p-5 sm:p-8">
+          <div className={`overflow-hidden rounded-2xl border border-[#2c2c35] bg-white shadow-2xl transition-all ${viewMode === 'mobile' ? 'w-[375px]' : 'w-full max-w-5xl'}`}
             style={{ height: viewMode === 'mobile' ? '812px' : '600px' }}>
             {currentScreen && (
               <iframe

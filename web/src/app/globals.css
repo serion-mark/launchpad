@@ -1,26 +1,69 @@
 @import "tailwindcss";
 
+/* ── 토스 다크 팔레트 ──────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg-primary: #17171c;
+  --bg-card: #1b1b21;
+  --bg-elevated: #2c2c35;
+  --bg-input: #2c2c35;
+
+  --text-primary: #f2f4f6;
+  --text-secondary: #8b95a1;
+  --text-tertiary: #6b7684;
+  --text-disabled: #4e5968;
+
+  --toss-blue: #3182f6;
+  --toss-blue-hover: #1b64da;
+  --toss-blue-light: rgba(49, 130, 246, 0.12);
+
+  --toss-green: #30d158;
+  --toss-red: #f45452;
+  --toss-yellow: #ffd60a;
+  --toss-purple: #a855f7;
+
+  --border-primary: #2c2c35;
+  --border-secondary: #3a3a45;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-background: var(--bg-primary);
+  --color-foreground: var(--text-primary);
+  --font-sans: var(--font-sans);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
+}
+
+/* ── 토스 스크롤바 ─────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-secondary);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-disabled);
+}
+
+/* ── 토스 selection ────────────────────────── */
+::selection {
+  background: var(--toss-blue-light);
+  color: var(--text-primary);
 }

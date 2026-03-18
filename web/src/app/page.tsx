@@ -171,10 +171,8 @@ type Step = 'select-template' | 'questionnaire' | 'select-theme' | 'customize' |
 
 // ── 디자인 테마 20종 ──────────────────────────────────
 const THEMES = [
-  // ── 무료 (2종) ──
   { id: 'basic-light', name: '베이직 라이트', tier: 'free', credits: 0, description: '깔끔한 화이트 기본', preview: { bg: 'bg-slate-50', accent: 'bg-blue-500', style: '화이트 / 미니멀' } },
   { id: 'basic-dark', name: '베이직 다크', tier: 'free', credits: 0, description: '깔끔한 다크 기본', preview: { bg: 'bg-gray-900', accent: 'bg-blue-500', style: '다크 / 미니멀' } },
-  // ── 스탠다드 (12종) ──
   { id: 'ocean-blue', name: '오션 블루', tier: 'standard', credits: 300, description: '시원한 바다 느낌', preview: { bg: 'bg-sky-50', accent: 'bg-sky-500', style: '블루 / 신뢰감' } },
   { id: 'forest-green', name: '포레스트 그린', tier: 'standard', credits: 300, description: '자연 친화적 그린톤', preview: { bg: 'bg-emerald-50', accent: 'bg-emerald-500', style: '그린 / 힐링' } },
   { id: 'warm-amber', name: '웜 앰버', tier: 'standard', credits: 300, description: '따뜻한 카페 감성', preview: { bg: 'bg-amber-50', accent: 'bg-amber-500', style: '웜톤 / 카페' } },
@@ -187,7 +185,6 @@ const THEMES = [
   { id: 'deep-navy', name: '딥 네이비', tier: 'standard', credits: 300, description: '차분한 네이비 다크', preview: { bg: 'bg-blue-950', accent: 'bg-blue-400', style: '네이비 / 신뢰감' } },
   { id: 'arctic-ice', name: '아크틱 아이스', tier: 'standard', credits: 300, description: '차가운 아이스 블루', preview: { bg: 'bg-cyan-50', accent: 'bg-cyan-500', style: '아이스 / 쿨톤' } },
   { id: 'charcoal-gold', name: '차콜 골드', tier: 'standard', credits: 300, description: '고급스러운 골드 포인트', preview: { bg: 'bg-neutral-900', accent: 'bg-yellow-500', style: '차콜 / 럭셔리' } },
-  // ── 프리미엄 (6종) ──
   { id: 'glass-aurora', name: '글래스 오로라', tier: 'premium', credits: 800, description: '글래스모피즘 + 오로라 그라디언트', preview: { bg: 'bg-gradient-to-br from-indigo-950 to-purple-950', accent: 'bg-gradient-to-r from-pink-500 to-violet-500', style: '글래스 / 몽환적' } },
   { id: 'neon-cyber', name: '네온 사이버', tier: 'premium', credits: 800, description: '사이버펑크 네온 컬러', preview: { bg: 'bg-gray-950', accent: 'bg-gradient-to-r from-green-400 to-cyan-400', style: '네온 / 사이버펑크' } },
   { id: 'gradient-sunset', name: '그라디언트 선셋', tier: 'premium', credits: 800, description: '노을빛 그라디언트', preview: { bg: 'bg-gradient-to-br from-orange-100 to-rose-100', accent: 'bg-gradient-to-r from-orange-400 to-pink-500', style: '그라디언트 / 따뜻한' } },
@@ -207,7 +204,6 @@ export default function Home() {
   const [progress, setProgress] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
 
-  // 템플릿 선택
   const handleSelectTemplate = (template: typeof TEMPLATES[0]) => {
     setSelectedTemplate(template);
     const requiredIds = new Set(template.features.filter(f => f.required).map(f => f.id));
@@ -216,7 +212,6 @@ export default function Home() {
     setStep('questionnaire');
   };
 
-  // 질문지 답변 처리
   const handleAnswer = (questionId: string, value: string, type: QuestionType, featureMap?: string[]) => {
     setAnswers(prev => {
       if (type === 'checkbox') {
@@ -226,7 +221,6 @@ export default function Home() {
       }
       return { ...prev, [questionId]: value };
     });
-    // 기능 자동 매핑
     if (featureMap) {
       setSelectedFeatures(prev => {
         const next = new Set(prev);
@@ -236,15 +230,13 @@ export default function Home() {
     }
   };
 
-  // 질문지 → 테마 선택으로
   const handleQuestionnaireNext = () => {
     if (!projectName.trim()) { alert('매장/서비스 이름을 입력해주세요.'); return; }
     setStep('select-theme');
   };
 
-  // 크레딧 계산
   const calcCredits = () => {
-    if (!selectedTemplate) return { base: 0, extra: 0, total: 0 };
+    if (!selectedTemplate) return { base: 0, extra: 0, themeCredits: 0, total: 0 };
     const base = selectedTemplate.baseCredits;
     const extra = selectedTemplate.features
       .filter(f => selectedFeatures.has(f.id) && !f.required)
@@ -253,11 +245,9 @@ export default function Home() {
     return { base, extra, themeCredits, total: base + extra + themeCredits };
   };
 
-  // 생성 시작 → 프로젝트 생성 + Builder로 이동
   const handleGenerate = async () => {
     const user = getUser();
     if (!user) {
-      // 비로그인 → 로그인 후 돌아올 수 있도록 시뮬레이션만
       setStep('generating');
       for (let i = 0; i <= 100; i += 5) {
         await new Promise(r => setTimeout(r, 200));
@@ -267,7 +257,6 @@ export default function Home() {
       return;
     }
 
-    // 로그인 상태 → 실제 프로젝트 생성
     setStep('generating');
     try {
       const selectedFeatureIds = Array.from(selectedFeatures);
@@ -284,7 +273,6 @@ export default function Home() {
 
       if (res.ok) {
         const project = await res.json();
-        // 프로젝트 생성 후 Builder로 이동
         for (let i = 0; i <= 80; i += 10) {
           await new Promise(r => setTimeout(r, 150));
           setProgress(i);
@@ -294,7 +282,6 @@ export default function Home() {
       }
     } catch { /* fallback to simulation */ }
 
-    // 실패 시 시뮬레이션
     for (let i = 0; i <= 100; i += 5) {
       await new Promise(r => setTimeout(r, 200));
       setProgress(i);
@@ -304,57 +291,66 @@ export default function Home() {
 
   const credits = calcCredits();
 
+  // ── 체크 아이콘 ──
+  const CheckIcon = () => (
+    <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+    </svg>
+  );
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
-      {/* 헤더 */}
-      <header className="border-b border-gray-700/50 px-4 py-3 md:px-6 md:py-4">
+    <div className="min-h-screen bg-[#17171c] text-[#f2f4f6]">
+      {/* ── 헤더 ─────────────────────────────── */}
+      <header className="border-b border-[#2c2c35] px-5 py-4 md:px-8">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <h1 className="text-xl md:text-2xl font-bold">
-            <span className="text-blue-400">Launch</span>pad
+          <h1>
+            <img src="/logo.svg" alt="Foundry" className="h-7 md:h-8" />
           </h1>
-          <div className="flex items-center gap-2 md:gap-4">
-            <a href="/dashboard" className="rounded-lg bg-green-600 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-medium hover:bg-green-500 transition">
+          <div className="flex items-center gap-2.5">
+            <a href="/dashboard" className="rounded-xl bg-[#2c2c35] px-4 py-2.5 text-sm font-semibold text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">
               내 프로젝트
             </a>
-            <a href="/credits" className="rounded-lg bg-blue-600 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-medium hover:bg-blue-500 transition">
+            <a href="/credits" className="rounded-xl bg-[#3182f6] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1b64da] transition-colors">
               요금제
             </a>
-            <a href="/login" className="rounded-lg bg-gray-700/50 px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm text-gray-300 hover:text-white hover:bg-gray-600 transition">
+            <a href="/login" className="rounded-xl bg-[#2c2c35] px-4 py-2.5 text-sm text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">
               로그인
             </a>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-6 md:px-6 md:py-12">
+      <main className="mx-auto max-w-6xl px-5 py-8 md:px-8 md:py-14">
 
-        {/* ── Step 1: 템플릿 선택 ─────────────────────── */}
+        {/* ── Step 1: 템플릿 선택 ─────────────── */}
         {step === 'select-template' && (
           <div>
-            <div className="mb-8 md:mb-12 text-center">
-              <h2 className="mb-2 md:mb-3 text-2xl md:text-4xl font-bold">어떤 서비스를 만드시나요?</h2>
-              <p className="text-sm md:text-lg text-gray-400">
+            <div className="mb-10 md:mb-14 text-center">
+              <h2 className="mb-3 text-3xl md:text-[40px] font-bold leading-tight tracking-tight">
+                어떤 서비스를 만드시나요?
+              </h2>
+              <p className="text-base md:text-lg text-[#8b95a1]">
                 업종을 선택하면 AI가 풀스택 MVP를 생성합니다
               </p>
             </div>
 
-            <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-3">
+            <div className="grid gap-5 md:gap-6 grid-cols-1 md:grid-cols-3">
               {TEMPLATES.map(template => (
                 <button
                   key={template.id}
                   onClick={() => handleSelectTemplate(template)}
-                  className="group rounded-2xl border border-gray-700/50 bg-gray-800/50 p-8 text-left transition-all hover:border-blue-500/50 hover:bg-gray-800 hover:shadow-lg hover:shadow-blue-500/10"
+                  className="group rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-7 md:p-8 text-left transition-all hover:border-[#3182f6]/40 hover:bg-[#1f1f26]"
                 >
-                  <div className="mb-4 text-5xl">{template.icon}</div>
-                  <h3 className="mb-2 text-xl font-bold group-hover:text-blue-400 transition">
+                  <div className="mb-5 text-5xl">{template.icon}</div>
+                  <h3 className="mb-2 text-lg font-bold group-hover:text-[#3182f6] transition-colors">
                     {template.name}
                   </h3>
-                  <p className="mb-4 text-sm text-gray-400">{template.description}</p>
+                  <p className="mb-5 text-sm text-[#8b95a1] leading-relaxed">{template.description}</p>
                   <div className="flex items-center justify-between">
-                    <span className="rounded-full bg-gray-700/50 px-3 py-1 text-xs text-gray-300">
+                    <span className="rounded-lg bg-[#2c2c35] px-3 py-1.5 text-xs font-medium text-[#8b95a1]">
                       {template.category}
                     </span>
-                    <span className="text-sm text-yellow-400">
+                    <span className="text-sm font-semibold text-[#3182f6]">
                       {template.baseCredits.toLocaleString()} 크레딧~
                     </span>
                   </div>
@@ -362,66 +358,64 @@ export default function Home() {
               ))}
             </div>
 
-            {/* 커밍순 */}
-            <div className="mt-8 text-center text-gray-500">
+            <div className="mt-10 text-center text-[#6b7684]">
               <p className="text-sm">더 많은 템플릿이 준비 중입니다</p>
-              <p className="text-xs mt-1">카페/요식업 | 피트니스/헬스 | 병원/클리닉 | 학원/교육 | 부동산 | 숙박</p>
+              <p className="text-xs mt-1.5">카페/요식업 | 피트니스/헬스 | 병원/클리닉 | 학원/교육 | 부동산 | 숙박</p>
             </div>
           </div>
         )}
 
-        {/* ── Step 2: 기능 선택 ───────────────────────── */}
+        {/* ── Step 2: 질문지 ─────────────────── */}
         {step === 'questionnaire' && selectedTemplate && (
           <div>
             <button
               onClick={() => setStep('select-template')}
-              className="mb-6 text-sm text-gray-400 hover:text-white transition"
+              className="mb-7 text-sm text-[#8b95a1] hover:text-[#f2f4f6] transition-colors"
             >
               &larr; 업종 다시 선택
             </button>
 
             <div className="mb-8">
-              <h2 className="mb-2 text-2xl md:text-3xl font-bold">
+              <h2 className="mb-2 text-2xl md:text-[32px] font-bold tracking-tight">
                 {selectedTemplate.icon} 몇 가지만 알려주세요!
               </h2>
-              <p className="text-gray-400">답변에 맞춰 최적의 앱을 구성해드립니다.</p>
+              <p className="text-[#8b95a1]">답변에 맞춰 최적의 앱을 구성해드립니다.</p>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">
-              {/* 질문지 */}
-              <div className="lg:col-span-2 space-y-6">
-                {/* 이름 입력 (첫 번째 공통 질문) */}
-                <div className="rounded-xl border border-gray-700/50 bg-gray-800/30 p-5">
-                  <h3 className="mb-3 font-medium">{COMMON_QUESTIONS[0].question}</h3>
+              <div className="lg:col-span-2 space-y-5">
+                {/* 이름 입력 */}
+                <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6">
+                  <h3 className="mb-3 text-[15px] font-semibold">{COMMON_QUESTIONS[0].question}</h3>
                   <input
                     type="text"
                     value={projectName}
                     onChange={e => setProjectName(e.target.value)}
                     placeholder={COMMON_QUESTIONS[0].placeholder}
-                    className="w-full rounded-lg border border-gray-600 bg-gray-700/50 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none"
+                    className="w-full rounded-xl border border-[#2c2c35] bg-[#2c2c35] px-4 py-3.5 text-sm text-[#f2f4f6] placeholder-[#6b7684] focus:border-[#3182f6] focus:outline-none transition-colors"
                   />
                 </div>
 
                 {/* 업종별 질문 */}
                 {(TEMPLATE_QUESTIONS[selectedTemplate.id] || []).map(q => (
-                  <div key={q.id} className="rounded-xl border border-gray-700/50 bg-gray-800/30 p-5">
-                    <h3 className="mb-3 font-medium">{q.question}</h3>
+                  <div key={q.id} className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6">
+                    <h3 className="mb-4 text-[15px] font-semibold">{q.question}</h3>
                     {q.type === 'radio' && q.options && (
-                      <div className="space-y-2">
+                      <div className="space-y-2.5">
                         {q.options.map(opt => (
                           <button
                             key={opt.value}
                             onClick={() => handleAnswer(q.id, opt.value, 'radio', opt.featureMap)}
-                            className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left text-sm transition ${
+                            className={`flex w-full items-center gap-3 rounded-xl border p-3.5 text-left text-sm transition-colors ${
                               answers[q.id] === opt.value
-                                ? 'border-blue-500 bg-blue-500/10 text-white'
-                                : 'border-gray-700/50 hover:border-gray-500 text-gray-300'
+                                ? 'border-[#3182f6] bg-[#3182f6]/8 text-[#f2f4f6]'
+                                : 'border-[#2c2c35] hover:border-[#3a3a45] text-[#8b95a1] hover:text-[#f2f4f6]'
                             }`}
                           >
-                            <div className={`flex h-5 w-5 items-center justify-center rounded-full border-2 ${
-                              answers[q.id] === opt.value ? 'border-blue-500' : 'border-gray-600'
+                            <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                              answers[q.id] === opt.value ? 'border-[#3182f6]' : 'border-[#4e5968]'
                             }`}>
-                              {answers[q.id] === opt.value && <div className="h-2.5 w-2.5 rounded-full bg-blue-500" />}
+                              {answers[q.id] === opt.value && <div className="h-2.5 w-2.5 rounded-full bg-[#3182f6]" />}
                             </div>
                             {opt.label}
                           </button>
@@ -429,27 +423,23 @@ export default function Home() {
                       </div>
                     )}
                     {q.type === 'checkbox' && q.options && (
-                      <div className="space-y-2">
+                      <div className="space-y-2.5">
                         {q.options.map(opt => {
                           const checked = ((answers[q.id] as string[]) || []).includes(opt.value);
                           return (
                             <button
                               key={opt.value}
                               onClick={() => handleAnswer(q.id, opt.value, 'checkbox', opt.featureMap)}
-                              className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left text-sm transition ${
+                              className={`flex w-full items-center gap-3 rounded-xl border p-3.5 text-left text-sm transition-colors ${
                                 checked
-                                  ? 'border-blue-500 bg-blue-500/10 text-white'
-                                  : 'border-gray-700/50 hover:border-gray-500 text-gray-300'
+                                  ? 'border-[#3182f6] bg-[#3182f6]/8 text-[#f2f4f6]'
+                                  : 'border-[#2c2c35] hover:border-[#3a3a45] text-[#8b95a1] hover:text-[#f2f4f6]'
                               }`}
                             >
-                              <div className={`flex h-5 w-5 items-center justify-center rounded border ${
-                                checked ? 'border-blue-500 bg-blue-500' : 'border-gray-600'
+                              <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
+                                checked ? 'border-[#3182f6] bg-[#3182f6]' : 'border-[#4e5968]'
                               }`}>
-                                {checked && (
-                                  <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                  </svg>
-                                )}
+                                {checked && <CheckIcon />}
                               </div>
                               {opt.label}
                             </button>
@@ -461,26 +451,26 @@ export default function Home() {
                 ))}
 
                 {/* 공통 질문: 불편한 점 */}
-                <div className="rounded-xl border border-gray-700/50 bg-gray-800/30 p-5">
-                  <h3 className="mb-3 font-medium">{COMMON_QUESTIONS[2].question}</h3>
-                  <div className="space-y-2">
+                <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6">
+                  <h3 className="mb-4 text-[15px] font-semibold">{COMMON_QUESTIONS[2].question}</h3>
+                  <div className="space-y-2.5">
                     {COMMON_QUESTIONS[2].options!.map(opt => {
                       const checked = ((answers['pain-point'] as string[]) || []).includes(opt.value);
                       return (
                         <button
                           key={opt.value}
                           onClick={() => handleAnswer('pain-point', opt.value, 'checkbox', opt.featureMap)}
-                          className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left text-sm transition ${
+                          className={`flex w-full items-center gap-3 rounded-xl border p-3.5 text-left text-sm transition-colors ${
                             checked
-                              ? 'border-yellow-500 bg-yellow-500/10 text-white'
-                              : 'border-gray-700/50 hover:border-gray-500 text-gray-300'
+                              ? 'border-[#ffd60a] bg-[#ffd60a]/8 text-[#f2f4f6]'
+                              : 'border-[#2c2c35] hover:border-[#3a3a45] text-[#8b95a1] hover:text-[#f2f4f6]'
                           }`}
                         >
-                          <div className={`flex h-5 w-5 items-center justify-center rounded border ${
-                            checked ? 'border-yellow-500 bg-yellow-500' : 'border-gray-600'
+                          <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
+                            checked ? 'border-[#ffd60a] bg-[#ffd60a]' : 'border-[#4e5968]'
                           }`}>
                             {checked && (
-                              <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <svg className="h-3.5 w-3.5 text-[#17171c]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                               </svg>
                             )}
@@ -493,68 +483,68 @@ export default function Home() {
                 </div>
 
                 {/* 레퍼런스 URL */}
-                <div className="rounded-xl border border-gray-700/50 bg-gray-800/30 p-5">
-                  <h3 className="mb-1 font-medium">따라하고 싶은 홈페이지가 있나요?</h3>
-                  <p className="mb-3 text-xs text-gray-500">참고할 사이트나 경쟁사 URL을 알려주시면 디자인/기능을 참고합니다.</p>
+                <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6">
+                  <h3 className="mb-1 text-[15px] font-semibold">따라하고 싶은 홈페이지가 있나요?</h3>
+                  <p className="mb-4 text-xs text-[#6b7684]">참고할 사이트나 경쟁사 URL을 알려주시면 디자인/기능을 참고합니다.</p>
                   <input
                     type="url"
                     value={(answers['ref-url-1'] as string) || ''}
                     onChange={e => setAnswers(prev => ({ ...prev, 'ref-url-1': e.target.value }))}
                     placeholder="https://따라하고싶은사이트.com"
-                    className="mb-2 w-full rounded-lg border border-gray-600 bg-gray-700/50 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none"
+                    className="mb-2.5 w-full rounded-xl border border-[#2c2c35] bg-[#2c2c35] px-4 py-3.5 text-sm text-[#f2f4f6] placeholder-[#6b7684] focus:border-[#3182f6] focus:outline-none transition-colors"
                   />
                   <input
                     type="url"
                     value={(answers['ref-url-2'] as string) || ''}
                     onChange={e => setAnswers(prev => ({ ...prev, 'ref-url-2': e.target.value }))}
                     placeholder="https://경쟁사사이트.com (선택)"
-                    className="w-full rounded-lg border border-gray-600 bg-gray-700/50 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none"
+                    className="w-full rounded-xl border border-[#2c2c35] bg-[#2c2c35] px-4 py-3.5 text-sm text-[#f2f4f6] placeholder-[#6b7684] focus:border-[#3182f6] focus:outline-none transition-colors"
                   />
                 </div>
 
                 {/* 추가 요구사항 */}
-                <div className="rounded-xl border border-gray-700/50 bg-gray-800/30 p-5">
-                  <h3 className="mb-3 font-medium">추가로 원하시는 게 있다면 자유롭게 적어주세요</h3>
+                <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6">
+                  <h3 className="mb-3 text-[15px] font-semibold">추가로 원하시는 게 있다면 자유롭게 적어주세요</h3>
                   <textarea
                     value={customRequirements}
                     onChange={e => setCustomRequirements(e.target.value)}
                     placeholder="예: 인스타그램 연동, 포인트 적립, 쿠폰 기능..."
                     rows={3}
-                    className="w-full rounded-lg border border-gray-600 bg-gray-700/50 px-4 py-3 text-sm focus:border-blue-500 focus:outline-none"
+                    className="w-full rounded-xl border border-[#2c2c35] bg-[#2c2c35] px-4 py-3.5 text-sm text-[#f2f4f6] placeholder-[#6b7684] focus:border-[#3182f6] focus:outline-none transition-colors resize-none"
                   />
                 </div>
               </div>
 
               {/* 자동 구성 요약 사이드바 */}
-              <div className="rounded-2xl border border-gray-700/50 bg-gray-800/50 p-6">
-                <h3 className="mb-4 text-lg font-bold">자동 구성된 기능</h3>
-                <p className="mb-4 text-xs text-gray-500">답변에 따라 자동으로 선택됩니다</p>
+              <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6 h-fit lg:sticky lg:top-6">
+                <h3 className="mb-1 text-lg font-bold">자동 구성된 기능</h3>
+                <p className="mb-5 text-xs text-[#6b7684]">답변에 따라 자동으로 선택됩니다</p>
 
-                <div className="mb-6 space-y-2">
+                <div className="mb-6 space-y-2.5">
                   {selectedTemplate.features.map(feature => (
-                    <div key={feature.id} className="flex items-center gap-2 text-sm">
-                      <span className={selectedFeatures.has(feature.id) ? 'text-green-400' : 'text-gray-600'}>
+                    <div key={feature.id} className="flex items-center gap-2.5 text-sm">
+                      <span className={selectedFeatures.has(feature.id) ? 'text-[#30d158]' : 'text-[#4e5968]'}>
                         {selectedFeatures.has(feature.id) ? '\u2713' : '\u2717'}
                       </span>
-                      <span className={selectedFeatures.has(feature.id) ? 'text-white' : 'text-gray-500'}>
+                      <span className={selectedFeatures.has(feature.id) ? 'text-[#f2f4f6]' : 'text-[#6b7684]'}>
                         {feature.name}
-                        {feature.required && <span className="ml-1 text-xs text-gray-500">(필수)</span>}
+                        {feature.required && <span className="ml-1 text-xs text-[#6b7684]">(필수)</span>}
                       </span>
                     </div>
                   ))}
                 </div>
 
-                <div className="mb-6 space-y-2 border-t border-gray-700 pt-4">
+                <div className="mb-6 space-y-2 border-t border-[#2c2c35] pt-5">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">선택된 기능</span>
-                    <span className="text-blue-400 font-bold">{selectedFeatures.size}개</span>
+                    <span className="text-[#8b95a1]">선택된 기능</span>
+                    <span className="text-[#3182f6] font-bold">{selectedFeatures.size}개</span>
                   </div>
                 </div>
 
                 <button
                   onClick={handleQuestionnaireNext}
                   disabled={!projectName.trim()}
-                  className="w-full rounded-xl bg-blue-600 py-3 font-bold transition hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full rounded-xl bg-[#3182f6] py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-[#1b64da] disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   다음: 디자인 선택
                 </button>
@@ -563,29 +553,31 @@ export default function Home() {
           </div>
         )}
 
-        {/* ── Step 2.5: 디자인 테마 선택 ──────────────── */}
+        {/* ── Step 2.5: 디자인 테마 선택 ──────── */}
         {step === 'select-theme' && selectedTemplate && (
           <div>
             <button
               onClick={() => setStep('questionnaire')}
-              className="mb-6 text-sm text-gray-400 hover:text-white transition"
+              className="mb-7 text-sm text-[#8b95a1] hover:text-[#f2f4f6] transition-colors"
             >
               &larr; 기능 선택으로 돌아가기
             </button>
 
-            <div className="mb-8 text-center">
-              <h2 className="mb-2 text-3xl font-bold">디자인 테마 선택</h2>
-              <p className="text-gray-400">앱의 분위기를 결정합니다. 프리미엄 테마로 차별화하세요!</p>
+            <div className="mb-10 text-center">
+              <h2 className="mb-2 text-3xl font-bold tracking-tight">디자인 테마 선택</h2>
+              <p className="text-[#8b95a1]">앱의 분위기를 결정합니다. 프리미엄 테마로 차별화하세요!</p>
             </div>
 
             {/* 필터 탭 */}
-            <div className="flex gap-2 mb-6 flex-wrap">
+            <div className="flex gap-2 mb-7 flex-wrap">
               {['전체', '무료', '스탠다드', '프리미엄'].map(filter => (
                 <button
                   key={filter}
                   onClick={() => setThemeFilter(filter)}
-                  className={`rounded-full px-4 py-1.5 text-sm transition ${
-                    themeFilter === filter ? 'bg-blue-600 text-white' : 'bg-gray-700/50 text-gray-400 hover:text-white'
+                  className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
+                    themeFilter === filter
+                      ? 'bg-[#3182f6] text-white'
+                      : 'bg-[#2c2c35] text-[#8b95a1] hover:text-[#f2f4f6]'
                   }`}
                 >
                   {filter} ({filter === '전체' ? THEMES.length : THEMES.filter(t =>
@@ -607,13 +599,12 @@ export default function Home() {
                   <button
                     key={theme.id}
                     onClick={() => setSelectedTheme(theme)}
-                    className={`group relative rounded-xl border p-0 text-left transition-all overflow-hidden ${
+                    className={`group relative rounded-2xl border text-left transition-all overflow-hidden ${
                       selectedTheme.id === theme.id
-                        ? 'border-blue-500 ring-2 ring-blue-500/50 shadow-lg shadow-blue-500/10'
-                        : 'border-gray-700/50 hover:border-gray-500'
+                        ? 'border-[#3182f6] ring-2 ring-[#3182f6]/30'
+                        : 'border-[#2c2c35] hover:border-[#3a3a45]'
                     }`}
                   >
-                    {/* 미니 프리뷰 */}
                     <div className={`${theme.preview.bg} p-3 h-24 flex flex-col justify-between`}>
                       <div className="flex gap-1.5">
                         <div className={`${theme.preview.accent} h-5 flex-1 rounded opacity-90`}></div>
@@ -626,22 +617,19 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* 테마 정보 */}
-                    <div className="bg-gray-800/80 p-3">
+                    <div className="bg-[#1b1b21] p-3.5">
                       <div className="flex items-center justify-between mb-0.5">
-                        <h3 className="text-sm font-bold text-white truncate">{theme.name}</h3>
-                        {theme.tier === 'free' && <span className="rounded-full bg-green-500/20 px-2 py-0.5 text-[10px] text-green-400">무료</span>}
-                        {theme.tier === 'standard' && <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-[10px] text-blue-400">+{theme.credits}</span>}
-                        {theme.tier === 'premium' && <span className="rounded-full bg-purple-500/20 px-2 py-0.5 text-[10px] text-purple-400">PRO</span>}
+                        <h3 className="text-sm font-bold text-[#f2f4f6] truncate">{theme.name}</h3>
+                        {theme.tier === 'free' && <span className="rounded-lg bg-[#30d158]/15 px-2 py-0.5 text-[10px] font-medium text-[#30d158]">무료</span>}
+                        {theme.tier === 'standard' && <span className="rounded-lg bg-[#3182f6]/15 px-2 py-0.5 text-[10px] font-medium text-[#3182f6]">+{theme.credits}</span>}
+                        {theme.tier === 'premium' && <span className="rounded-lg bg-[#a855f7]/15 px-2 py-0.5 text-[10px] font-medium text-[#a855f7]">PRO</span>}
                       </div>
-                      <p className="text-[11px] text-gray-500">{theme.preview.style}</p>
+                      <p className="text-[11px] text-[#6b7684]">{theme.preview.style}</p>
                     </div>
 
                     {selectedTheme.id === theme.id && (
-                      <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-blue-500">
-                        <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
+                      <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-[#3182f6]">
+                        <CheckIcon />
                       </div>
                     )}
                   </button>
@@ -649,17 +637,16 @@ export default function Home() {
               })}
             </div>
 
-            {/* 하단 버튼 */}
             <div className="mt-8 flex items-center justify-between">
-              <div className="text-sm text-gray-400">
-                선택: <span className="font-bold text-white">{selectedTheme.name}</span>
+              <div className="text-sm text-[#8b95a1]">
+                선택: <span className="font-bold text-[#f2f4f6]">{selectedTheme.name}</span>
                 {selectedTheme.credits > 0 && (
-                  <span className="ml-2 text-purple-400">+{selectedTheme.credits} 크레딧</span>
+                  <span className="ml-2 text-[#a855f7]">+{selectedTheme.credits} 크레딧</span>
                 )}
               </div>
               <button
                 onClick={() => setStep('customize')}
-                className="rounded-xl bg-blue-600 px-8 py-3 font-bold transition hover:bg-blue-500"
+                className="rounded-xl bg-[#3182f6] px-8 py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-[#1b64da]"
               >
                 다음: 최종 확인
               </button>
@@ -667,40 +654,30 @@ export default function Home() {
           </div>
         )}
 
-        {/* ── Step 3: 최종 확인 + 생성 ────────────────── */}
+        {/* ── Step 3: 최종 확인 ──────────────── */}
         {step === 'customize' && selectedTemplate && (
           <div className="mx-auto max-w-2xl">
-            <h2 className="mb-6 text-3xl font-bold text-center">최종 확인</h2>
+            <h2 className="mb-8 text-3xl font-bold text-center tracking-tight">최종 확인</h2>
 
-            <div className="rounded-2xl border border-gray-700/50 bg-gray-800/50 p-8">
+            <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-8">
               <div className="mb-6 space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-gray-400">템플릿</span>
-                  <span className="font-medium">{selectedTemplate.icon} {selectedTemplate.name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">프로젝트 이름</span>
-                  <span className="font-medium">{projectName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">선택된 기능</span>
-                  <span className="font-medium">{selectedFeatures.size}개</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">디자인 테마</span>
-                  <span className="font-medium">{selectedTheme.name}
-                    {selectedTheme.credits > 0 && <span className="ml-1 text-purple-400 text-sm">(+{selectedTheme.credits})</span>}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-400">기술 스택</span>
-                  <span className="text-sm text-gray-300">Next.js + NestJS + PostgreSQL</span>
-                </div>
+                {[
+                  ['템플릿', `${selectedTemplate.icon} ${selectedTemplate.name}`],
+                  ['프로젝트 이름', projectName],
+                  ['선택된 기능', `${selectedFeatures.size}개`],
+                  ['디자인 테마', `${selectedTheme.name}${selectedTheme.credits > 0 ? ` (+${selectedTheme.credits})` : ''}`],
+                  ['기술 스택', 'Next.js + NestJS + PostgreSQL'],
+                ].map(([label, value]) => (
+                  <div key={label} className="flex justify-between text-sm">
+                    <span className="text-[#8b95a1]">{label}</span>
+                    <span className="font-medium text-[#f2f4f6]">{value}</span>
+                  </div>
+                ))}
               </div>
 
-              <div className="mb-6 rounded-xl bg-gray-900/50 p-4">
-                <h4 className="mb-2 text-sm font-bold text-gray-300">생성될 항목</h4>
-                <ul className="space-y-1 text-sm text-gray-400">
+              <div className="mb-6 rounded-xl bg-[#2c2c35] p-5">
+                <h4 className="mb-3 text-sm font-bold text-[#8b95a1]">생성될 항목</h4>
+                <ul className="space-y-1.5 text-sm text-[#8b95a1]">
                   <li>Prisma DB 스키마 + 마이그레이션</li>
                   <li>NestJS 백엔드 API (CRUD + 인증)</li>
                   <li>Next.js 프론트엔드 (반응형 UI)</li>
@@ -709,21 +686,21 @@ export default function Home() {
                 </ul>
               </div>
 
-              <div className="mb-6 flex justify-between border-t border-gray-700 pt-4 text-xl font-bold">
+              <div className="mb-6 flex justify-between border-t border-[#2c2c35] pt-5 text-xl font-bold">
                 <span>소모 크레딧</span>
-                <span className="text-blue-400">{credits.total.toLocaleString()}</span>
+                <span className="text-[#3182f6]">{credits.total.toLocaleString()}</span>
               </div>
 
               <div className="flex gap-3">
                 <button
                   onClick={() => setStep('questionnaire')}
-                  className="flex-1 rounded-xl border border-gray-600 py-3 font-medium transition hover:bg-gray-700"
+                  className="flex-1 rounded-xl border border-[#2c2c35] py-3.5 text-[15px] font-semibold text-[#8b95a1] transition-colors hover:bg-[#2c2c35] hover:text-[#f2f4f6]"
                 >
                   뒤로
                 </button>
                 <button
                   onClick={handleGenerate}
-                  className="flex-1 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 py-3 font-bold transition hover:from-blue-500 hover:to-purple-500"
+                  className="flex-1 rounded-xl bg-[#3182f6] py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-[#1b64da]"
                 >
                   AI 생성 시작
                 </button>
@@ -732,45 +709,39 @@ export default function Home() {
           </div>
         )}
 
-        {/* ── Step 4: 생성 중 ────────────────────────── */}
+        {/* ── Step 4: 생성 중 ────────────────── */}
         {step === 'generating' && (
-          <div className="mx-auto max-w-lg text-center">
+          <div className="mx-auto max-w-lg text-center py-16">
             <div className="mb-8 text-6xl">
               {progress < 25 ? '📐' : progress < 50 ? '🗄️' : progress < 75 ? '⚙️' : '🎨'}
             </div>
-            <h2 className="mb-4 text-2xl font-bold">
-              {progress < 25
-                ? '아키텍처 설계 중...'
-                : progress < 50
-                ? 'DB 스키마 생성 중...'
-                : progress < 75
-                ? '백엔드 API 생성 중...'
-                : '프론트엔드 UI 생성 중...'}
+            <h2 className="mb-5 text-2xl font-bold tracking-tight">
+              {progress < 25 ? '아키텍처 설계 중...' : progress < 50 ? 'DB 스키마 생성 중...' : progress < 75 ? '백엔드 API 생성 중...' : '프론트엔드 UI 생성 중...'}
             </h2>
 
-            <div className="mb-4 h-3 overflow-hidden rounded-full bg-gray-700">
+            <div className="mb-4 h-2 overflow-hidden rounded-full bg-[#2c2c35]">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
+                className="h-full rounded-full bg-[#3182f6] transition-all duration-300"
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <p className="text-gray-400">{progress}% — AI가 코드를 작성하고 있습니다</p>
+            <p className="text-[#8b95a1]">{progress}% — AI가 코드를 작성하고 있습니다</p>
           </div>
         )}
 
-        {/* ── Step 5: 완료 ───────────────────────────── */}
+        {/* ── Step 5: 완료 ───────────────────── */}
         {step === 'complete' && selectedTemplate && (
-          <div className="mx-auto max-w-2xl text-center">
+          <div className="mx-auto max-w-2xl text-center py-10">
             <div className="mb-6 text-6xl">🎉</div>
-            <h2 className="mb-4 text-3xl font-bold">MVP 생성 완료!</h2>
-            <p className="mb-8 text-gray-400">
+            <h2 className="mb-4 text-3xl font-bold tracking-tight">MVP 생성 완료!</h2>
+            <p className="mb-10 text-[#8b95a1]">
               {selectedTemplate.name} 기반 풀스택 앱이 생성되었습니다.
               아래 미리보기로 결과를 확인하세요!
             </p>
 
-            <div className="mb-8 rounded-2xl border border-gray-700/50 bg-gray-800/50 p-6 text-left">
+            <div className="mb-8 rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6 text-left">
               <h3 className="mb-4 font-bold">생성된 파일</h3>
-              <div className="space-y-2 font-mono text-sm text-gray-400">
+              <div className="space-y-2 font-mono text-sm text-[#8b95a1]">
                 <p>prisma/schema.prisma</p>
                 <p>src/auth/ (로그인/회원가입 API)</p>
                 <p>src/reservations/ (예약 관리 API)</p>
@@ -782,26 +753,22 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="flex flex-col md:flex-row gap-3 md:gap-4">
+            <div className="flex flex-col md:flex-row gap-3">
               <a
                 href={`/preview?template=${selectedTemplate?.id}`}
-                className="flex-1 rounded-xl bg-blue-600 py-3 font-bold transition hover:bg-blue-500 text-center"
+                className="flex-1 rounded-xl bg-[#3182f6] py-3.5 text-[15px] font-bold text-white text-center transition-colors hover:bg-[#1b64da]"
               >
                 미리보기 실행
               </a>
               <button
-                onClick={() => {
-                  alert('코드 다운로드 기능은 준비 중입니다. 곧 ZIP 파일로 제공됩니다!');
-                }}
-                className="flex-1 rounded-xl bg-purple-600 py-3 font-bold transition hover:bg-purple-500"
+                onClick={() => alert('코드 다운로드 기능은 준비 중입니다. 곧 ZIP 파일로 제공됩니다!')}
+                className="flex-1 rounded-xl bg-[#a855f7] py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-[#9333ea]"
               >
                 코드 다운로드
               </button>
               <button
-                onClick={() => {
-                  alert('서버 배포 기능은 준비 중입니다. NCP 원클릭 배포를 지원할 예정입니다!');
-                }}
-                className="flex-1 rounded-xl border border-gray-600 py-3 font-medium transition hover:bg-gray-700"
+                onClick={() => alert('서버 배포 기능은 준비 중입니다. NCP 원클릭 배포를 지원할 예정입니다!')}
+                className="flex-1 rounded-xl border border-[#2c2c35] py-3.5 text-[15px] font-semibold text-[#8b95a1] transition-colors hover:bg-[#2c2c35] hover:text-[#f2f4f6]"
               >
                 서버 배포
               </button>
@@ -815,7 +782,7 @@ export default function Home() {
                 setProjectName('');
                 setProgress(0);
               }}
-              className="mt-6 text-sm text-gray-400 hover:text-white transition"
+              className="mt-7 text-sm text-[#8b95a1] hover:text-[#f2f4f6] transition-colors"
             >
               새 프로젝트 만들기
             </button>
@@ -824,8 +791,8 @@ export default function Home() {
       </main>
 
       {/* 푸터 */}
-      <footer className="border-t border-gray-700/50 px-6 py-8 text-center text-sm text-gray-500">
-        <p>Launchpad &mdash; AI가 만드는 풀스택 MVP. 외주비 3천만원을 20만원으로.</p>
+      <footer className="border-t border-[#2c2c35] px-6 py-8 text-center text-sm text-[#6b7684]">
+        <p>Foundry &mdash; AI가 만드는 풀스택 MVP. 외주비 3천만원을 20만원으로.</p>
       </footer>
     </div>
   );

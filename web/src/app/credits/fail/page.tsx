@@ -11,33 +11,27 @@ function FailContent() {
   return (
     <div className="mx-auto max-w-lg text-center">
       <div className="mb-6 text-7xl">😢</div>
-      <h2 className="mb-4 text-3xl font-bold">결제 실패</h2>
-      <p className="mb-8 text-lg text-gray-400">{message}</p>
+      <h2 className="mb-4 text-3xl font-bold tracking-tight">결제 실패</h2>
+      <p className="mb-8 text-lg text-[#8b95a1]">{message}</p>
 
-      <div className="mb-8 rounded-2xl border border-red-500/30 bg-red-500/10 p-6 text-left">
+      <div className="mb-8 rounded-2xl border border-[#f45452]/20 bg-[#f45452]/8 p-6 text-left">
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-400">에러 코드</span>
-            <span className="font-mono text-red-400">{code}</span>
+            <span className="text-[#8b95a1]">에러 코드</span>
+            <span className="font-mono text-[#f45452]">{code}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="text-gray-400">메시지</span>
-            <span className="text-red-300">{message}</span>
+            <span className="text-[#8b95a1]">메시지</span>
+            <span className="text-[#f45452]">{message}</span>
           </div>
         </div>
       </div>
 
-      <div className="flex gap-4">
-        <a
-          href="/credits"
-          className="flex-1 rounded-xl bg-blue-600 py-3 font-bold transition hover:bg-blue-500 text-center"
-        >
+      <div className="flex gap-3">
+        <a href="/credits" className="flex-1 rounded-xl bg-[#3182f6] py-3.5 text-[15px] font-bold text-white text-center transition-colors hover:bg-[#1b64da]">
           다시 시도
         </a>
-        <a
-          href="/"
-          className="flex-1 rounded-xl border border-gray-600 py-3 font-medium transition hover:bg-gray-700 text-center"
-        >
+        <a href="/" className="flex-1 rounded-xl border border-[#2c2c35] py-3.5 text-[15px] font-semibold text-[#8b95a1] text-center transition-colors hover:bg-[#2c2c35] hover:text-[#f2f4f6]">
           홈으로
         </a>
       </div>
@@ -47,16 +41,16 @@ function FailContent() {
 
 export default function CreditsFailPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
-      <header className="border-b border-gray-700/50 px-6 py-4">
+    <div className="min-h-screen bg-[#17171c] text-[#f2f4f6]">
+      <header className="border-b border-[#2c2c35] px-5 py-4 md:px-8">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <a href="/" className="text-2xl font-bold">
-            <span className="text-blue-400">Launch</span>pad
+          <a href="/">
+            <img src="/logo.svg" alt="Foundry" className="h-8" />
           </a>
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-6 py-20">
-        <Suspense fallback={<div className="text-center text-gray-400">로딩 중...</div>}>
+        <Suspense fallback={<div className="text-center text-[#8b95a1]">로딩 중...</div>}>
           <FailContent />
         </Suspense>
       </main>

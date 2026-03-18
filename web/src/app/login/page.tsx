@@ -36,7 +36,6 @@ export default function LoginPage() {
         return;
       }
 
-      // 토큰 저장 + 리다이렉트
       localStorage.setItem('launchpad_token', data.token);
       localStorage.setItem('launchpad_user', JSON.stringify({ userId: data.userId, email: data.email }));
       window.location.href = '/dashboard';
@@ -48,32 +47,32 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-[#17171c] px-5">
       <div className="w-full max-w-md">
         {/* 로고 */}
-        <div className="mb-8 text-center">
-          <a href="/" className="text-3xl font-bold text-white">
-            <span className="text-blue-400">Launch</span>pad
+        <div className="mb-10 text-center">
+          <a href="/">
+            <img src="/logo.svg" alt="Foundry" className="h-9 mx-auto" />
           </a>
-          <p className="mt-2 text-gray-400">AI로 MVP를 10분 만에 만드세요</p>
+          <p className="mt-3 text-[#8b95a1]">AI로 MVP를 10분 만에 만드세요</p>
         </div>
 
         {/* 카드 */}
-        <div className="rounded-2xl border border-gray-700/50 bg-gray-800/80 p-8 backdrop-blur">
+        <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-8">
           {/* 탭 */}
-          <div className="mb-6 flex rounded-lg bg-gray-900/50 p-1">
+          <div className="mb-7 flex rounded-xl bg-[#2c2c35] p-1">
             <button
               onClick={() => setMode('login')}
-              className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
-                mode === 'login' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+              className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors ${
+                mode === 'login' ? 'bg-[#3182f6] text-white' : 'text-[#8b95a1] hover:text-[#f2f4f6]'
               }`}
             >
               로그인
             </button>
             <button
               onClick={() => setMode('signup')}
-              className={`flex-1 rounded-md py-2 text-sm font-medium transition ${
-                mode === 'signup' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-white'
+              className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors ${
+                mode === 'signup' ? 'bg-[#3182f6] text-white' : 'text-[#8b95a1] hover:text-[#f2f4f6]'
               }`}
             >
               회원가입
@@ -83,31 +82,31 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'signup' && (
               <div>
-                <label className="mb-1 block text-sm text-gray-400">이름</label>
+                <label className="mb-1.5 block text-sm font-medium text-[#8b95a1]">이름</label>
                 <input
                   type="text"
                   value={name}
                   onChange={e => setName(e.target.value)}
                   placeholder="홍길동"
-                  className="w-full rounded-lg bg-gray-900/50 px-4 py-3 text-sm text-white placeholder-gray-600 outline-none ring-1 ring-gray-700 focus:ring-blue-500"
+                  className="w-full rounded-xl border border-[#2c2c35] bg-[#2c2c35] px-4 py-3.5 text-sm text-[#f2f4f6] placeholder-[#6b7684] outline-none focus:border-[#3182f6] transition-colors"
                 />
               </div>
             )}
 
             <div>
-              <label className="mb-1 block text-sm text-gray-400">이메일</label>
+              <label className="mb-1.5 block text-sm font-medium text-[#8b95a1]">이메일</label>
               <input
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="email@example.com"
                 required
-                className="w-full rounded-lg bg-gray-900/50 px-4 py-3 text-sm text-white placeholder-gray-600 outline-none ring-1 ring-gray-700 focus:ring-blue-500"
+                className="w-full rounded-xl border border-[#2c2c35] bg-[#2c2c35] px-4 py-3.5 text-sm text-[#f2f4f6] placeholder-[#6b7684] outline-none focus:border-[#3182f6] transition-colors"
               />
             </div>
 
             <div>
-              <label className="mb-1 block text-sm text-gray-400">비밀번호</label>
+              <label className="mb-1.5 block text-sm font-medium text-[#8b95a1]">비밀번호</label>
               <input
                 type="password"
                 value={password}
@@ -115,12 +114,12 @@ export default function LoginPage() {
                 placeholder="8자 이상"
                 required
                 minLength={8}
-                className="w-full rounded-lg bg-gray-900/50 px-4 py-3 text-sm text-white placeholder-gray-600 outline-none ring-1 ring-gray-700 focus:ring-blue-500"
+                className="w-full rounded-xl border border-[#2c2c35] bg-[#2c2c35] px-4 py-3.5 text-sm text-[#f2f4f6] placeholder-[#6b7684] outline-none focus:border-[#3182f6] transition-colors"
               />
             </div>
 
             {error && (
-              <div className="rounded-lg bg-red-500/10 border border-red-500/30 px-4 py-2 text-sm text-red-400">
+              <div className="rounded-xl bg-[#f45452]/10 border border-[#f45452]/20 px-4 py-3 text-sm text-[#f45452]">
                 {error}
               </div>
             )}
@@ -128,33 +127,33 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-lg bg-blue-600 py-3 font-bold text-white hover:bg-blue-500 transition disabled:opacity-50"
+              className="w-full rounded-xl bg-[#3182f6] py-3.5 text-[15px] font-bold text-white hover:bg-[#1b64da] transition-colors disabled:opacity-40"
             >
               {loading ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입'}
             </button>
           </form>
 
-          {/* 소셜 로그인 (추후 연동) */}
-          <div className="mt-6">
-            <div className="relative mb-4">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-700" /></div>
-              <div className="relative flex justify-center text-xs"><span className="bg-gray-800 px-2 text-gray-500">간편 로그인</span></div>
+          {/* 소셜 로그인 */}
+          <div className="mt-7">
+            <div className="relative mb-5">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[#2c2c35]" /></div>
+              <div className="relative flex justify-center text-xs"><span className="bg-[#1b1b21] px-3 text-[#6b7684]">간편 로그인</span></div>
             </div>
             <div className="grid grid-cols-4 gap-3">
-              <button disabled className="flex items-center justify-center rounded-lg bg-[#03C75A] py-2.5 text-white opacity-50 cursor-not-allowed" title="준비 중">
+              <button disabled className="flex items-center justify-center rounded-xl bg-[#03C75A] py-3 text-white opacity-40 cursor-not-allowed" title="준비 중">
                 <span className="text-sm font-bold">N</span>
               </button>
-              <button disabled className="flex items-center justify-center rounded-lg bg-[#FEE500] py-2.5 text-black opacity-50 cursor-not-allowed" title="준비 중">
+              <button disabled className="flex items-center justify-center rounded-xl bg-[#FEE500] py-3 text-black opacity-40 cursor-not-allowed" title="준비 중">
                 <span className="text-sm font-bold">K</span>
               </button>
-              <button disabled className="flex items-center justify-center rounded-lg bg-white py-2.5 text-black opacity-50 cursor-not-allowed" title="준비 중">
+              <button disabled className="flex items-center justify-center rounded-xl bg-white py-3 text-black opacity-40 cursor-not-allowed" title="준비 중">
                 <span className="text-sm font-bold">G</span>
               </button>
-              <button disabled className="flex items-center justify-center rounded-lg bg-black py-2.5 text-white border border-gray-600 opacity-50 cursor-not-allowed" title="준비 중">
+              <button disabled className="flex items-center justify-center rounded-xl bg-black py-3 text-white border border-[#2c2c35] opacity-40 cursor-not-allowed" title="준비 중">
                 <span className="text-sm font-bold"></span>
               </button>
             </div>
-            <p className="mt-2 text-center text-xs text-gray-600">소셜 로그인은 준비 중입니다</p>
+            <p className="mt-3 text-center text-xs text-[#6b7684]">소셜 로그인은 준비 중입니다</p>
           </div>
         </div>
       </div>
