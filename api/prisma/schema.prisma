@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String?   // null for social login
+  name          String?
+  avatar        String?
+  provider      String    @default("email") // email, google, kakao, naver, apple
+  providerId    String?
+  plan          String    @default("free") // free, starter, pro
+  planExpiresAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  projects      Project[]
+  @@map("users")
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  template    String   // beauty-salon, booking-crm, ecommerce
+  theme       String   @default("basic-light")
+  features    Json?    // selected features
+  status      String   @default("draft") // draft, generating, active, deployed
+  subdomain   String?  @unique
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  chatHistory Json?    // builder chat messages
+  generatedCode Json?  // generated file paths
+  deployedUrl String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("projects")
+}

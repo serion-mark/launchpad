@@ -59,6 +59,7 @@
 - ✅ 모바일 반응형 UI
 - ✅ GitHub 레포 (serion-mark/launchpad) — 첫 커밋 완료
 - ✅ NCP 서버 배포 완료 (175.45.200.162, PM2+nginx)
+- ✅ Builder Chat UI (/builder) — 대화형 앱 빌더, 빌드/토론 모드, 실시간 미리보기, 생성 시뮬레이션
 
 ## 메인 UI 플로우 (5단계)
 1. 업종 선택 (미용실/예약/쇼핑몰)
