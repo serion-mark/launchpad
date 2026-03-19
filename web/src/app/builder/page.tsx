@@ -242,7 +242,7 @@ function BuilderContent() {
 
       const completeMsg: Message = {
         id: (Date.now() + 1).toString(), role: 'assistant',
-        content: `질문지 완료! 답변을 정리했습니다:\n\n${summary}\n\n이 내용을 기반으로 앱을 설계합니다.\n추가 요구사항이 있으면 자유롭게 말씀해주세요.\n준비되셨으면 **"앱 생성하기"** 버튼을 눌러주세요!`,
+        content: `질문지 완료! 답변을 정리했습니다:\n\n${summary}\n\n**👈 왼쪽 미리보기에서 메뉴를 클릭해 각 화면을 체험해보세요! (무료)**\n\n수정하고 싶은 부분이 있으면 아래 채팅으로 자유롭게 말씀해주세요.\n(예: "고객 관리에 포인트 기능도 추가해줘", "색상을 좀 더 밝게")\n\n만족하시면 **"앱 생성하기"** 버튼을 누르면 AI가 실제 코드를 만들어드립니다!`,
         timestamp: new Date().toISOString(), type: 'text',
       };
       const updated = [...messages, userMsg, completeMsg];
@@ -455,9 +455,11 @@ function BuilderContent() {
     'reservation': '📅 예약', 'sales': '💰 매출', 'customer': '👥 고객', 'staff': '👤 스태프',
     'service-menu': '✂️ 시술', 'dashboard': '📊 대시보드', 'online-booking': '🌐 온라인예약',
     'alimtalk': '💬 알림톡', 'settlement': '📋 정산', 'prepaid': '🎫 정액권',
-    'admin-dashboard': '📊 대시보드', 'attendance': '✅ 출석', 'coupon': '🎟 쿠폰',
+    'admin-dashboard': '📊 관리', 'attendance': '✅ 출석', 'coupon': '🎟 쿠폰',
     'review': '⭐ 리뷰', 'wishlist': '❤️ 찜', 'inventory': '📦 재고',
     'product': '🛍 상품', 'cart': '🛒 장바구니', 'order': '📋 주문', 'shipping': '🚚 배송',
+    'booking': '📅 예약', 'notification': '🔔 알림', 'payment': '💳 결제', 'membership': '🎫 회원권',
+    'seo': '🔍 SEO',
   };
 
   // ── 메뉴별 화면 콘텐츠 생성 ──────────────────────────
@@ -579,6 +581,11 @@ function BuilderContent() {
         <div style="display:grid;grid-template-columns:1fr 100px 100px 80px;padding:10px 0;font-size:12px"><div style="font-weight:600">김디자이너</div><div>₩5,600,000</div><div>35%</div><div style="font-weight:700;color:${accent}">₩1,960,000</div></div>
       </div>`,
     };
+    // booking은 reservation과 동일
+    pages['booking'] = pages['reservation'];
+    pages['notification'] = pages['alimtalk'];
+    pages['admin-dashboard'] = pages['dashboard'];
+    pages['payment'] = pages['sales'];
     // 기타 메뉴 기본 화면
     return pages[menuId] || `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:300px;color:#94a3b8">
       <div style="font-size:48px;margin-bottom:16px">${FEAT_LABEL[menuId]?.slice(0,2) || '📄'}</div>
@@ -699,24 +706,35 @@ function BuilderContent() {
         </div>
         <div className="flex-1 overflow-auto bg-[#1b1b21] p-5">
           {previewTemplate ? (
-            <div
-              className={`mx-auto overflow-hidden border border-[#2c2c35] bg-white shadow-2xl transition-all duration-300 ${
-                previewMode === 'mobile' ? 'w-[375px] rounded-[2.5rem]' : 'w-full max-w-[800px] rounded-xl'
-              }`}
-              style={{ height: previewMode === 'mobile' ? '700px' : '600px' }}
-            >
-              {/* 모바일 노치 */}
-              {previewMode === 'mobile' && (
-                <div className="flex h-[44px] items-center justify-center bg-[#f8fafc] border-b border-[#e2e8f0]">
-                  <div className="h-[5px] w-[120px] rounded-full bg-[#1b1b21]" />
+            <div className="flex flex-col items-center gap-3">
+              {/* 인터랙티브 안내 배너 */}
+              {(projectFeatures.length > 0 || Object.keys(answers).length >= 3) && (
+                <div className="flex items-center gap-2 rounded-xl bg-[#3182f6]/10 border border-[#3182f6]/20 px-4 py-2.5 text-sm">
+                  <span className="text-lg">👆</span>
+                  <span className="text-[#3182f6] font-medium">메뉴를 클릭하면 각 화면을 미리 체험할 수 있어요!</span>
+                  <span className="text-[#6b7684] text-xs">무료</span>
                 </div>
               )}
-              <iframe
-                srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}</style></head><body>${previewHtml}</body></html>`}
-                className="w-full border-0"
-                style={{ height: previewMode === 'mobile' ? '656px' : '600px' }}
-                title="Live Preview"
-              />
+              <div
+                className={`overflow-hidden border border-[#2c2c35] bg-white shadow-2xl transition-all duration-300 ${
+                  previewMode === 'mobile' ? 'w-[375px] rounded-[2.5rem]' : 'w-full max-w-[800px] rounded-xl'
+                }`}
+                style={{ height: previewMode === 'mobile' ? '700px' : '600px' }}
+              >
+                {/* 모바일 노치 */}
+                {previewMode === 'mobile' && (
+                  <div className="flex h-[44px] items-center justify-center bg-[#f8fafc] border-b border-[#e2e8f0]">
+                    <div className="h-[5px] w-[120px] rounded-full bg-[#1b1b21]" />
+                  </div>
+                )}
+                <iframe
+                  ref={iframeRef}
+                  srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}div{transition:background .15s}</style></head><body>${previewHtml}</body></html>`}
+                  className="w-full border-0"
+                  style={{ height: previewMode === 'mobile' ? '656px' : '600px' }}
+                  title="Live Preview"
+                />
+              </div>
             </div>
           ) : (
             <div className="flex h-full items-center justify-center text-center text-[#6b7684]">
