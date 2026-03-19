@@ -70,22 +70,36 @@
 - ✅ 배포/다운로드 비용 안내 모달 (가격+설명+절약팁+다중앱 플랜 안내)
 - ✅ 무료 미리보기 체험 → 앱 생성(결제) 플로우
 
+### Phase 2.5 (3/19 후반) — 도메인/AI프롬프트/가이드
+- ✅ 도메인 **https://foundry.ai.kr** + SSL (Let's Encrypt, 자동갱신)
+- ✅ AI 업종별 시스템 프롬프트 완전 분리 (6개 템플릿별 관련용어+금지용어)
+- ✅ 미리보기 데모 데이터 업종별 완전 분리 (관리업체/O2O/에듀테크 전용)
+- ✅ 가이드 페이지 (/guide) — 시작하기+운영가이드+AI활용법+FAQ 4탭
+- ✅ 카카오 Redirect URI HTTPS 업데이트
+
 ### ⚠️ 알려진 이슈
 - Anthropic API 키가 **Haiku만 접근 가능** (Sonnet/Opus 404) — 모든 모델 Haiku로 임시 통일
 - GitHub Actions 자동배포 시 `api/dist/` 충돌 — deploy.yml에 정리 로직 필요
 - 이메일 동의항목: 비즈앱 전환 필요 (현재 닉네임만 가능)
 
+## 타겟 전략 (3/19 확정)
+- **1차**: 정부지원금 받은 창업자 (예창패/초창패)
+- **2차**: 카페24/아임웹 대안 (비싸고 관리 못하는 사람들)
+- **3차**: 회사 홈페이지 필요한 중소기업 (외주 비싸서)
+- **핵심 차별점**: 만들 때만 돈 → **운영할 때도 AI가 도와줌** (토큰 소모 = MRR)
+- 전략 문서: `전략폴더/Foundry_AI운영도우미_전략_2026-03-19.docx`
+
 ## 다음 작업 (미완료)
 
-### 🔴 도메인 + SSL (다음 세션 최우선)
-- [ ] foundry.kr 또는 foundry.ai.kr 도메인 구매 (가비아)
-- [ ] Let's Encrypt SSL + nginx HTTPS 설정
-- [ ] 카카오 Redirect URI에 도메인 추가
-
-### 🔴 카카오 OAuth 코드 연동
+### 🔴 카카오 OAuth 코드 연동 (다음 세션 최우선)
 - [ ] NestJS: KakaoStrategy + /auth/kakao/callback 엔드포인트
 - [ ] 프론트: "카카오로 시작하기" 버튼 (로그인 페이지)
 - [ ] 카카오 닉네임으로 자동 회원가입 + JWT 발급
+
+### 🔴 앱 생성 후 관리/수정 기능 (대규모 작업)
+- [ ] 채팅으로 수정 → 실제 코드 반영 → 미리보기 업데이트
+- [ ] AI 운영 도우미: 대량 상품 등록, 콘텐츠 생성, 매출 분석 등
+- [ ] 배포 후 실시간 코드 수정 + 재배포
 
 ### 🟡 추가 개선
 - [ ] ERD 자동 생성 + API 명세서 자동 생성 (ZIP에 포함)
@@ -111,10 +125,9 @@ cd ../api && npm run build && pm2 restart launchpad-api
 cd "/Users/mark/Desktop/정부지원사업 MVP 빌더(가칭)/launchpad"
 
 [다음명령어]Foundry 이어서 작업해줘. memory/MEMORY.md 참고.
-[완료] ①Builder Chat UI ②회원가입/로그인 ③프로젝트CRUD ④AI연동(Claude Haiku) ⑤원클릭배포 ⑥ZIP다운로드 ⑦SaaS구독결제 + 토스디자인 + Foundry브랜딩 + GitHub Actions자동배포 + 빌더질문지6종(복수응답+직접추가) + PC/모바일레이아웃분리 + 인터랙티브미리보기(메뉴클릭전환) + 업종별커스터마이징(6업종) + 템플릿6종(O2O+에듀테크+관리업체) + 어드민페이지(5탭) + 저장하기(수동+자동) + 토큰소모표시 + 배포/다운로드비용모달 + 카카오OAuth앱등록(ID:1409363)
-[대기] 카카오OAuth코드연동(닉네임만, 이메일은비즈앱후)
-[다음] 도메인+SSL → 카카오OAuth코드연동 → ERD/API명세자동생성 → 랜딩비교광고 → 모두의창업서류(4/1)
-[전략] 크레딧제(49k/99k/249k), AI티어링(Haiku0.2x/Sonnet1x/Opus5x), 무료맛보기(500크레딧), 호스팅MRR(9,900원/월), 다운로드별도(3,000크레딧), 마켓플레이스(수수료30%), 엑싯(100%지분)
-[서버] web:3000(PM2) + api:4000(PM2) + PostgreSQL(launchpaddb) + nginx + GitHub Actions자동배포
-[카카오] REST API키:2b61cab1882f996f30bd9e925a1ec3f8 / 앱ID:1409363 / Redirect:http://175.45.200.162/api/auth/kakao/callback
+[완료] ①~⑦기본기능 + AI연동(Haiku) + 크레딧시스템 + 빌더질문지6종 + PC/모바일레이아웃 + 인터랙티브미리보기 + 업종별커스터마이징(6업종) + 템플릿6종 + 어드민페이지(5탭) + 저장하기(수동+자동30초) + 토큰소모표시 + 배포/다운로드비용모달 + 카카오OAuth앱등록(ID:1409363) + 도메인SSL(foundry.ai.kr) + AI업종별프롬프트분리 + 미리보기데모데이터분리 + 가이드페이지(/guide 4탭)
+[다음] 카카오OAuth코드연동(NestJS+프론트) → 앱생성후관리/수정기능(대규모) → ERD/API명세자동생성 → 랜딩비교광고 → 모두의창업서류(4/1)
+[전략] 크레딧제(49k/99k/249k), 호스팅MRR(9,900원/월), 다운로드별도(3,000크레딧), AI운영도우미(대량등록/콘텐츠/분석/CS=지속토큰소모), 타겟확장(정부지원금+카페24대안+중소기업)
+[서버] web:3000(PM2) + api:4000(PM2) + PostgreSQL(launchpaddb) + nginx HTTPS + foundry.ai.kr
+[카카오] REST API키:2b61cab1882f996f30bd9e925a1ec3f8 / 앱ID:1409363 / Redirect:https://foundry.ai.kr/api/auth/kakao/callback
 ```

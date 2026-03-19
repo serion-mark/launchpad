@@ -1,10 +1,15 @@
-import { Controller, Post, Get, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Get, Body, Query, Res, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ConfigService } from '@nestjs/config';
+import type { Response } from 'express';
 import { AuthService } from './auth.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private auth: AuthService) {}
+  constructor(
+    private auth: AuthService,
+    private config: ConfigService,
+  ) {}
 
   @Post('signup')
   signup(@Body() body: { email: string; password: string; name?: string }) {
@@ -20,5 +25,35 @@ export class AuthController {
   @UseGuards(AuthGuard('jwt'))
   getProfile(@Req() req: any) {
     return this.auth.getProfile(req.user.userId);
+  }
+
+  /** 카카오 로그인 시작 — 프론트에서 이 URL로 리다이렉트 */
+  @Get('kakao')
+  kakaoLogin(@Res() res: Response) {
+    const clientId = this.config.get('KAKAO_CLIENT_ID');
+    const redirectUri = this.config.get('KAKAO_REDIRECT_URI');
+    const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`;
+    res.redirect(kakaoAuthUrl);
+  }
+
+  /** 카카오 콜백 — code → access_token → 사용자정보 → JWT 발급 → 프론트 리다이렉트 */
+  @Get('kakao/callback')
+  async kakaoCallback(@Query('code') code: string, @Query('error') error: string, @Res() res: Response) {
+    const frontendUrl = this.config.get('FRONTEND_URL') || 'https://foundry.ai.kr';
+
+    if (error || !code) {
+      return res.redirect(`${frontendUrl}/login?error=kakao_denied`);
+    }
+
+    try {
+      const result = await this.auth.kakaoLogin(code);
+      // JWT를 쿼리 파라미터로 프론트에 전달
+      return res.redirect(
+        `${frontendUrl}/auth/kakao/callback?token=${result.token}&userId=${result.userId}&email=${encodeURIComponent(result.email)}`,
+      );
+    } catch (err) {
+      console.error('카카오 로그인 실패:', err);
+      return res.redirect(`${frontendUrl}/login?error=kakao_failed`);
+    }
   }
 }

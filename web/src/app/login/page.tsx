@@ -12,6 +12,16 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // 카카오 로그인 실패 시 에러 표시
+  useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const kakaoError = params.get('error');
+      if (kakaoError === 'kakao_denied') setError('카카오 로그인이 취소되었습니다');
+      else if (kakaoError === 'kakao_failed') setError('카카오 로그인에 실패했습니다. 다시 시도해주세요');
+    }
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -140,12 +150,17 @@ export default function LoginPage() {
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[#2c2c35]" /></div>
               <div className="relative flex justify-center text-xs"><span className="bg-[#1b1b21] px-3 text-[#6b7684]">간편 로그인</span></div>
             </div>
-            <div className="grid grid-cols-4 gap-3">
+            {/* 카카오 로그인 */}
+            <button
+              onClick={() => { window.location.href = `${API_BASE}/auth/kakao`; }}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#FEE500] py-3.5 text-[#191919] font-semibold text-sm hover:bg-[#F5DC00] transition-colors"
+            >
+              <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#191919" d="M9 1C4.58 1 1 3.79 1 7.21c0 2.17 1.45 4.08 3.64 5.18-.16.57-.58 2.07-.67 2.39-.1.4.15.39.31.28.13-.08 2.04-1.38 2.86-1.94.6.09 1.22.13 1.86.13 4.42 0 8-2.79 8-6.24S13.42 1 9 1"/></svg>
+              카카오로 시작하기
+            </button>
+            <div className="mt-3 grid grid-cols-3 gap-3">
               <button disabled className="flex items-center justify-center rounded-xl bg-[#03C75A] py-3 text-white opacity-40 cursor-not-allowed" title="준비 중">
                 <span className="text-sm font-bold">N</span>
-              </button>
-              <button disabled className="flex items-center justify-center rounded-xl bg-[#FEE500] py-3 text-black opacity-40 cursor-not-allowed" title="준비 중">
-                <span className="text-sm font-bold">K</span>
               </button>
               <button disabled className="flex items-center justify-center rounded-xl bg-white py-3 text-black opacity-40 cursor-not-allowed" title="준비 중">
                 <span className="text-sm font-bold">G</span>
@@ -154,7 +169,6 @@ export default function LoginPage() {
                 <span className="text-sm font-bold"></span>
               </button>
             </div>
-            <p className="mt-3 text-center text-xs text-[#6b7684]">소셜 로그인은 준비 중입니다</p>
           </div>
         </div>
       </div>
