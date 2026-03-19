@@ -37,27 +37,27 @@ type Question = {
 const QUESTIONNAIRES: Record<string, Question[]> = {
   'beauty-salon': [
     { id: 'biz_name', question: '매장(서비스) 이름이 뭔가요?', chips: ['헤어살롱 뷰티', '스타일 스튜디오', '○○ 헤어'] },
-    { id: 'target', question: '주 고객층은 어떻게 되나요?', chips: ['여성 전문', '남성 전문', '남녀 공용', '키즈 포함'] },
+    { id: 'target', question: '주 고객층은 어떻게 되나요?', chips: ['여성 전문', '남성 전문', '남녀 공용', '키즈 포함'], multi: true },
     { id: 'staff', question: '디자이너(스태프)는 몇 명인가요?', chips: ['1명 (1인샵)', '2~5명', '6~10명', '10명 이상'] },
     { id: 'booking', question: '어떤 예약 방식이 필요한가요?', chips: ['전화 예약', '온라인 예약', '카카오톡 예약', '워크인(현장 접수)'], multi: true },
     { id: 'features', question: '꼭 필요한 기능을 골라주세요!', chips: ['매출/정산 관리', '고객 CRM', '포인트 적립', '알림톡 발송', '재고 관리', '디자이너 성과'], multi: true },
-    { id: 'pain', question: '현재 가장 불편한 점은?', chips: ['예약 관리가 복잡해요', '매출 정산이 어려워요', '고객 기록이 없어요', '노쇼가 많아요'] },
+    { id: 'pain', question: '현재 가장 불편한 점은?', chips: ['예약 관리가 복잡해요', '매출 정산이 어려워요', '고객 기록이 없어요', '노쇼가 많아요'], multi: true },
   ],
   'ecommerce': [
     { id: 'biz_name', question: '쇼핑몰 이름이 뭔가요?', chips: ['스타일샵', '○○ 마켓', '핸드메이드 스토어'] },
-    { id: 'product', question: '어떤 상품을 판매하시나요?', chips: ['의류/패션', '뷰티/화장품', '식품/음료', '전자제품', '핸드메이드/공예'] },
+    { id: 'product', question: '어떤 상품을 판매하시나요?', chips: ['의류/패션', '뷰티/화장품', '식품/음료', '전자제품', '핸드메이드/공예'], multi: true },
     { id: 'delivery', question: '배송 방식은?', chips: ['택배 배송', '당일 배송', '픽업 (직접 수령)', '디지털 상품 (다운로드)'], multi: true },
     { id: 'features', question: '필요한 기능을 골라주세요!', chips: ['장바구니', '쿠폰/할인', '리뷰/평점', '재고 관리', '회원 등급', '정기구독'], multi: true },
     { id: 'payment', question: '결제 수단은?', chips: ['카드 결제', '계좌이체', '네이버페이', '카카오페이'], multi: true },
-    { id: 'pain', question: '가장 해결하고 싶은 문제는?', chips: ['상품 등록이 번거로워요', '주문 관리가 어려워요', '재고 파악이 안 돼요', '고객 CS가 힘들어요'] },
+    { id: 'pain', question: '가장 해결하고 싶은 문제는?', chips: ['상품 등록이 번거로워요', '주문 관리가 어려워요', '재고 파악이 안 돼요', '고객 CS가 힘들어요'], multi: true },
   ],
   'booking-crm': [
     { id: 'biz_name', question: '사업체 이름이 뭔가요?', chips: ['○○ 클리닉', '○○ 피트니스', '○○ 학원'] },
-    { id: 'industry', question: '어떤 업종인가요?', chips: ['병원/클리닉', '피트니스/요가', '학원/교육', '식당/카페', '펜션/숙박'] },
+    { id: 'industry', question: '어떤 업종인가요?', chips: ['병원/클리닉', '피트니스/요가', '학원/교육', '식당/카페', '펜션/숙박'], multi: true },
     { id: 'staff', question: '스태프는 몇 명인가요?', chips: ['1명 (1인 운영)', '2~5명', '6~10명', '10명 이상'] },
-    { id: 'booking_type', question: '예약 형태는?', chips: ['시간대별 예약', '날짜별 예약', '코스/프로그램 등록', '대기열 (순서대로)'] },
+    { id: 'booking_type', question: '예약 형태는?', chips: ['시간대별 예약', '날짜별 예약', '코스/프로그램 등록', '대기열 (순서대로)'], multi: true },
     { id: 'features', question: '필요한 기능은?', chips: ['온라인 예약 페이지', '고객 CRM', '매출 관리', '알림톡/SMS 발송', '출석 체크', '통계 대시보드'], multi: true },
-    { id: 'pain', question: '가장 불편한 점은?', chips: ['예약 중복이 잦아요', '노쇼가 많아요', '고객 관리가 안 돼요', '매출 파악이 어려워요'] },
+    { id: 'pain', question: '가장 불편한 점은?', chips: ['예약 중복이 잦아요', '노쇼가 많아요', '고객 관리가 안 돼요', '매출 파악이 어려워요'], multi: true },
   ],
 };
 
@@ -245,27 +245,42 @@ function BuilderContent() {
     }
   };
 
-  // ── 칩 클릭 (복수선택 지원) ────────────────────────
+  // ── 칩 클릭 (복수선택 + 직접추가 지원) ─────────────
   const [selectedChips, setSelectedChips] = useState<string[]>([]);
+  const [customChips, setCustomChips] = useState<string[]>([]);
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [customInputValue, setCustomInputValue] = useState('');
 
   const handleChipClick = (chip: string) => {
     const currentQ = questions[questionIndex];
     if (currentQ?.multi) {
-      // 복수 선택: 토글
       const newSelected = selectedChips.includes(chip)
         ? selectedChips.filter(c => c !== chip)
         : [...selectedChips, chip];
       setSelectedChips(newSelected);
     } else {
-      // 단일 선택: 바로 전송
       handleAnswer(chip);
     }
   };
 
+  const addCustomChip = () => {
+    if (!customInputValue.trim()) return;
+    setCustomChips(prev => [...prev, customInputValue.trim()]);
+    setCustomInputValue('');
+    setShowCustomInput(false);
+  };
+
+  const removeCustomChip = (chip: string) => {
+    setCustomChips(prev => prev.filter(c => c !== chip));
+  };
+
   const submitMultiChips = () => {
-    if (selectedChips.length > 0) {
-      handleAnswer(selectedChips.join(', '));
+    const all = [...selectedChips, ...customChips];
+    if (all.length > 0) {
+      handleAnswer(all.join(', '));
       setSelectedChips([]);
+      setCustomChips([]);
+      setShowCustomInput(false);
     }
   };
 
@@ -275,6 +290,16 @@ function BuilderContent() {
 
     // 질문지 모드에서 직접 입력
     if (buildPhase === 'questionnaire') {
+      // 복수선택 중이면 입력값도 추가로 합침
+      const currentQ = questions[questionIndex];
+      if (currentQ?.multi && (selectedChips.length > 0 || customChips.length > 0)) {
+        const all = [...selectedChips, ...customChips, input.trim()];
+        handleAnswer(all.join(', '));
+        setSelectedChips([]);
+        setCustomChips([]);
+        setInput('');
+        return;
+      }
       handleAnswer(input.trim());
       setInput('');
       return;
@@ -388,12 +413,82 @@ function BuilderContent() {
     } catch { /* */ }
   };
 
-  // ── 미리보기 HTML ─────────────────────────────────
-  const previewHtml: Record<string, string> = {
-    'beauty-salon': `<div style="font-family:system-ui;background:#f8fafc;min-height:100vh;padding:20px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px"><h1 style="font-size:20px;font-weight:700">💇 ${answers.biz_name || '미용실 POS'}</h1><span style="background:#3b82f6;color:white;padding:4px 12px;border-radius:6px;font-size:12px">관리자</span></div><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px"><div style="background:white;padding:16px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08)"><div style="font-size:11px;color:#64748b">오늘 매출</div><div style="font-size:22px;font-weight:700">₩1,280,000</div></div><div style="background:white;padding:16px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08)"><div style="font-size:11px;color:#64748b">오늘 예약</div><div style="font-size:22px;font-weight:700">12건</div></div></div><div style="background:white;padding:16px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08)"><div style="font-size:14px;font-weight:600;margin-bottom:12px">예약 현황</div><div style="font-size:13px;padding:8px 0;border-bottom:1px solid #f1f5f9">10:00 김지현 - 커트+염색</div><div style="font-size:13px;padding:8px 0;border-bottom:1px solid #f1f5f9">11:30 이서윤 - 디지털펌</div><div style="font-size:13px;padding:8px 0">13:00 박민준 - 남성 커트</div></div></div>`,
-    'ecommerce': `<div style="font-family:system-ui;min-height:100vh"><div style="background:#1e293b;color:white;padding:12px 20px;display:flex;justify-content:space-between;align-items:center;font-size:14px"><span style="font-weight:700">🛍 ${answers.biz_name || 'STYLE SHOP'}</span><span>🛒 3</span></div><div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:40px 20px;text-align:center;color:white"><div style="font-size:24px;font-weight:700">SPRING SALE</div><div style="font-size:14px;opacity:.8;margin-top:4px">최대 30% OFF</div></div><div style="padding:16px;display:grid;grid-template-columns:repeat(2,1fr);gap:12px"><div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden"><div style="background:#fef3c7;padding:32px;text-align:center;font-size:36px">👗</div><div style="padding:12px"><div style="font-weight:600;font-size:13px">린넨 원피스</div><div style="color:#ef4444;font-weight:700;font-size:14px">₩62,300</div></div></div><div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden"><div style="background:#dbeafe;padding:32px;text-align:center;font-size:36px">👜</div><div style="padding:12px"><div style="font-weight:600;font-size:13px">미니 크로스백</div><div style="color:#ef4444;font-weight:700;font-size:14px">₩31,500</div></div></div></div></div>`,
-    'booking-crm': `<div style="font-family:system-ui;background:#f0fdf4;min-height:100vh;padding:20px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px"><h1 style="font-size:20px;font-weight:700">🏥 ${answers.biz_name || '예약 시스템'}</h1><span style="background:#16a34a;color:white;padding:4px 12px;border-radius:6px;font-size:12px">원장님</span></div><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px"><div style="background:white;padding:16px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08)"><div style="font-size:11px;color:#64748b">오늘 예약</div><div style="font-size:22px;font-weight:700">18건</div></div><div style="background:white;padding:16px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08)"><div style="font-size:11px;color:#64748b">온라인 예약</div><div style="font-size:22px;font-weight:700">34%</div></div></div><div style="background:white;padding:16px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.08)"><div style="font-size:14px;font-weight:600;margin-bottom:12px">진료 일정</div><div style="font-size:13px;padding:8px 0;border-bottom:1px solid #f1f5f9">09:00 김철수 - 일반 진료</div><div style="font-size:13px;padding:8px 0;border-bottom:1px solid #f1f5f9">09:30 박영희 - 건강검진</div><div style="font-size:13px;padding:8px 0">10:00 이민호 - 재활치료</div></div></div>`,
+  // ── 질문 되돌아가기 ─────────────────────────────────
+  const handleGoBack = () => {
+    if (questionIndex <= 0 || buildPhase !== 'questionnaire') return;
+    // 마지막 2개 메시지 제거 (유저 답변 + AI 질문)
+    setMessages(prev => prev.slice(0, -2));
+    const prevIdx = questionIndex - 1;
+    setQuestionIndex(prevIdx);
+    // 이전 답변도 삭제
+    const prevQ = questions[prevIdx];
+    setAnswers(prev => { const n = { ...prev }; delete n[prevQ.id]; return n; });
+    setSelectedChips([]);
+    setCustomChips([]);
   };
+
+  // ── 답변 기반 동적 랜딩페이지 생성 (무료 맛보기) ────
+  const generateDynamicPreview = (): string => {
+    const name = answers.biz_name || project?.name || '내 서비스';
+    const features = (answers.features || '').split(', ').filter(Boolean);
+    const featureCards = features.map(f =>
+      `<div style="background:white;padding:14px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:8px;background:#3b82f6;display:flex;align-items:center;justify-content:center;color:white;font-size:16px;flex-shrink:0">✓</div><div style="font-size:13px;font-weight:500">${f}</div></div>`
+    ).join('');
+
+    if (templateId === 'beauty-salon') {
+      const target = answers.target || '남녀 공용';
+      const staff = answers.staff || '';
+      const booking = answers.booking || '';
+      return `<div style="font-family:system-ui;background:#f8fafc;min-height:100vh">
+        <div style="background:linear-gradient(135deg,#3b82f6,#8b5cf6);padding:28px 20px;color:white">
+          <h1 style="font-size:22px;font-weight:800;margin-bottom:4px">✂️ ${name}</h1>
+          <p style="font-size:12px;opacity:.8">${target} · ${staff}</p>
+        </div>
+        <div style="padding:16px;display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px">
+          <div style="background:white;padding:14px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center"><div style="font-size:10px;color:#64748b">오늘 매출</div><div style="font-size:20px;font-weight:700;color:#3b82f6">₩1,280,000</div></div>
+          <div style="background:white;padding:14px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center"><div style="font-size:10px;color:#64748b">오늘 예약</div><div style="font-size:20px;font-weight:700;color:#8b5cf6">12건</div></div>
+        </div>
+        ${booking ? `<div style="padding:0 16px 8px"><div style="background:#eef2ff;padding:10px 14px;border-radius:8px;font-size:11px;color:#4338ca">예약 방식: ${booking}</div></div>` : ''}
+        <div style="padding:0 16px"><div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#1e293b">포함된 기능</div><div style="display:grid;gap:8px">${featureCards || '<div style="color:#94a3b8;font-size:12px">질문지를 완료하면 기능이 표시됩니다</div>'}</div></div>
+        <div style="padding:16px"><div style="background:white;padding:14px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:13px;font-weight:600;margin-bottom:10px">오늘 예약</div><div style="font-size:12px;padding:6px 0;border-bottom:1px solid #f1f5f9">10:00 김지현 - 커트+염색</div><div style="font-size:12px;padding:6px 0;border-bottom:1px solid #f1f5f9">11:30 이서윤 - 디지털펌</div><div style="font-size:12px;padding:6px 0">13:00 박민준 - 남성 커트</div></div></div>
+      </div>`;
+    }
+
+    if (templateId === 'ecommerce') {
+      const product = answers.product || '상품';
+      const delivery = answers.delivery || '';
+      const payment = answers.payment || '';
+      return `<div style="font-family:system-ui;min-height:100vh;background:#f8fafc">
+        <div style="background:#1e293b;color:white;padding:14px 20px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;font-size:16px">🛍 ${name}</span><span style="background:#3b82f6;padding:4px 10px;border-radius:20px;font-size:11px">🛒 장바구니</span></div>
+        <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:32px 20px;text-align:center;color:white"><div style="font-size:20px;font-weight:700">GRAND OPEN</div><div style="font-size:12px;opacity:.8;margin-top:4px">${product} 전문 쇼핑몰</div></div>
+        <div style="padding:16px;display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
+          <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;background:white"><div style="background:#fef3c7;padding:28px;text-align:center;font-size:32px">👗</div><div style="padding:10px"><div style="font-weight:600;font-size:12px">인기 상품 A</div><div style="color:#ef4444;font-weight:700;font-size:13px">₩39,900</div></div></div>
+          <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;background:white"><div style="background:#dbeafe;padding:28px;text-align:center;font-size:32px">👜</div><div style="padding:10px"><div style="font-weight:600;font-size:12px">인기 상품 B</div><div style="color:#ef4444;font-weight:700;font-size:13px">₩25,000</div></div></div>
+        </div>
+        ${delivery ? `<div style="padding:8px 16px"><div style="background:#f0fdf4;padding:10px 14px;border-radius:8px;font-size:11px;color:#15803d">배송: ${delivery}</div></div>` : ''}
+        ${payment ? `<div style="padding:0 16px 8px"><div style="background:#eef2ff;padding:10px 14px;border-radius:8px;font-size:11px;color:#4338ca">결제: ${payment}</div></div>` : ''}
+        <div style="padding:0 16px"><div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#1e293b">포함된 기능</div><div style="display:grid;gap:8px">${featureCards}</div></div>
+      </div>`;
+    }
+
+    // booking-crm
+    const industry = answers.industry || '예약';
+    const bookingType = answers.booking_type || '';
+    return `<div style="font-family:system-ui;background:#f8fafc;min-height:100vh">
+      <div style="background:linear-gradient(135deg,#16a34a,#059669);padding:28px 20px;color:white">
+        <h1 style="font-size:22px;font-weight:800;margin-bottom:4px">📅 ${name}</h1>
+        <p style="font-size:12px;opacity:.8">${industry} · ${bookingType}</p>
+      </div>
+      <div style="padding:16px;display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px">
+        <div style="background:white;padding:14px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center"><div style="font-size:10px;color:#64748b">오늘 예약</div><div style="font-size:20px;font-weight:700;color:#16a34a">18건</div></div>
+        <div style="background:white;padding:14px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center"><div style="font-size:10px;color:#64748b">온라인 비율</div><div style="font-size:20px;font-weight:700;color:#059669">34%</div></div>
+      </div>
+      <div style="padding:0 16px"><div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#1e293b">포함된 기능</div><div style="display:grid;gap:8px">${featureCards || '<div style="color:#94a3b8;font-size:12px">질문지를 완료하면 기능이 표시됩니다</div>'}</div></div>
+      <div style="padding:16px"><div style="background:white;padding:14px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:13px;font-weight:600;margin-bottom:10px">오늘 일정</div><div style="font-size:12px;padding:6px 0;border-bottom:1px solid #f1f5f9">09:00 김철수 - 진료</div><div style="font-size:12px;padding:6px 0;border-bottom:1px solid #f1f5f9">09:30 박영희 - 상담</div><div style="font-size:12px;padding:6px 0">10:00 이민호 - 체험</div></div></div>
+    </div>`;
+  };
+
+  const previewHtml = generateDynamicPreview();
 
   // 현재 질문의 칩 (마지막 assistant 메시지)
   const lastAssistantMsg = [...messages].reverse().find(m => m.role === 'assistant' && m.chips);
@@ -452,7 +547,7 @@ function BuilderContent() {
                 </div>
               )}
               <iframe
-                srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}</style></head><body>${previewHtml[previewTemplate] || ''}</body></html>`}
+                srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}</style></head><body>${previewHtml}</body></html>`}
                 className="w-full border-0"
                 style={{ height: previewMode === 'mobile' ? '656px' : '600px' }}
                 title="Live Preview"
@@ -530,26 +625,73 @@ function BuilderContent() {
 
             {/* 예시 답변 칩 */}
             {currentChips.length > 0 && !isTyping && (
-              <div className="flex flex-wrap gap-2 pl-2">
-                {currentChips.map(chip => (
+              <div className="space-y-2 pl-2">
+                {/* 되돌아가기 버튼 */}
+                {questionIndex > 0 && (
                   <button
-                    key={chip}
-                    onClick={() => handleChipClick(chip)}
-                    className={`rounded-xl border px-4 py-2 text-sm transition-all ${
-                      selectedChips.includes(chip)
-                        ? 'border-[#3182f6] bg-[#3182f6]/20 text-[#3182f6]'
-                        : 'border-[#2c2c35] bg-[#2c2c35] text-[#f2f4f6] hover:border-[#3182f6] hover:bg-[#3182f6]/10'
-                    }`}
+                    onClick={handleGoBack}
+                    className="rounded-lg border border-[#2c2c35] px-3 py-1.5 text-xs text-[#8b95a1] hover:text-[#f2f4f6] hover:border-[#3a3a45] transition-colors"
                   >
-                    {chip}
+                    ← 이전 질문
                   </button>
-                ))}
-                {currentQ?.multi && selectedChips.length > 0 && (
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {currentChips.map(chip => (
+                    <button
+                      key={chip}
+                      onClick={() => handleChipClick(chip)}
+                      className={`rounded-xl border px-4 py-2 text-sm transition-all ${
+                        selectedChips.includes(chip)
+                          ? 'border-[#3182f6] bg-[#3182f6]/20 text-[#3182f6]'
+                          : 'border-[#2c2c35] bg-[#2c2c35] text-[#f2f4f6] hover:border-[#3182f6] hover:bg-[#3182f6]/10'
+                      }`}
+                    >
+                      {chip}
+                    </button>
+                  ))}
+                  {/* 직접 추가 버튼 */}
+                  {currentQ?.multi && !showCustomInput && (
+                    <button
+                      onClick={() => setShowCustomInput(true)}
+                      className="rounded-xl border border-dashed border-[#4e5968] px-4 py-2 text-sm text-[#8b95a1] hover:border-[#3182f6] hover:text-[#3182f6] transition-colors"
+                    >
+                      + 직접 추가
+                    </button>
+                  )}
+                </div>
+                {/* 직접 추가 입력 */}
+                {showCustomInput && (
+                  <div className="flex gap-2">
+                    <input
+                      value={customInputValue}
+                      onChange={e => setCustomInputValue(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && addCustomChip()}
+                      placeholder="추가할 항목 입력..."
+                      className="flex-1 rounded-xl border border-[#2c2c35] bg-[#2c2c35] px-4 py-2 text-sm text-[#f2f4f6] placeholder-[#6b7684] outline-none focus:border-[#3182f6]"
+                      autoFocus
+                    />
+                    <button onClick={addCustomChip} className="rounded-xl bg-[#3182f6] px-4 py-2 text-sm font-bold text-white">추가</button>
+                    <button onClick={() => setShowCustomInput(false)} className="rounded-xl bg-[#2c2c35] px-3 py-2 text-sm text-[#8b95a1]">취소</button>
+                  </div>
+                )}
+                {/* 직접 추가된 칩들 */}
+                {customChips.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {customChips.map(chip => (
+                      <span key={chip} className="flex items-center gap-1.5 rounded-xl border border-[#30d158] bg-[#30d158]/15 px-3 py-1.5 text-sm text-[#30d158]">
+                        {chip}
+                        <button onClick={() => removeCustomChip(chip)} className="text-xs opacity-60 hover:opacity-100">✕</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {/* 선택 완료 버튼 */}
+                {currentQ?.multi && (selectedChips.length > 0 || customChips.length > 0) && (
                   <button
                     onClick={submitMultiChips}
-                    className="rounded-xl bg-[#3182f6] px-5 py-2 text-sm font-bold text-white hover:bg-[#1b64da] transition-colors"
+                    className="rounded-xl bg-[#3182f6] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#1b64da] transition-colors"
                   >
-                    선택 완료 ({selectedChips.length}개)
+                    선택 완료 ({selectedChips.length + customChips.length}개)
                   </button>
                 )}
               </div>
