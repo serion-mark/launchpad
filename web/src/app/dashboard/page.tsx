@@ -117,12 +117,12 @@ export default function DashboardPage() {
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight">내 프로젝트</h1>
             <p className="mt-1.5 text-sm text-[#8b95a1]">{projects.length}개의 프로젝트</p>
           </div>
-          <button
-            onClick={() => setShowNew(true)}
+          <a
+            href="/"
             className="rounded-xl bg-[#3182f6] px-5 py-3 text-sm font-bold text-white hover:bg-[#1b64da] transition-colors flex items-center gap-2"
           >
             <span className="text-lg leading-none">+</span> 새 프로젝트
-          </button>
+          </a>
         </div>
 
         {/* 프로젝트 목록 */}
@@ -131,12 +131,12 @@ export default function DashboardPage() {
             <div className="mb-6 text-6xl">🚀</div>
             <h2 className="mb-3 text-xl font-bold">아직 프로젝트가 없습니다</h2>
             <p className="mb-7 text-[#8b95a1]">AI가 풀스택 MVP를 만들어드립니다. 첫 프로젝트를 시작하세요!</p>
-            <button
-              onClick={() => setShowNew(true)}
-              className="rounded-xl bg-[#3182f6] px-7 py-3.5 text-[15px] font-bold text-white hover:bg-[#1b64da] transition-colors"
+            <a
+              href="/"
+              className="rounded-xl bg-[#3182f6] px-7 py-3.5 text-[15px] font-bold text-white hover:bg-[#1b64da] transition-colors inline-block"
             >
               첫 프로젝트 만들기
-            </button>
+            </a>
           </div>
         ) : (
           <div className="grid gap-5 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
