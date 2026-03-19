@@ -91,7 +91,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     const user = getUser();
-    if (!user) { setIsAdmin(false); return; }
+    if (!user) { window.location.href = '/login?redirect=/admin'; return; }
     // 어드민 체크: dashboard API 호출해서 403이면 비어드민
     authFetch('/admin/dashboard').then(res => {
       if (res.ok) {
