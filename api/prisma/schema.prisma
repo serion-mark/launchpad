@@ -24,6 +24,7 @@ model User {
 
   projects      Project[]
   invoices      Invoice[]
+  creditBalance CreditBalance?
   @@map("users")
 }
 
@@ -81,4 +82,42 @@ model PaymentEvent {
 
   @@index([userId, processedAt])
   @@map("payment_events")
+}
+
+// ── 크레딧 시스템 ────────────────────────────────────
+model CreditBalance {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  balance        Int      @default(0)            // 현재 잔액
+  totalCharged   Int      @default(0)            // 누적 충전
+  totalUsed      Int      @default(0)            // 누적 사용
+  freeTrialUsed  Boolean  @default(false)        // 맛보기 설계안 사용 여부
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user           User     @relation(fields: [userId], references: [id])
+  transactions   CreditTransaction[]
+
+  @@map("credit_balances")
+}
+
+model CreditTransaction {
+  id             String   @id @default(cuid())
+  userId         String
+  balanceId      String
+  type           String                          // CHARGE, USE, REFUND, FREE_TRIAL, SIGNUP_BONUS
+  amount         Int                             // 양수=충전, 음수=차감
+  balanceAfter   Int                             // 트랜잭션 후 잔액
+  description    String?                         // "라이트팩 구매", "앱 생성: 미용실 POS" 등
+  projectId      String?                         // 사용 시 프로젝트 연결
+  taskType       String?                         // architecture, frontend, backend, schema, modify, chat
+  modelTier      String?                         // fast, standard, premium
+  paymentRefId   String?                         // 토스 결제 참조 ID
+  createdAt      DateTime @default(now())
+
+  balance        CreditBalance @relation(fields: [balanceId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([type])
+  @@map("credit_transactions")
 }

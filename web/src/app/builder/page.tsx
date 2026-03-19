@@ -25,18 +25,61 @@ type ProjectData = {
   generatedCode: any;
 };
 
-const DEMO_RESPONSES: Record<string, string> = {
-  '미용실': `좋습니다! 미용실 예약/POS 시스템을 만들어 드리겠습니다.\n\n**포함될 기능:**\n- 예약 관리 (타임라인 뷰)\n- 매출/결제 관리\n- 고객 CRM\n- 디자이너 관리\n- 매출 대시보드\n\n기본 디자인 테마는 **베이직 라이트**로 설정했습니다.\n다른 테마로 변경하시겠어요, 아니면 바로 생성할까요?`,
-  '쇼핑몰': `쇼핑몰을 만들어 드리겠습니다!\n\n**포함될 기능:**\n- 상품 관리 (카테고리, 재고)\n- 장바구니 + 결제 (토스페이먼츠)\n- 주문/배송 관리\n- 회원 관리\n- 관리자 대시보드\n\n어떤 종류의 상품을 판매하시나요? (의류, 식품, 전자제품 등)`,
-  '예약': `예약 관리 시스템을 만들어 드리겠습니다!\n\n**포함될 기능:**\n- 온라인 예약 페이지\n- 예약 캘린더 (일/주/월)\n- 고객 관리 (CRM)\n- 알림 (카카오톡/SMS)\n- 통계 대시보드\n\n어떤 업종의 예약 시스템인가요? (병원, 피트니스, 학원, 식당 등)`,
-};
-
-function getAIResponse(input: string): string {
-  const lower = input.toLowerCase();
-  for (const [key, response] of Object.entries(DEMO_RESPONSES)) {
-    if (lower.includes(key)) return response;
+// AI 채팅 API 호출
+async function callAiChat(params: {
+  projectId: string;
+  message: string;
+  chatHistory: { role: string; content: string }[];
+  template?: string;
+}): Promise<string> {
+  try {
+    const res = await authFetch('/ai/chat', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      console.error('AI Chat error:', err);
+      return `죄송합니다. AI 응답에 실패했습니다. 다시 시도해주세요.\n\n(오류: ${res.status})`;
+    }
+    const data = await res.json();
+    return data.content;
+  } catch (e: any) {
+    console.error('AI Chat network error:', e);
+    return '네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
   }
-  return `네, 이해했습니다! "${input}"을 반영하겠습니다.\n\n변경 사항을 적용 중입니다... 왼쪽 미리보기에서 실시간으로 확인하실 수 있습니다.\n\n추가로 수정하고 싶은 부분이 있으면 말씀해주세요!`;
+}
+
+// 앱 생성 API 호출
+async function callAiGenerate(params: {
+  projectId: string;
+  chatHistory: { role: string; content: string }[];
+  template: string;
+}): Promise<{ architecture: any; isFreeTrial: boolean } | null> {
+  try {
+    const res = await authFetch('/ai/generate', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      // 크레딧 부족 처리
+      if (res.status === 403) {
+        try {
+          const parsed = JSON.parse(JSON.parse(err).message);
+          if (parsed.code === 'INSUFFICIENT_CREDITS') {
+            return null; // 크레딧 부족
+          }
+        } catch { /* */ }
+      }
+      console.error('AI Generate error:', err);
+      return null;
+    }
+    return await res.json();
+  } catch (e: any) {
+    console.error('AI Generate network error:', e);
+    return null;
+  }
 }
 
 export default function BuilderPage() {
@@ -62,6 +105,7 @@ function BuilderContent() {
   const [previewTemplate, setPreviewTemplate] = useState<string | null>(null);
   const [mode, setMode] = useState<'build' | 'discuss'>('build');
   const [saving, setSaving] = useState(false);
+  const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -69,6 +113,11 @@ function BuilderContent() {
   useEffect(() => {
     if (!getUser()) { window.location.href = '/login'; return; }
     if (!projectId) { window.location.href = '/dashboard'; return; }
+
+    // 크레딧 잔액 조회
+    authFetch('/credits/balance').then(r => r.ok ? r.json() : null).then(d => {
+      if (d) setCreditBalance(d.balance);
+    }).catch(() => {});
 
     (async () => {
       try {
@@ -166,7 +215,7 @@ function BuilderContent() {
   }, [messages]);
 
   const sendMessage = async () => {
-    if (!input.trim() || isTyping) return;
+    if (!input.trim() || isTyping || !projectId) return;
 
     const userMsg: Message = {
       id: Date.now().toString(), role: 'user',
@@ -178,6 +227,7 @@ function BuilderContent() {
     setInput('');
     setIsTyping(true);
 
+    // 미리보기 템플릿 자동 감지
     const lower = input.toLowerCase();
     if (lower.includes('미용실') || lower.includes('헤어') || lower.includes('살롱')) {
       setPreviewTemplate('beauty-salon');
@@ -187,12 +237,21 @@ function BuilderContent() {
       setPreviewTemplate('booking-crm');
     }
 
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1500));
+    // 실제 AI API 호출
+    const chatHistory = newMessages
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .map(m => ({ role: m.role, content: m.content }));
 
-    const aiResponse = getAIResponse(input);
+    const aiContent = await callAiChat({
+      projectId,
+      message: input.trim(),
+      chatHistory: chatHistory.slice(-10), // 최근 10개만 전송 (토큰 절약)
+      template: previewTemplate || undefined,
+    });
+
     const aiMsg: Message = {
       id: (Date.now() + 1).toString(), role: 'assistant',
-      content: aiResponse, timestamp: new Date().toISOString(), type: 'text',
+      content: aiContent, timestamp: new Date().toISOString(), type: 'text',
     };
 
     const updatedMessages = [...newMessages, aiMsg];
@@ -202,43 +261,57 @@ function BuilderContent() {
   };
 
   const handleGenerate = async () => {
+    if (!projectId) return;
     setBuildPhase('generating');
 
-    if (projectId) {
-      await authFetch(`/projects/${projectId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: 'generating' }),
-      });
-    }
+    await authFetch(`/projects/${projectId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'generating' }),
+    });
 
     const statusMsg: Message = {
       id: Date.now().toString(), role: 'system',
-      content: '앱을 생성하고 있습니다...', timestamp: new Date().toISOString(), type: 'status',
+      content: '📐 AI가 앱 아키텍처를 설계하고 있습니다...', timestamp: new Date().toISOString(), type: 'status',
     };
     setMessages(prev => [...prev, statusMsg]);
 
-    const steps = [
-      '📐 아키텍처 설계 중...',
-      '🗄️ 데이터베이스 스키마 생성 중...',
-      '⚙️ 백엔드 API 생성 중...',
-      '🎨 프론트엔드 UI 생성 중...',
-      '🔐 인증 시스템 설정 중...',
-      '앱 생성 완료!',
-    ];
+    // 대화 내역으로 AI 앱 생성 호출
+    const chatHistory = messages
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .map(m => ({ role: m.role, content: m.content }));
 
-    for (const step of steps) {
-      await new Promise(resolve => setTimeout(resolve, 1200));
+    const result = await callAiGenerate({
+      projectId,
+      chatHistory,
+      template: previewTemplate || project?.template || 'beauty-salon',
+    });
+
+    if (!result) {
+      // 크레딧 부족 or 오류
+      setBuildPhase('designing');
       setMessages(prev => [...prev, {
-        id: Date.now().toString(), role: 'system',
-        content: step, timestamp: new Date().toISOString(), type: 'status',
+        id: Date.now().toString(), role: 'assistant',
+        content: '크레딧이 부족합니다! 앱을 생성하려면 크레딧을 충전해주세요.\n\n[크레딧 충전하기 →](/credits)',
+        timestamp: new Date().toISOString(), type: 'text',
       }]);
+
+      await authFetch(`/projects/${projectId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: 'draft' }),
+      });
+      return;
     }
 
     setBuildPhase('done');
 
+    const arch = result.architecture;
+    const pages = arch.pages?.length || 0;
+    const apis = arch.apiEndpoints?.length || 0;
+    const models = arch.dbModels?.length || 0;
+
     const doneMsg: Message = {
       id: Date.now().toString(), role: 'assistant',
-      content: `앱이 성공적으로 생성되었습니다!\n\n**생성된 항목:**\n- 프론트엔드: 5개 페이지\n- 백엔드: 12개 API 엔드포인트\n- 데이터베이스: 6개 테이블\n- 인증: JWT + 소셜 로그인\n\n**다음 단계:**\n1. 왼쪽 미리보기에서 앱을 확인하세요\n2. 수정이 필요하면 채팅으로 말씀해주세요\n3. 완료되면 "배포" 버튼을 눌러주세요`,
+      content: `${result.isFreeTrial ? '**맛보기 설계안 (무료 1회)**\n\n' : ''}앱 아키텍처가 설계되었습니다!\n\n**${arch.appName || '앱'}**\n${arch.description || ''}\n\n**설계된 구성:**\n- 프론트엔드: ${pages}개 페이지\n- 백엔드: ${apis}개 API 엔드포인트\n- 데이터베이스: ${models}개 테이블\n- 주요 기능: ${(arch.features || []).join(', ')}\n\n**다음 단계:**\n1. 왼쪽 미리보기에서 앱 구성을 확인하세요\n2. 수정이 필요하면 채팅으로 말씀해주세요\n3. 완료되면 "배포" 또는 "다운로드" 버튼을 이용하세요`,
       timestamp: new Date().toISOString(), type: 'text',
     };
 
@@ -247,13 +320,6 @@ function BuilderContent() {
       saveChatHistory(final);
       return final;
     });
-
-    if (projectId) {
-      await authFetch(`/projects/${projectId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: 'active' }),
-      });
-    }
   };
 
   const previewHtml: Record<string, string> = {
@@ -336,6 +402,12 @@ function BuilderContent() {
             </div>
           </div>
           <div className="flex items-center gap-2.5">
+            {creditBalance !== null && (
+              <a href="/credits" className="flex items-center gap-1.5 rounded-lg bg-[#2c2c35] px-3 py-1.5 text-xs font-medium text-[#ffd60a] hover:bg-[#3a3a45] transition-colors">
+                <span>⚡</span>
+                <span>{creditBalance.toLocaleString()}</span>
+              </a>
+            )}
             {buildPhase === 'designing' && (
               <button
                 onClick={handleGenerate}

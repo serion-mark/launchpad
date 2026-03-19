@@ -3,6 +3,8 @@ import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { ProjectModule } from './project/project.module';
 import { SubscriptionModule } from './subscription/subscription.module';
+import { CreditModule } from './credit/credit.module';
+import { AiModule } from './ai/ai.module';
 import { PrismaService } from './prisma.service';
 
 @Module({
@@ -11,6 +13,8 @@ import { PrismaService } from './prisma.service';
     AuthModule,
     ProjectModule,
     SubscriptionModule,
+    CreditModule,
+    AiModule,
   ],
   providers: [PrismaService],
   exports: [PrismaService],
