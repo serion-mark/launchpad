@@ -550,20 +550,28 @@ function BuilderContent() {
   };
 
   // ── 업종별 데모 데이터 ──────────────────────────────
-  const demoNames = isEdu ? ['김수진', '이태현', '박지은', '최민호'] :
+  const demoNames = isFacility ? ['101동 김주민', '203동 박입주', '305동 이세대', '402동 최거주'] :
+    isO2O ? ['김고객', '이의뢰', '박주문', '최사용'] :
+    isEdutech ? ['김수진', '이태현', '박지은', '최민호'] :
+    isEdu ? ['김수진', '이태현', '박지은', '최민호'] :
     isClinic ? ['김지현', '이서윤', '박민준', '최하은'] :
     isFitness ? ['김유진', '이준혁', '박소연', '최강민'] :
     isFood ? ['김철수', '이영희', '박상준', '최미경'] :
+    isCommerce ? ['김쇼핑', '이주문', '박구매', '최고객'] :
     isBeauty ? ['김지현', '이서윤', '박민준', '최하은'] :
     ['김지현', '이서윤', '박민준', '최하은'];
-  const demoServices = isEdu ? ['수학 심화', '영어 회화', '과학 실험', '코딩 기초'] :
+  const demoServices = isFacility ? ['누수 수리 요청', '주차 문의', '층간소음 민원', '시설 예약'] :
+    isO2O ? ['청소 매칭', '과외 매칭', '배달 요청', '펫시터 매칭'] :
+    isEdutech ? ['Python 기초', '웹개발 심화', '데이터분석', 'AI 입문'] :
+    isEdu ? ['수학 심화', '영어 회화', '과학 실험', '코딩 기초'] :
     isClinic ? ['일반 진료', '건강검진', '재활치료', '상담'] :
     isFitness ? ['PT 10회', '요가 클래스', '필라테스', '크로스핏'] :
     isFood ? ['4인 테이블', '룸 예약', '단체석', '바 좌석'] :
+    isCommerce ? ['주문 #1082', '주문 #1083', '주문 #1084', '주문 #1085'] :
     isBeauty ? ['커트+펌', '염색', '클리닉', '드라이'] :
     ['서비스 A', '서비스 B', '서비스 C', '서비스 D'];
-  const demoStaffTitle = isBeauty ? '디자이너' : isClinic ? '의사' : isEdu ? '강사' : isFitness ? '트레이너' : '담당자';
-  const demoStaffNames = isEdu ? ['정선생', '김강사'] : isClinic ? ['정원장', '김의사'] : isFitness ? ['정트레이너', '김코치'] : ['정원장', '김매니저'];
+  const demoStaffTitle = isFacility ? '관리자' : isO2O ? '제공자' : isBeauty ? '디자이너' : isClinic ? '의사' : isEdu || isEdutech ? '강사' : isFitness ? '트레이너' : '담당자';
+  const demoStaffNames = isFacility ? ['김관리', '박담당'] : isO2O ? ['김제공자', '박파트너'] : isEdu || isEdutech ? ['정선생', '김강사'] : isClinic ? ['정원장', '김의사'] : isFitness ? ['정트레이너', '김코치'] : ['정원장', '김매니저'];
 
   // ── 메뉴별 화면 콘텐츠 생성 ──────────────────────────
   const generatePageContent = (menuId: string, accent: string): string => {
@@ -573,12 +581,12 @@ function BuilderContent() {
         <span style="background:${accent};color:white;padding:6px 14px;border-radius:8px;font-size:11px;font-weight:600">관리자</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
-        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">${isEdu ? '이번 달 수강료' : '오늘 매출'}</div><div style="font-size:22px;font-weight:700;color:${accent}">${isEdu ? '₩4,200,000' : '₩1,280,000'}</div></div>
-        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">${isEdu ? '오늘 수업' : isFitness ? '오늘 클래스' : '오늘 예약'}</div><div style="font-size:22px;font-weight:700">${isEdu ? '8강' : '12건'}</div></div>
-        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">${isEdu ? '신규 등록' : '신규 고객'}</div><div style="font-size:22px;font-weight:700;color:#16a34a">+3${isEdu ? '명' : '명'}</div></div>
+        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">${isFacility ? '오늘 민원' : isO2O ? '오늘 매칭' : isEdutech ? '활성 수강생' : isEdu ? '이번 달 수강료' : isCommerce ? '오늘 주문' : '오늘 매출'}</div><div style="font-size:22px;font-weight:700;color:${accent}">${isFacility ? '7건' : isO2O ? '23건' : isEdutech ? '248명' : isEdu ? '₩4,200,000' : isCommerce ? '34건' : '₩1,280,000'}</div></div>
+        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">${isFacility ? '처리 완료' : isO2O ? '완료율' : isEdutech ? '오늘 수업' : isEdu ? '오늘 수업' : isFitness ? '오늘 클래스' : isCommerce ? '오늘 매출' : '오늘 예약'}</div><div style="font-size:22px;font-weight:700">${isFacility ? '5건' : isO2O ? '87%' : isEdutech ? '8강' : isEdu ? '8강' : isCommerce ? '₩2,340,000' : '12건'}</div></div>
+        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">${isFacility ? '미처리' : isO2O ? '신규 제공자' : isEdutech ? '수료율' : isEdu ? '신규 등록' : isCommerce ? '신규 가입' : '신규 고객'}</div><div style="font-size:22px;font-weight:700;color:${isFacility ? '#f43f5e' : '#16a34a'}">${isFacility ? '2건' : isO2O ? '+5명' : isEdutech ? '67%' : '+3명'}</div></div>
       </div>
       <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
-        <div style="font-size:14px;font-weight:600;margin-bottom:12px">${isEdu ? '오늘 수업 일정' : '오늘 일정'}</div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:12px">${isFacility ? '최근 민원' : isO2O ? '최근 매칭' : isEdutech ? '오늘 수업' : isEdu ? '오늘 수업 일정' : isCommerce ? '최근 주문' : '오늘 일정'}</div>
         <div style="font-size:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span><b style="color:${accent}">10:00</b> ${demoNames[0]} · ${demoServices[0]}</span><span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:10px">확정</span></div>
         <div style="font-size:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span><b style="color:${accent}">11:30</b> ${demoNames[1]} · ${demoServices[1]}</span><span style="background:#dbeafe;color:#2563eb;padding:2px 8px;border-radius:10px;font-size:10px">진행중</span></div>
         <div style="font-size:12px;padding:10px 0;display:flex;justify-content:space-between"><span><b style="color:${accent}">14:00</b> ${demoNames[2]} · ${demoServices[2]}</span><span style="background:#fef9c3;color:#ca8a04;padding:2px 8px;border-radius:10px;font-size:10px">대기</span></div>
