@@ -16,6 +16,8 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             cd /root/launchpad
+            rm -rf api/dist
+            git checkout -- .
             git pull origin main
 
             # Web 빌드 + 재시작
