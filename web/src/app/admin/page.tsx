@@ -77,6 +77,8 @@ const TYPE_COLORS: Record<string, string> = {
   FREE_TRIAL: 'text-[#a855f7]',
 };
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+
 export default function AdminPage() {
   const [tab, setTab] = useState<Tab>('dashboard');
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
@@ -88,11 +90,14 @@ export default function AdminPage() {
   const [userSearch, setUserSearch] = useState('');
   const [templateFilter, setTemplateFilter] = useState('');
   const [page, setPage] = useState(1);
+  // 어드민 전용 로그인
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [needLogin, setNeedLogin] = useState(false);
 
-  useEffect(() => {
-    const user = getUser();
-    if (!user) { window.location.href = '/login?redirect=/admin'; return; }
-    // 어드민 체크: dashboard API 호출해서 403이면 비어드민
+  const tryAdminAccess = () => {
     authFetch('/admin/dashboard').then(res => {
       if (res.ok) {
         setIsAdmin(true);
@@ -101,7 +106,36 @@ export default function AdminPage() {
         setIsAdmin(false);
       }
     }).catch(() => setIsAdmin(false));
+  };
+
+  useEffect(() => {
+    const user = getUser();
+    if (!user) { setNeedLogin(true); return; }
+    tryAdminAccess();
   }, []);
+
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError('');
+    setLoginLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: adminEmail, password: adminPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setLoginError(data.message || '로그인 실패'); return; }
+      localStorage.setItem('launchpad_token', data.token);
+      localStorage.setItem('launchpad_user', JSON.stringify({ userId: data.userId, email: data.email }));
+      setNeedLogin(false);
+      tryAdminAccess();
+    } catch {
+      setLoginError('서버 연결 오류');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -133,20 +167,51 @@ export default function AdminPage() {
     authFetch(`/admin/credits?page=${p}&limit=30`).then(r => r.ok ? r.json() : null).then(d => d && setCredits(d));
   };
 
-  if (isAdmin === null) return (
-    <div className="flex h-screen items-center justify-center bg-[#17171c] text-[#f2f4f6]">
-      <div className="text-4xl animate-spin">⚙️</div>
+  // 어드민 전용 로그인 폼
+  if (needLogin || isAdmin === false) return (
+    <div className="flex h-screen items-center justify-center bg-[#17171c] text-[#f2f4f6] px-5">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <img src="/logo.svg" alt="Foundry" className="h-8 mx-auto mb-3" />
+          <span className="rounded-lg bg-[#f45452]/15 px-2.5 py-1 text-xs font-bold text-[#f45452]">ADMIN</span>
+          <h1 className="text-2xl font-bold mt-4">관리자 로그인</h1>
+          <p className="text-sm text-[#8b95a1] mt-1">관리자 계정으로 로그인해주세요</p>
+        </div>
+        <form onSubmit={handleAdminLogin} className="space-y-4">
+          <input
+            type="email"
+            value={adminEmail}
+            onChange={e => setAdminEmail(e.target.value)}
+            placeholder="관리자 이메일"
+            required
+            className="w-full rounded-xl border border-[#2c2c35] bg-[#2c2c35] px-4 py-3.5 text-sm text-[#f2f4f6] placeholder-[#6b7684] focus:border-[#3182f6] focus:outline-none"
+          />
+          <input
+            type="password"
+            value={adminPassword}
+            onChange={e => setAdminPassword(e.target.value)}
+            placeholder="비밀번호"
+            required
+            className="w-full rounded-xl border border-[#2c2c35] bg-[#2c2c35] px-4 py-3.5 text-sm text-[#f2f4f6] placeholder-[#6b7684] focus:border-[#3182f6] focus:outline-none"
+          />
+          {loginError && <p className="text-sm text-[#f45452]">{loginError}</p>}
+          {isAdmin === false && <p className="text-sm text-[#f45452]">관리자 권한이 없는 계정입니다.</p>}
+          <button
+            type="submit"
+            disabled={loginLoading}
+            className="w-full rounded-xl bg-[#f45452] py-3.5 text-[15px] font-bold text-white hover:bg-[#d63031] disabled:opacity-50"
+          >
+            {loginLoading ? '로그인 중...' : '어드민 로그인'}
+          </button>
+        </form>
+        <a href="/" className="block mt-6 text-center text-sm text-[#6b7684] hover:text-[#8b95a1]">← 메인으로 돌아가기</a>
+      </div>
     </div>
   );
 
-  if (isAdmin === false) return (
+  if (isAdmin === null) return (
     <div className="flex h-screen items-center justify-center bg-[#17171c] text-[#f2f4f6]">
-      <div className="text-center">
-        <div className="text-6xl mb-4">🔒</div>
-        <h1 className="text-2xl font-bold mb-2">접근 권한 없음</h1>
-        <p className="text-[#8b95a1]">관리자 계정으로 로그인해주세요.</p>
-        <a href="/login" className="mt-4 inline-block rounded-xl bg-[#3182f6] px-6 py-3 text-sm font-semibold text-white">로그인</a>
-      </div>
+      <div className="text-4xl animate-spin">⚙️</div>
     </div>
   );
 
