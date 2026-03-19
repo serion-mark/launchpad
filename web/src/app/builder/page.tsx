@@ -125,6 +125,7 @@ function BuilderContent() {
   const [questionIndex, setQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [previewMode, setPreviewMode] = useState<'mobile' | 'desktop'>('mobile');
+  const [projectFeatures, setProjectFeatures] = useState<string[]>([]); // 랜딩에서 선택한 기능
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -147,6 +148,10 @@ function BuilderContent() {
           const data = await res.json();
           setProject(data);
           setPreviewTemplate(data.template);
+          // 랜딩에서 선택한 기능 로드
+          if (data.features?.selected) {
+            setProjectFeatures(data.features.selected);
+          }
 
           if (data.chatHistory && Array.isArray(data.chatHistory) && data.chatHistory.length > 0) {
             setMessages(data.chatHistory);
@@ -443,19 +448,41 @@ function BuilderContent() {
   };
   const tm = THEME_MAP[project?.theme || 'basic-light'] || THEME_MAP['basic-light'];
 
+  // ── 기능 라벨 맵 ────────────────────────────────────
+  const FEAT_LABEL: Record<string, string> = {
+    'reservation': '📅 예약', 'sales': '💰 매출', 'customer': '👥 고객', 'staff': '👤 스태프',
+    'service-menu': '✂️ 시술', 'dashboard': '📊 대시보드', 'online-booking': '🌐 온라인예약',
+    'alimtalk': '💬 알림톡', 'settlement': '📋 정산', 'prepaid': '🎫 정액권',
+    'admin-dashboard': '📊 대시보드', 'attendance': '✅ 출석', 'coupon': '🎟 쿠폰',
+    'review': '⭐ 리뷰', 'wishlist': '❤️ 찜', 'inventory': '📦 재고',
+    'product': '🛍 상품', 'cart': '🛒 장바구니', 'order': '📋 주문', 'shipping': '🚚 배송',
+  };
+
   // ── 답변 기반 동적 랜딩페이지 생성 (무료 맛보기) ────
   const generateDynamicPreview = (): string => {
     const name = answers.biz_name || project?.name || '내 서비스';
-    const features = (answers.features || '').split(', ').filter(Boolean);
-    const featureCards = features.map(f =>
+
+    // 빌더 질문지 답변 기능 + 랜딩에서 선택한 기능 합산
+    const answerFeatures = (answers.features || '').split(', ').filter(Boolean);
+    const allFeatureIds = projectFeatures.length > 0 ? projectFeatures : [];
+    const featureNames = answerFeatures.length > 0 ? answerFeatures :
+      allFeatureIds.map(id => FEAT_LABEL[id]?.replace(/^.{2}/, '') || id);
+
+    const featureCards = featureNames.map(f =>
       `<div style="background:white;padding:14px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:8px;background:${tm.accent};display:flex;align-items:center;justify-content:center;color:white;font-size:16px;flex-shrink:0">✓</div><div style="font-size:13px;font-weight:500">${f}</div></div>`
     ).join('');
+
+    // 하단 메뉴바 생성
+    const menuIds = allFeatureIds.length > 0 ? allFeatureIds.slice(0, 5) : [];
+    const menuBar = menuIds.length > 0 ? `<div style="border-top:1px solid #e2e8f0;display:flex;padding:6px 8px;background:white;position:sticky;bottom:0">${
+      menuIds.map((id, i) => `<div style="flex:1;text-align:center;padding:6px 2px;font-size:10px;${i === 0 ? `color:${tm.accent};font-weight:700` : 'color:#94a3b8'}">${FEAT_LABEL[id] || id}</div>`).join('')
+    }</div>` : '';
 
     if (templateId === 'beauty-salon') {
       const target = answers.target || '남녀 공용';
       const staff = answers.staff || '';
       const booking = answers.booking || '';
-      return `<div style="font-family:system-ui;background:#f8fafc;min-height:100vh">
+      return `<div style="font-family:system-ui;background:#f8fafc;min-height:100vh;display:flex;flex-direction:column">
         <div style="background:${tm.grad};padding:28px 20px;color:white">
           <h1 style="font-size:22px;font-weight:800;margin-bottom:4px">✂️ ${name}</h1>
           <p style="font-size:12px;opacity:.8">${target} · ${staff}</p>
@@ -465,8 +492,8 @@ function BuilderContent() {
           <div style="background:white;padding:14px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center"><div style="font-size:10px;color:#64748b">오늘 예약</div><div style="font-size:20px;font-weight:700;color:${tm.accent}">12건</div></div>
         </div>
         ${booking ? `<div style="padding:0 16px 8px"><div style="background:#eef2ff;padding:10px 14px;border-radius:8px;font-size:11px;color:#4338ca">예약 방식: ${booking}</div></div>` : ''}
-        <div style="padding:0 16px"><div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#1e293b">포함된 기능</div><div style="display:grid;gap:8px">${featureCards || '<div style="color:#94a3b8;font-size:12px">질문지를 완료하면 기능이 표시됩니다</div>'}</div></div>
-        <div style="padding:16px"><div style="background:white;padding:14px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:13px;font-weight:600;margin-bottom:10px">오늘 예약</div><div style="font-size:12px;padding:6px 0;border-bottom:1px solid #f1f5f9">10:00 김지현 - 커트+염색</div><div style="font-size:12px;padding:6px 0;border-bottom:1px solid #f1f5f9">11:30 이서윤 - 디지털펌</div><div style="font-size:12px;padding:6px 0">13:00 박민준 - 남성 커트</div></div></div>
+        <div style="padding:0 16px;flex:1"><div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#1e293b">포함된 기능</div><div style="display:grid;gap:8px">${featureCards || '<div style="color:#94a3b8;font-size:12px">질문지를 완료하면 기능이 표시됩니다</div>'}</div></div>
+        ${menuBar}
       </div>`;
     }
 
@@ -474,23 +501,22 @@ function BuilderContent() {
       const product = answers.product || '상품';
       const delivery = answers.delivery || '';
       const payment = answers.payment || '';
-      return `<div style="font-family:system-ui;min-height:100vh;background:#f8fafc">
+      return `<div style="font-family:system-ui;min-height:100vh;background:#f8fafc;display:flex;flex-direction:column">
         <div style="background:#1e293b;color:white;padding:14px 20px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:700;font-size:16px">🛍 ${name}</span><span style="background:${tm.accent};padding:4px 10px;border-radius:20px;font-size:11px">🛒 장바구니</span></div>
         <div style="background:${tm.grad};padding:32px 20px;text-align:center;color:white"><div style="font-size:20px;font-weight:700">GRAND OPEN</div><div style="font-size:12px;opacity:.8;margin-top:4px">${product} 전문 쇼핑몰</div></div>
         <div style="padding:16px;display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
           <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;background:white"><div style="background:#fef3c7;padding:28px;text-align:center;font-size:32px">👗</div><div style="padding:10px"><div style="font-weight:600;font-size:12px">인기 상품 A</div><div style="color:#ef4444;font-weight:700;font-size:13px">₩39,900</div></div></div>
           <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;background:white"><div style="background:#dbeafe;padding:28px;text-align:center;font-size:32px">👜</div><div style="padding:10px"><div style="font-weight:600;font-size:12px">인기 상품 B</div><div style="color:#ef4444;font-weight:700;font-size:13px">₩25,000</div></div></div>
         </div>
-        ${delivery ? `<div style="padding:8px 16px"><div style="background:#f0fdf4;padding:10px 14px;border-radius:8px;font-size:11px;color:#15803d">배송: ${delivery}</div></div>` : ''}
-        ${payment ? `<div style="padding:0 16px 8px"><div style="background:#eef2ff;padding:10px 14px;border-radius:8px;font-size:11px;color:#4338ca">결제: ${payment}</div></div>` : ''}
-        <div style="padding:0 16px"><div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#1e293b">포함된 기능</div><div style="display:grid;gap:8px">${featureCards}</div></div>
+        <div style="padding:0 16px;flex:1"><div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#1e293b">포함된 기능</div><div style="display:grid;gap:8px">${featureCards}</div></div>
+        ${menuBar}
       </div>`;
     }
 
     // booking-crm
     const industry = answers.industry || '예약';
     const bookingType = answers.booking_type || '';
-    return `<div style="font-family:system-ui;background:#f8fafc;min-height:100vh">
+    return `<div style="font-family:system-ui;background:#f8fafc;min-height:100vh;display:flex;flex-direction:column">
       <div style="background:${tm.grad};padding:28px 20px;color:white">
         <h1 style="font-size:22px;font-weight:800;margin-bottom:4px">📅 ${name}</h1>
         <p style="font-size:12px;opacity:.8">${industry} · ${bookingType}</p>
@@ -499,8 +525,8 @@ function BuilderContent() {
         <div style="background:white;padding:14px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center"><div style="font-size:10px;color:#64748b">오늘 예약</div><div style="font-size:20px;font-weight:700;color:${tm.accent}">18건</div></div>
         <div style="background:white;padding:14px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center"><div style="font-size:10px;color:#64748b">온라인 비율</div><div style="font-size:20px;font-weight:700;color:${tm.accent}">34%</div></div>
       </div>
-      <div style="padding:0 16px"><div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#1e293b">포함된 기능</div><div style="display:grid;gap:8px">${featureCards || '<div style="color:#94a3b8;font-size:12px">질문지를 완료하면 기능이 표시됩니다</div>'}</div></div>
-      <div style="padding:16px"><div style="background:white;padding:14px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:13px;font-weight:600;margin-bottom:10px">오늘 일정</div><div style="font-size:12px;padding:6px 0;border-bottom:1px solid #f1f5f9">09:00 김철수 - 진료</div><div style="font-size:12px;padding:6px 0;border-bottom:1px solid #f1f5f9">09:30 박영희 - 상담</div><div style="font-size:12px;padding:6px 0">10:00 이민호 - 체험</div></div></div>
+      <div style="padding:0 16px;flex:1"><div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#1e293b">포함된 기능</div><div style="display:grid;gap:8px">${featureCards || '<div style="color:#94a3b8;font-size:12px">질문지를 완료하면 기능이 표시됩니다</div>'}</div></div>
+      ${menuBar}
     </div>`;
   };
 
