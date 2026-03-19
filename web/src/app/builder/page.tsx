@@ -126,7 +126,9 @@ function BuilderContent() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [previewMode, setPreviewMode] = useState<'mobile' | 'desktop'>('mobile');
   const [projectFeatures, setProjectFeatures] = useState<string[]>([]); // 랜딩에서 선택한 기능
+  const [activeMenu, setActiveMenu] = useState<string>('dashboard'); // 미리보기 활성 메뉴
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
@@ -458,79 +460,198 @@ function BuilderContent() {
     'product': '🛍 상품', 'cart': '🛒 장바구니', 'order': '📋 주문', 'shipping': '🚚 배송',
   };
 
-  // ── 답변 기반 동적 미리보기 생성 ─────────────────────
+  // ── 메뉴별 화면 콘텐츠 생성 ──────────────────────────
+  const generatePageContent = (menuId: string, accent: string): string => {
+    const pages: Record<string, string> = {
+      dashboard: `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h2 style="font-size:18px;font-weight:700;color:#1e293b">대시보드</h2>
+        <span style="background:${accent};color:white;padding:6px 14px;border-radius:8px;font-size:11px;font-weight:600">관리자</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">오늘 매출</div><div style="font-size:22px;font-weight:700;color:${accent}">₩1,280,000</div></div>
+        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">오늘 예약</div><div style="font-size:22px;font-weight:700">12건</div></div>
+        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">신규 고객</div><div style="font-size:22px;font-weight:700;color:#16a34a">+3명</div></div>
+      </div>
+      <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+        <div style="font-size:14px;font-weight:600;margin-bottom:12px">오늘 일정</div>
+        <div style="font-size:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span><b style="color:${accent}">10:00</b> 김지현</span><span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:10px">확정</span></div>
+        <div style="font-size:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span><b style="color:${accent}">11:30</b> 이서윤</span><span style="background:#dbeafe;color:#2563eb;padding:2px 8px;border-radius:10px;font-size:10px">진행중</span></div>
+        <div style="font-size:12px;padding:10px 0;display:flex;justify-content:space-between"><span><b style="color:${accent}">14:00</b> 박민준</span><span style="background:#fef9c3;color:#ca8a04;padding:2px 8px;border-radius:10px;font-size:10px">대기</span></div>
+      </div>`,
+      reservation: `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h2 style="font-size:18px;font-weight:700;color:#1e293b">📅 예약 관리</h2>
+        <button style="background:${accent};color:white;border:none;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">+ 새 예약</button>
+      </div>
+      <div style="background:white;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+        <div style="display:grid;grid-template-columns:60px 1fr 1fr 80px;padding:10px 16px;background:#f8fafc;font-size:11px;color:#64748b;font-weight:600">
+          <div>시간</div><div>고객</div><div>서비스</div><div>상태</div>
+        </div>
+        <div style="display:grid;grid-template-columns:60px 1fr 1fr 80px;padding:12px 16px;border-bottom:1px solid #f1f5f9;font-size:12px;align-items:center">
+          <div style="font-weight:700;color:${accent}">09:00</div><div>김지현</div><div>일반 진료</div><div><span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:10px">확정</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:60px 1fr 1fr 80px;padding:12px 16px;border-bottom:1px solid #f1f5f9;font-size:12px;align-items:center">
+          <div style="font-weight:700;color:${accent}">10:30</div><div>이서윤</div><div>건강검진</div><div><span style="background:#dbeafe;color:#2563eb;padding:2px 8px;border-radius:10px;font-size:10px">진행중</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:60px 1fr 1fr 80px;padding:12px 16px;border-bottom:1px solid #f1f5f9;font-size:12px;align-items:center">
+          <div style="font-weight:700;color:${accent}">11:00</div><div>박민준</div><div>재활치료</div><div><span style="background:#fef9c3;color:#ca8a04;padding:2px 8px;border-radius:10px;font-size:10px">대기</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:60px 1fr 1fr 80px;padding:12px 16px;font-size:12px;align-items:center">
+          <div style="font-weight:700;color:${accent}">14:00</div><div>최하은</div><div>상담</div><div><span style="background:#f3e8ff;color:#9333ea;padding:2px 8px;border-radius:10px;font-size:10px">예정</span></div>
+        </div>
+      </div>`,
+      customer: `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h2 style="font-size:18px;font-weight:700;color:#1e293b">👥 고객 관리</h2>
+        <div style="display:flex;gap:8px">
+          <input style="border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:12px;width:200px" placeholder="고객 검색..." />
+          <button style="background:${accent};color:white;border:none;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">+ 고객 등록</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
+        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div style="width:36px;height:36px;border-radius:50%;background:${accent}20;display:flex;align-items:center;justify-content:center;font-size:14px">김</div><div><div style="font-size:13px;font-weight:600">김지현</div><div style="font-size:11px;color:#94a3b8">010-1234-5678</div></div></div>
+          <div style="font-size:11px;color:#64748b">방문 12회 · VIP · 마지막 방문 3일 전</div>
+        </div>
+        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div style="width:36px;height:36px;border-radius:50%;background:#f43f5e20;display:flex;align-items:center;justify-content:center;font-size:14px">이</div><div><div style="font-size:13px;font-weight:600">이서윤</div><div style="font-size:11px;color:#94a3b8">010-9876-5432</div></div></div>
+          <div style="font-size:11px;color:#64748b">방문 8회 · 일반 · 마지막 방문 1주 전</div>
+        </div>
+        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div style="width:36px;height:36px;border-radius:50%;background:#16a34a20;display:flex;align-items:center;justify-content:center;font-size:14px">박</div><div><div style="font-size:13px;font-weight:600">박민준</div><div style="font-size:11px;color:#94a3b8">010-5555-1234</div></div></div>
+          <div style="font-size:11px;color:#64748b">방문 3회 · 신규 · 마지막 방문 오늘</div>
+        </div>
+        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div style="width:36px;height:36px;border-radius:50%;background:#d9770620;display:flex;align-items:center;justify-content:center;font-size:14px">최</div><div><div style="font-size:13px;font-weight:600">최하은</div><div style="font-size:11px;color:#94a3b8">010-3333-7890</div></div></div>
+          <div style="font-size:11px;color:#64748b">방문 5회 · 일반 · 마지막 방문 2주 전</div>
+        </div>
+      </div>`,
+      sales: `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <h2 style="font-size:18px;font-weight:700;color:#1e293b">💰 매출 관리</h2>
+        <span style="font-size:12px;color:#64748b">2026년 3월</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+        <div style="background:white;padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center"><div style="font-size:10px;color:#64748b">오늘</div><div style="font-size:16px;font-weight:700;color:${accent}">₩1,280,000</div></div>
+        <div style="background:white;padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center"><div style="font-size:10px;color:#64748b">이번 주</div><div style="font-size:16px;font-weight:700">₩5,420,000</div></div>
+        <div style="background:white;padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center"><div style="font-size:10px;color:#64748b">이번 달</div><div style="font-size:16px;font-weight:700">₩18,750,000</div></div>
+        <div style="background:white;padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center"><div style="font-size:10px;color:#64748b">전월 대비</div><div style="font-size:16px;font-weight:700;color:#16a34a">+12%</div></div>
+      </div>
+      <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+        <div style="font-size:14px;font-weight:600;margin-bottom:12px">최근 결제</div>
+        <div style="font-size:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span>김지현 · 일반 진료</span><span style="font-weight:700">₩85,000</span></div>
+        <div style="font-size:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span>이서윤 · 건강검진</span><span style="font-weight:700">₩350,000</span></div>
+        <div style="font-size:12px;padding:10px 0;display:flex;justify-content:space-between"><span>박민준 · 재활치료</span><span style="font-weight:700">₩120,000</span></div>
+      </div>`,
+      staff: `<div style="margin-bottom:16px"><h2 style="font-size:18px;font-weight:700;color:#1e293b">👤 스태프 관리</h2></div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
+        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="width:40px;height:40px;border-radius:50%;background:${accent};display:flex;align-items:center;justify-content:center;color:white;font-weight:700">정</div><div><div style="font-size:14px;font-weight:600">정원장</div><div style="font-size:11px;color:${accent}">원장</div></div></div>
+          <div style="font-size:11px;color:#64748b">오늘 예약 5건 · 매출 ₩680,000</div>
+          <div style="margin-top:8px;height:4px;background:#f1f5f9;border-radius:2px"><div style="height:100%;width:75%;background:${accent};border-radius:2px"></div></div>
+        </div>
+        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="width:40px;height:40px;border-radius:50%;background:#f43f5e;display:flex;align-items:center;justify-content:center;color:white;font-weight:700">김</div><div><div style="font-size:14px;font-weight:600">김디자이너</div><div style="font-size:11px;color:#f43f5e">시니어</div></div></div>
+          <div style="font-size:11px;color:#64748b">오늘 예약 4건 · 매출 ₩520,000</div>
+          <div style="margin-top:8px;height:4px;background:#f1f5f9;border-radius:2px"><div style="height:100%;width:60%;background:#f43f5e;border-radius:2px"></div></div>
+        </div>
+      </div>`,
+      'online-booking': `<div style="margin-bottom:16px"><h2 style="font-size:18px;font-weight:700;color:#1e293b">🌐 온라인 예약</h2></div>
+      <div style="background:white;padding:20px;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);max-width:360px;margin:0 auto">
+        <div style="text-align:center;margin-bottom:16px"><div style="font-size:16px;font-weight:700;color:#1e293b">예약하기</div><div style="font-size:12px;color:#94a3b8">원하시는 날짜와 시간을 선택하세요</div></div>
+        <div style="margin-bottom:12px"><div style="font-size:11px;color:#64748b;margin-bottom:4px">날짜 선택</div><div style="border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;font-size:13px">📅 2026년 3월 20일 (금)</div></div>
+        <div style="margin-bottom:12px"><div style="font-size:11px;color:#64748b;margin-bottom:4px">시간 선택</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">${['09:00','10:00','11:00','14:00','15:00','16:00'].map((t,i) => `<div style="border:1px solid ${i===1?accent:'#e2e8f0'};border-radius:8px;padding:8px;text-align:center;font-size:12px;${i===1?`background:${accent}15;color:${accent};font-weight:600`:''};cursor:pointer">${t}</div>`).join('')}</div></div>
+        <button style="width:100%;background:${accent};color:white;border:none;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px">예약 확인</button>
+      </div>`,
+      alimtalk: `<div style="margin-bottom:16px"><h2 style="font-size:18px;font-weight:700;color:#1e293b">💬 알림톡</h2></div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px">
+        <div style="background:white;padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">오늘 발송</div><div style="font-size:20px;font-weight:700;color:${accent}">23건</div></div>
+        <div style="background:white;padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">성공률</div><div style="font-size:20px;font-weight:700;color:#16a34a">98%</div></div>
+      </div>
+      <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+        <div style="font-size:14px;font-weight:600;margin-bottom:12px">최근 발송</div>
+        <div style="font-size:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span>김지현 · 예약 확인</span><span style="color:#16a34a">✓ 성공</span></div>
+        <div style="font-size:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span>이서윤 · 리마인더</span><span style="color:#16a34a">✓ 성공</span></div>
+        <div style="font-size:12px;padding:10px 0;display:flex;justify-content:space-between"><span>박민준 · 부재중 안내</span><span style="color:#16a34a">✓ 성공</span></div>
+      </div>`,
+      settlement: `<div style="margin-bottom:16px"><h2 style="font-size:18px;font-weight:700;color:#1e293b">📋 정산</h2></div>
+      <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+        <div style="font-size:14px;font-weight:600;margin-bottom:12px">스태프별 정산 (3월)</div>
+        <div style="display:grid;grid-template-columns:1fr 100px 100px 80px;padding:8px 0;font-size:11px;color:#64748b;font-weight:600;border-bottom:1px solid #e2e8f0"><div>스태프</div><div>매출</div><div>인센티브</div><div>지급액</div></div>
+        <div style="display:grid;grid-template-columns:1fr 100px 100px 80px;padding:10px 0;font-size:12px;border-bottom:1px solid #f1f5f9"><div style="font-weight:600">정원장</div><div>₩8,200,000</div><div>40%</div><div style="font-weight:700;color:${accent}">₩3,280,000</div></div>
+        <div style="display:grid;grid-template-columns:1fr 100px 100px 80px;padding:10px 0;font-size:12px"><div style="font-weight:600">김디자이너</div><div>₩5,600,000</div><div>35%</div><div style="font-weight:700;color:${accent}">₩1,960,000</div></div>
+      </div>`,
+    };
+    // 기타 메뉴 기본 화면
+    return pages[menuId] || `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:300px;color:#94a3b8">
+      <div style="font-size:48px;margin-bottom:16px">${FEAT_LABEL[menuId]?.slice(0,2) || '📄'}</div>
+      <div style="font-size:16px;font-weight:600;color:#1e293b">${FEAT_LABEL[menuId]?.slice(3) || menuId}</div>
+      <div style="font-size:12px;margin-top:4px">이 기능이 앱에 포함됩니다</div>
+    </div>`;
+  };
+
+  // ── 인터랙티브 미리보기 HTML 생성 ─────────────────────
   const generateDynamicPreview = (): string => {
     const name = answers.biz_name || project?.name || '내 서비스';
-    const answerFeatures = (answers.features || '').split(', ').filter(Boolean);
     const allFeatureIds = projectFeatures.length > 0 ? projectFeatures : [];
+    const answerFeatures = (answers.features || '').split(', ').filter(Boolean);
     const featureNames = answerFeatures.length > 0 ? answerFeatures :
       allFeatureIds.map(id => FEAT_LABEL[id]?.replace(/^.{2}/, '') || id);
     const icon = templateId === 'beauty-salon' ? '✂️' : templateId === 'ecommerce' ? '🛍' : '📅';
-    const sub = templateId === 'beauty-salon' ? (answers.target || '남녀 공용') + ' · ' + (answers.staff || '') :
+    const sub = templateId === 'beauty-salon' ? (answers.target || '') + ' · ' + (answers.staff || '') :
                 templateId === 'ecommerce' ? (answers.product || '상품') + ' 전문' :
                 (answers.industry || '예약') + ' · ' + (answers.booking_type || '');
 
-    // ── PC 레이아웃: 좌측 사이드바 + 우측 메인 ───────
+    // 메뉴 목록: dashboard + 선택된 기능
+    const menuItems = ['dashboard', ...allFeatureIds.filter(id => id !== 'dashboard')];
+    const pageContent = generatePageContent(activeMenu, tm.accent);
+
+    // ── PC: 사이드바 + 메인 (클릭 가능) ──────────────
     if (previewMode === 'desktop') {
-      const sideMenuItems = allFeatureIds.length > 0
-        ? allFeatureIds.map((id, i) => `<div style="padding:10px 16px;font-size:12px;cursor:pointer;border-radius:8px;margin:2px 8px;${i === 0 ? `background:${tm.accent};color:white;font-weight:600` : 'color:#64748b'}">${FEAT_LABEL[id] || id}</div>`).join('')
-        : featureNames.map((f, i) => `<div style="padding:10px 16px;font-size:12px;border-radius:8px;margin:2px 8px;${i === 0 ? `background:${tm.accent};color:white;font-weight:600` : 'color:#64748b'}">${f}</div>`).join('');
+      const sideMenu = menuItems.map(id =>
+        `<div onclick="parent.postMessage({type:'menu',id:'${id}'},'*')" style="padding:10px 16px;font-size:12px;cursor:pointer;border-radius:8px;margin:2px 8px;transition:all .15s;${activeMenu === id ? `background:${tm.accent};color:white;font-weight:600` : 'color:#64748b'}" onmouseover="if('${activeMenu}'!=='${id}')this.style.background='#f1f5f9'" onmouseout="if('${activeMenu}'!=='${id}')this.style.background='transparent'">${FEAT_LABEL[id] || id}</div>`
+      ).join('');
 
       return `<div style="font-family:system-ui;display:flex;min-height:100vh;background:#f1f5f9">
-        <div style="width:200px;background:white;border-right:1px solid #e2e8f0;display:flex;flex-direction:column">
+        <div style="width:200px;background:white;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;flex-shrink:0">
           <div style="padding:16px;border-bottom:1px solid #e2e8f0">
-            <div style="font-size:16px;font-weight:800;color:#1e293b">${icon} ${name}</div>
+            <div style="font-size:15px;font-weight:800;color:#1e293b">${icon} ${name}</div>
             <div style="font-size:10px;color:#94a3b8;margin-top:2px">${sub}</div>
           </div>
-          <div style="padding:8px 0;flex:1">${sideMenuItems || '<div style="padding:16px;font-size:11px;color:#94a3b8">기능을 선택하세요</div>'}</div>
+          <div style="padding:8px 0;flex:1;overflow-y:auto">${sideMenu || '<div style="padding:16px;font-size:11px;color:#94a3b8">질문에 답하면<br/>메뉴가 추가됩니다</div>'}</div>
           <div style="padding:12px 16px;border-top:1px solid #e2e8f0;font-size:10px;color:#94a3b8">Powered by Foundry</div>
         </div>
-        <div style="flex:1;padding:20px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-            <h2 style="font-size:18px;font-weight:700;color:#1e293b">대시보드</h2>
-            <span style="background:${tm.accent};color:white;padding:6px 14px;border-radius:8px;font-size:11px;font-weight:600">관리자</span>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
-            <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">오늘 매출</div><div style="font-size:22px;font-weight:700;color:${tm.accent}">₩1,280,000</div></div>
-            <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">오늘 예약</div><div style="font-size:22px;font-weight:700">12건</div></div>
-            <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">신규 고객</div><div style="font-size:22px;font-weight:700;color:#16a34a">+3명</div></div>
-          </div>
-          <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
-            <div style="font-size:14px;font-weight:600;margin-bottom:12px">오늘 일정</div>
-            <div style="font-size:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span><b style="color:${tm.accent}">10:00</b> 김지현</span><span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:10px">확정</span></div>
-            <div style="font-size:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span><b style="color:${tm.accent}">11:30</b> 이서윤</span><span style="background:#dbeafe;color:#2563eb;padding:2px 8px;border-radius:10px;font-size:10px">진행중</span></div>
-            <div style="font-size:12px;padding:10px 0;display:flex;justify-content:space-between"><span><b style="color:${tm.accent}">14:00</b> 박민준</span><span style="background:#fef9c3;color:#ca8a04;padding:2px 8px;border-radius:10px;font-size:10px">대기</span></div>
-          </div>
-        </div>
+        <div style="flex:1;padding:20px;overflow-y:auto">${pageContent}</div>
       </div>`;
     }
 
-    // ── 모바일 레이아웃: 상단 헤더 + 하단 탭 바 ──────
-    const bottomTabs = allFeatureIds.length > 0
-      ? allFeatureIds.slice(0, 5).map((id, i) => `<div style="flex:1;text-align:center;padding:6px 2px;font-size:10px;${i === 0 ? `color:${tm.accent};font-weight:700` : 'color:#94a3b8'}">${FEAT_LABEL[id] || id}</div>`).join('')
-      : '';
+    // ── 모바일: 헤더 + 콘텐츠 + 하단 탭 바 (클릭 가능) ──
+    const bottomTabs = menuItems.slice(0, 5).map(id =>
+      `<div onclick="parent.postMessage({type:'menu',id:'${id}'},'*')" style="flex:1;text-align:center;padding:8px 2px;font-size:10px;cursor:pointer;transition:all .15s;${activeMenu === id ? `color:${tm.accent};font-weight:700` : 'color:#94a3b8'}">${FEAT_LABEL[id] || id}</div>`
+    ).join('');
+
+    // 모바일용 간소화 콘텐츠
+    const mobileContent = generatePageContent(activeMenu, tm.accent)
+      .replace(/grid-template-columns:repeat\(3,1fr\)/g, 'grid-template-columns:repeat(2,1fr)')
+      .replace(/grid-template-columns:repeat\(4,1fr\)/g, 'grid-template-columns:repeat(2,1fr)')
+      .replace(/font-size:18px/g, 'font-size:16px')
+      .replace(/font-size:22px/g, 'font-size:18px');
 
     return `<div style="font-family:system-ui;background:#f8fafc;min-height:100vh;display:flex;flex-direction:column">
-      <div style="background:${tm.grad};padding:24px 20px;color:white">
-        <h1 style="font-size:20px;font-weight:800;margin-bottom:2px">${icon} ${name}</h1>
+      <div style="background:${tm.grad};padding:20px 16px;color:white">
+        <h1 style="font-size:18px;font-weight:800;margin-bottom:2px">${icon} ${name}</h1>
         <p style="font-size:11px;opacity:.8">${sub}</p>
       </div>
-      <div style="padding:14px;display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
-        <div style="background:white;padding:12px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center"><div style="font-size:10px;color:#64748b">오늘 매출</div><div style="font-size:18px;font-weight:700;color:${tm.accent}">₩1,280,000</div></div>
-        <div style="background:white;padding:12px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center"><div style="font-size:10px;color:#64748b">오늘 예약</div><div style="font-size:18px;font-weight:700;color:${tm.accent}">12건</div></div>
-      </div>
-      <div style="padding:0 14px;flex:1">
-        <div style="background:white;padding:14px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
-          <div style="font-size:13px;font-weight:600;margin-bottom:10px">오늘 일정</div>
-          <div style="font-size:12px;padding:7px 0;border-bottom:1px solid #f1f5f9"><b style="color:${tm.accent}">10:00</b> 김지현</div>
-          <div style="font-size:12px;padding:7px 0;border-bottom:1px solid #f1f5f9"><b style="color:${tm.accent}">11:30</b> 이서윤</div>
-          <div style="font-size:12px;padding:7px 0"><b style="color:${tm.accent}">14:00</b> 박민준</div>
-        </div>
-        ${featureNames.length > 0 ? `<div style="margin-top:12px;font-size:12px;font-weight:600;color:#1e293b;margin-bottom:6px">포함된 기능</div><div style="display:flex;flex-wrap:wrap;gap:6px">${featureNames.map(f => `<span style="background:white;border:1px solid #e2e8f0;padding:5px 10px;border-radius:8px;font-size:10px;color:#475569">${f}</span>`).join('')}</div>` : ''}
-      </div>
-      ${bottomTabs ? `<div style="border-top:1px solid #e2e8f0;display:flex;padding:8px 8px;background:white">${bottomTabs}</div>` : ''}
+      <div style="flex:1;padding:14px;overflow-y:auto">${mobileContent}</div>
+      ${bottomTabs ? `<div style="border-top:1px solid #e2e8f0;display:flex;padding:4px 8px;background:white;position:sticky;bottom:0">${bottomTabs}</div>` : ''}
     </div>`;
   };
+
+  // iframe → 부모 메뉴 클릭 이벤트 수신
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === 'menu') setActiveMenu(e.data.id);
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
 
   const previewHtml = generateDynamicPreview();
 
