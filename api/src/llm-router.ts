@@ -34,7 +34,7 @@ export const MODELS: Record<ModelTier, ModelConfig> = {
     },
     standard: {
         provider: 'anthropic',
-        model: 'claude-sonnet-4-6-20260320',
+        model: 'claude-sonnet-4-5-20241022',
         inputCostPer1M: 3,
         outputCostPer1M: 15,
         maxTokens: 16384,
@@ -42,7 +42,7 @@ export const MODELS: Record<ModelTier, ModelConfig> = {
     },
     premium: {
         provider: 'anthropic',
-        model: 'claude-opus-4-6-20260320',
+        model: 'claude-sonnet-4-5-20241022',
         inputCostPer1M: 5,
         outputCostPer1M: 25,
         maxTokens: 16384,

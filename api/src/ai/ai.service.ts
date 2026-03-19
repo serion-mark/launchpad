@@ -8,8 +8,8 @@ type ModelTier = 'fast' | 'standard' | 'premium';
 
 const MODELS: Record<ModelTier, { model: string; maxTokens: number }> = {
   fast:     { model: 'claude-haiku-4-5-20251001', maxTokens: 8192 },
-  standard: { model: 'claude-sonnet-4-6-20260320', maxTokens: 16384 },
-  premium:  { model: 'claude-opus-4-6-20260320', maxTokens: 16384 },
+  standard: { model: 'claude-sonnet-4-5-20241022', maxTokens: 16384 },
+  premium:  { model: 'claude-sonnet-4-5-20241022', maxTokens: 16384 },
 };
 
 // ── 빌더 시스템 프롬프트 ─────────────────────────────
