@@ -206,11 +206,11 @@ function generatePreviewHtml(templateId: string, name: string, features: Set<str
         </div>
       </div>
       ${hasOnlineBooking ? `<div style="padding:16px"><div style="background:${c.accent};color:white;text-align:center;padding:12px;border-radius:12px;font-size:13px;font-weight:600">온라인 예약 페이지 →</div></div>` : ''}
-      <div style="padding:12px 16px;display:flex;gap:8px">
-        <div style="flex:1;text-align:center;padding:10px;font-size:11px;color:${c.accent};font-weight:600">예약</div>
-        <div style="flex:1;text-align:center;padding:10px;font-size:11px;color:#94a3b8">매출</div>
-        <div style="flex:1;text-align:center;padding:10px;font-size:11px;color:#94a3b8">고객</div>
-        <div style="flex:1;text-align:center;padding:10px;font-size:11px;color:#94a3b8">설정</div>
+      <div style="border-top:1px solid #e2e8f0;display:flex;padding:4px 8px;background:${c.card}">
+        ${Array.from(features).slice(0, 5).map((fId, i) => {
+          const labels: Record<string, string> = { 'reservation': '📅 예약', 'sales': '💰 매출', 'customer': '👥 고객', 'staff': '👤 스태프', 'service-menu': '✂️ 시술', 'dashboard': '📊 통계', 'online-booking': '🌐 온라인', 'alimtalk': '💬 알림', 'settlement': '📋 정산', 'prepaid': '🎫 정액권' };
+          return `<div style="flex:1;text-align:center;padding:8px 4px;font-size:10px;${i === 0 ? `color:${c.accent};font-weight:700` : 'color:#94a3b8'}">${labels[fId] || fId}</div>`;
+        }).join('')}
       </div>
     </div>`;
   }
@@ -232,7 +232,20 @@ function generatePreviewHtml(templateId: string, name: string, features: Set<str
   }
 
   // booking-crm
-  return `<div style="font-family:system-ui;background:${c.bg};min-height:100vh">
+  const FEATURE_LABELS: Record<string, string> = {
+    'reservation': '📅 예약', 'sales': '💰 매출', 'customer': '👥 고객', 'staff': '👤 스태프',
+    'service-menu': '✂️ 시술', 'dashboard': '📊 대시보드', 'online-booking': '🌐 온라인예약',
+    'alimtalk': '💬 알림톡', 'settlement': '📋 정산', 'prepaid': '🎫 정액권',
+    'coupon': '🎟 쿠폰', 'review': '⭐ 리뷰', 'wishlist': '❤️ 찜',
+    'admin-dashboard': '📊 대시보드', 'attendance': '✅ 출석',
+  };
+  const featureMenus = Array.from(features).slice(0, 5).map((fId, i) => {
+    const label = FEATURE_LABELS[fId] || fId;
+    const isActive = i === 0;
+    return `<div style="flex:1;text-align:center;padding:8px 4px;font-size:10px;${isActive ? `color:${c.accent};font-weight:700` : 'color:#94a3b8'}">${label}</div>`;
+  }).join('');
+
+  return `<div style="font-family:system-ui;background:${c.bg};min-height:100vh;display:flex;flex-direction:column">
     <div style="background:${c.accent};color:white;padding:14px 20px;display:flex;justify-content:space-between;align-items:center">
       <span style="font-weight:700;font-size:16px">📅 ${appName}</span>
       <span style="font-size:12px;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:6px">관리자</span>
@@ -241,7 +254,7 @@ function generatePreviewHtml(templateId: string, name: string, features: Set<str
       <div style="background:${c.card};padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:11px;color:#64748b">오늘 예약</div><div style="font-size:20px;font-weight:700;color:${c.accent}">18건</div></div>
       <div style="background:${c.card};padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:11px;color:#64748b">온라인 예약</div><div style="font-size:20px;font-weight:700">34%</div></div>
     </div>
-    <div style="padding:0 16px">
+    <div style="padding:0 16px;flex:1">
       <div style="background:${c.card};padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
         <div style="font-size:13px;font-weight:600;margin-bottom:10px">일정</div>
         <div style="font-size:12px;padding:8px 0;border-bottom:1px solid #f1f5f9"><b style="color:${c.accent}">09:00</b> 김철수 - 일반 진료</div>
@@ -249,6 +262,7 @@ function generatePreviewHtml(templateId: string, name: string, features: Set<str
         <div style="font-size:12px;padding:8px 0"><b style="color:${c.accent}">10:00</b> 이민호 - 재활치료</div>
       </div>
     </div>
+    <div style="border-top:1px solid #e2e8f0;display:flex;padding:4px 8px;background:${c.card}">${featureMenus}</div>
   </div>`;
 }
 
@@ -792,11 +806,10 @@ export default function Home() {
             <div className="grid gap-6 lg:grid-cols-2">
               {/* 왼쪽: 요약 + 버튼 */}
               <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-8">
-                <div className="mb-6 space-y-4">
+                <div className="mb-5 space-y-3.5">
                   {[
                     ['템플릿', `${selectedTemplate.icon} ${selectedTemplate.name}`],
                     ['프로젝트 이름', projectName],
-                    ['선택된 기능', `${selectedFeatures.size}개`],
                     ['디자인 테마', `${selectedTheme.name}${selectedTheme.credits > 0 ? ` (+${selectedTheme.credits})` : ''}`],
                     ['기술 스택', 'Next.js + NestJS + PostgreSQL'],
                   ].map(([label, value]) => (
@@ -807,9 +820,28 @@ export default function Home() {
                   ))}
                 </div>
 
-                <div className="mb-6 rounded-xl bg-[#2c2c35] p-5">
+                {/* 선택된 기능 상세 목록 */}
+                <div className="mb-5 rounded-xl bg-[#2c2c35] p-4">
+                  <h4 className="mb-3 flex items-center justify-between text-sm font-bold text-[#8b95a1]">
+                    <span>선택된 기능</span>
+                    <span className="text-[#3182f6]">{selectedFeatures.size}개</span>
+                  </h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedTemplate.features
+                      .filter(f => selectedFeatures.has(f.id))
+                      .map(f => (
+                        <span key={f.id} className={`rounded-lg px-2.5 py-1 text-xs font-medium ${
+                          f.required ? 'bg-[#30d158]/15 text-[#30d158]' : 'bg-[#3182f6]/15 text-[#3182f6]'
+                        }`}>
+                          {f.required ? '✓ ' : ''}{f.name}
+                        </span>
+                      ))}
+                  </div>
+                </div>
+
+                <div className="mb-5 rounded-xl bg-[#2c2c35] p-4">
                   <h4 className="mb-3 text-sm font-bold text-[#8b95a1]">생성될 항목</h4>
-                  <ul className="space-y-1.5 text-sm text-[#8b95a1]">
+                  <ul className="space-y-1.5 text-xs text-[#6b7684]">
                     <li>Prisma DB 스키마 + 마이그레이션</li>
                     <li>NestJS 백엔드 API (CRUD + 인증)</li>
                     <li>Next.js 프론트엔드 (반응형 UI)</li>
