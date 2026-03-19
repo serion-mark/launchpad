@@ -5,6 +5,7 @@ import { ProjectModule } from './project/project.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { CreditModule } from './credit/credit.module';
 import { AiModule } from './ai/ai.module';
+import { AdminModule } from './admin/admin.module';
 import { PrismaService } from './prisma.service';
 
 @Module({
@@ -15,6 +16,7 @@ import { PrismaService } from './prisma.service';
     SubscriptionModule,
     CreditModule,
     AiModule,
+    AdminModule,
   ],
   providers: [PrismaService],
   exports: [PrismaService],
