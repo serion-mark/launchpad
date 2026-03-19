@@ -4,7 +4,7 @@ import { AdminService } from './admin.service';
 import { PrismaService } from '../prisma.service';
 
 // 어드민 이메일 화이트리스트
-const ADMIN_EMAILS = ['mark@serion.ai.kr', 'mark@foundry.kr'];
+const ADMIN_EMAILS = ['admin@serion.ai.kr', 'mark@serion.ai.kr', 'mark@foundry.kr'];
 
 @Controller('admin')
 @UseGuards(AuthGuard('jwt'))
