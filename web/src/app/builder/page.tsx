@@ -59,6 +59,30 @@ const QUESTIONNAIRES: Record<string, Question[]> = {
     { id: 'features', question: '필요한 기능은?', chips: ['온라인 예약 페이지', '고객 CRM', '매출 관리', '알림톡/SMS 발송', '출석 체크', '통계 대시보드'], multi: true },
     { id: 'pain', question: '가장 불편한 점은?', chips: ['예약 중복이 잦아요', '노쇼가 많아요', '고객 관리가 안 돼요', '매출 파악이 어려워요'], multi: true },
   ],
+  'o2o-matching': [
+    { id: 'biz_name', question: '서비스 이름이 뭔가요?', chips: ['○○ 매칭', '퀵도우미', '매칭플러스'] },
+    { id: 'service_type', question: '어떤 서비스를 매칭하나요?', chips: ['배달/심부름', '청소/가사도우미', '과외/레슨', '펫시터/반려동물', '부동산/인테리어'], multi: true },
+    { id: 'matching_method', question: '매칭 방식은?', chips: ['자동 매칭 (가까운 제공자)', '제공자 입찰 (견적 제출)', '고객이 직접 선택'] },
+    { id: 'payment_method', question: '결제 방식은?', chips: ['선결제 (에스크로)', '후결제 (완료 후)', '현장 결제', '정기 구독'] },
+    { id: 'features', question: '필요한 기능은?', chips: ['지도 연동 (위치 표시)', '1:1 채팅', '양방향 리뷰/평점', '수수료 자동 정산', '알림톡 발송', '관리자 대시보드'], multi: true },
+    { id: 'pain', question: '가장 해결하고 싶은 문제는?', chips: ['매칭이 느려요', '제공자 관리가 힘들어요', '정산이 복잡해요', '고객 불만이 많아요'], multi: true },
+  ],
+  'edutech': [
+    { id: 'biz_name', question: '교육 서비스 이름이 뭔가요?', chips: ['○○ 아카데미', '런잇', '스터디플러스'] },
+    { id: 'edu_type', question: '어떤 교육 서비스인가요?', chips: ['온라인 강의 (VOD)', '실시간 라이브 수업', '오프라인 학원', '기업 교육/연수', '자격증/시험 대비'], multi: true },
+    { id: 'content_type', question: '콘텐츠 형태는?', chips: ['영상 강의 (YouTube/Vimeo)', 'PDF/PPT 교재', '실시간 화상 (Zoom)', '과제/포트폴리오 제출'], multi: true },
+    { id: 'eval_method', question: '평가 방식은?', chips: ['퀴즈/시험 (자동채점)', '과제 제출', '수료증 자동 발급', '평가 없음 (자유 수강)'], multi: true },
+    { id: 'features', question: '필요한 기능은?', chips: ['수강생 진도율 추적', 'Q&A 게시판', '출석 체크', '수업 리마인더 알림', '매출/수강 통계', '수료증 PDF 발급'], multi: true },
+    { id: 'pain', question: '가장 해결하고 싶은 문제는?', chips: ['수강생 관리가 어려워요', '진도율 파악이 안 돼요', '결제/환불 처리가 번거로워요', '콘텐츠 관리가 복잡해요'], multi: true },
+  ],
+  'facility-mgmt': [
+    { id: 'biz_name', question: '관리업체(시설) 이름이 뭔가요?', chips: ['○○ 관리', '해피타운 관리사무소', '스마트빌딩'] },
+    { id: 'facility_type', question: '어떤 시설을 관리하나요?', chips: ['아파트/주거단지', '오피스빌딩/상업시설', '공유오피스/코워킹', '상가/쇼핑몰'], multi: true },
+    { id: 'complaint_type', question: '주요 민원 유형은?', chips: ['하자보수 (누수/설비)', '소음/층간소음', '주차 문제', '시설 이용 문의', '관리비 관련'], multi: true },
+    { id: 'scale', question: '관리 규모는?', chips: ['소규모 (~100세대)', '중규모 (100~500세대)', '대규모 (500세대 이상)'] },
+    { id: 'features', question: '필요한 기능은?', chips: ['시설 예약 (회의실/주차)', '관리비 청구/수납', '전화 민원 자동 기록', '알림톡 (공지/민원)', '만족도 조사', '민원 현황 대시보드'], multi: true },
+    { id: 'pain', question: '가장 해결하고 싶은 문제는?', chips: ['전화 민원이 너무 많아요', '민원 처리 추적이 안 돼요', '공지 전달이 어려워요', '관리비 수납이 번거로워요'], multi: true },
+  ],
 };
 
 // ── AI API 호출 ──────────────────────────────────────
@@ -454,9 +478,12 @@ function BuilderContent() {
   const industry = answers.industry || '';
   const isBeauty = templateId === 'beauty-salon';
   const isCommerce = templateId === 'ecommerce';
+  const isO2O = templateId === 'o2o-matching';
+  const isEdutech = templateId === 'edutech';
+  const isFacility = templateId === 'facility-mgmt';
   const isClinic = industry.includes('병원') || industry.includes('클리닉');
   const isFitness = industry.includes('피트니스') || industry.includes('요가') || industry.includes('헬스');
-  const isEdu = industry.includes('학원') || industry.includes('교육');
+  const isEdu = isEdutech || industry.includes('학원') || industry.includes('교육');
   const isFood = industry.includes('식당') || industry.includes('카페');
   const isLodging = industry.includes('펜션') || industry.includes('숙박');
 
@@ -477,6 +504,16 @@ function BuilderContent() {
     'review': '⭐ 리뷰', 'wishlist': '❤️ 찜', 'inventory': '📦 재고',
     'product': '🛍 상품', 'cart': '🛒 장바구니', 'order': '📋 주문', 'shipping': '🚚 배송',
     'seo': '🔍 SEO',
+    // O2O 매칭
+    'matching': '🔗 매칭', 'provider-mgmt': '👤 제공자', 'order-status': '📍 상태추적',
+    'map': '🗺 지도', 'chat': '💬 채팅',
+    // 에듀테크
+    'course': '📹 강의', 'student': '🎓 수강생', 'progress': '📊 진도율',
+    'quiz': '📝 퀴즈', 'certificate': '🏅 수료증', 'community': '💬 Q&A',
+    // 관리업체
+    'complaint': '📞 민원', 'tenant': '🏠 입주민', 'notice': '📢 공지',
+    'maintenance': '🔧 보수', 'facility-booking': '🏢 시설예약',
+    'billing': '💰 관리비', 'phone-log': '📞 전화기록', 'satisfaction': '😊 만족도',
   };
 
   // ── 업종별 데모 데이터 ──────────────────────────────

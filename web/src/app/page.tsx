@@ -65,6 +65,67 @@ const TEMPLATES = [
     ],
     baseCredits: 2000,
   },
+  {
+    id: 'o2o-matching',
+    name: 'O2O 매칭',
+    icon: '🔗',
+    category: '매칭/중개',
+    description: '수요↔공급 매칭 + 실시간 상태 + 리뷰/정산',
+    features: [
+      { id: 'matching', name: '매칭 시스템', required: true, credits: 0 },
+      { id: 'provider-mgmt', name: '제공자 관리', required: true, credits: 0 },
+      { id: 'customer', name: '고객(수요자) 관리', required: true, credits: 0 },
+      { id: 'order-status', name: '실시간 상태 추적', required: true, credits: 0 },
+      { id: 'payment', name: '결제/에스크로', required: true, credits: 0 },
+      { id: 'review', name: '양방향 리뷰/평점', required: false, credits: 200 },
+      { id: 'map', name: '지도 연동 (카카오맵)', required: false, credits: 400 },
+      { id: 'chat', name: '1:1 채팅', required: false, credits: 400 },
+      { id: 'settlement', name: '수수료 정산', required: false, credits: 300 },
+      { id: 'notification', name: '알림톡/푸시', required: false, credits: 300 },
+      { id: 'dashboard', name: '관리자 대시보드', required: false, credits: 300 },
+    ],
+    baseCredits: 2500,
+  },
+  {
+    id: 'edutech',
+    name: '에듀테크 (LMS)',
+    icon: '🎓',
+    category: '교육/강의',
+    description: '강의 관리 + 수강생 CRM + 퀴즈/시험 + 수료증',
+    features: [
+      { id: 'course', name: '강의/커리큘럼 관리', required: true, credits: 0 },
+      { id: 'student', name: '수강생 관리 (CRM)', required: true, credits: 0 },
+      { id: 'progress', name: '진도율 추적', required: true, credits: 0 },
+      { id: 'payment', name: '수강 결제/수강권', required: true, credits: 0 },
+      { id: 'quiz', name: '퀴즈/시험 (자동채점)', required: false, credits: 300 },
+      { id: 'certificate', name: '수료증 PDF 발급', required: false, credits: 300 },
+      { id: 'community', name: 'Q&A 게시판', required: false, credits: 200 },
+      { id: 'attendance', name: '출석 체크', required: false, credits: 200 },
+      { id: 'notification', name: '리마인더 알림톡', required: false, credits: 300 },
+      { id: 'dashboard', name: '매출/수강 대시보드', required: false, credits: 300 },
+    ],
+    baseCredits: 2000,
+  },
+  {
+    id: 'facility-mgmt',
+    name: '관리업체/시설관리',
+    icon: '🏢',
+    category: '관리/시설',
+    description: '민원 접수/처리 + 입주민 CRM + 시설 예약 + 관리비',
+    features: [
+      { id: 'complaint', name: '민원 접수/처리', required: true, credits: 0 },
+      { id: 'tenant', name: '입주민/회원 관리', required: true, credits: 0 },
+      { id: 'notice', name: '공지사항/관리내역', required: true, credits: 0 },
+      { id: 'maintenance', name: '시설 보수 관리', required: true, credits: 0 },
+      { id: 'facility-booking', name: '시설 예약 (회의실/주차)', required: false, credits: 300 },
+      { id: 'billing', name: '관리비 청구/수납', required: false, credits: 400 },
+      { id: 'notification', name: '알림톡 (공지/민원)', required: false, credits: 300 },
+      { id: 'phone-log', name: '전화 민원 자동 기록', required: false, credits: 400 },
+      { id: 'dashboard', name: '민원 현황 대시보드', required: false, credits: 300 },
+      { id: 'satisfaction', name: '만족도 조사', required: false, credits: 200 },
+    ],
+    baseCredits: 2000,
+  },
 ];
 
 // ── 업종별 맞춤 질문지 ─────────────────────────────────
@@ -164,6 +225,88 @@ const TEMPLATE_QUESTIONS: Record<string, Question[]> = {
       { label: 'SEO 최적화', value: 'seo', featureMap: ['seo'] },
     ]},
   ],
+  'o2o-matching': [
+    { id: 'service-type', question: '어떤 서비스를 매칭하나요?', type: 'radio', options: [
+      { label: '배달/심부름', value: 'delivery' },
+      { label: '청소/가사도우미', value: 'cleaning' },
+      { label: '과외/레슨', value: 'tutoring' },
+      { label: '펫시터/반려동물', value: 'pet' },
+      { label: '부동산/인테리어', value: 'realestate' },
+      { label: '기타 서비스', value: 'other' },
+    ]},
+    { id: 'matching-method', question: '매칭 방식은?', type: 'radio', options: [
+      { label: '자동 매칭 (가까운 제공자 배정)', value: 'auto', featureMap: ['map'] },
+      { label: '제공자가 입찰 (견적 제출)', value: 'bid' },
+      { label: '고객이 직접 선택', value: 'choose', featureMap: ['review'] },
+    ]},
+    { id: 'payment-method', question: '결제 방식은?', type: 'radio', options: [
+      { label: '선결제 (에스크로)', value: 'prepay', featureMap: ['payment'] },
+      { label: '후결제 (서비스 완료 후)', value: 'postpay', featureMap: ['payment'] },
+      { label: '현장 결제', value: 'onsite' },
+    ]},
+    { id: 'extras', question: '추가 기능이 필요하세요?', type: 'checkbox', options: [
+      { label: '지도에서 제공자 위치 보기', value: 'map', featureMap: ['map'] },
+      { label: '매칭 후 1:1 채팅', value: 'chat', featureMap: ['chat'] },
+      { label: '양방향 리뷰/평점', value: 'review', featureMap: ['review'] },
+      { label: '수수료 자동 정산', value: 'settlement', featureMap: ['settlement'] },
+      { label: '관리자 대시보드', value: 'dashboard', featureMap: ['dashboard'] },
+    ]},
+  ],
+  'edutech': [
+    { id: 'edu-type', question: '어떤 교육 서비스인가요?', type: 'radio', options: [
+      { label: '온라인 강의 (VOD)', value: 'vod' },
+      { label: '실시간 라이브 수업', value: 'live' },
+      { label: '오프라인 학원/교습소', value: 'offline' },
+      { label: '기업 교육/연수', value: 'corporate' },
+      { label: '자격증/시험 대비', value: 'exam' },
+    ]},
+    { id: 'content-type', question: '강의 콘텐츠 형태는?', type: 'checkbox', options: [
+      { label: '영상 강의 (YouTube/Vimeo 임베드)', value: 'video', featureMap: ['course'] },
+      { label: 'PDF/PPT 교재', value: 'document', featureMap: ['course'] },
+      { label: '실시간 화상 수업 (Zoom 연동)', value: 'zoom', featureMap: ['attendance'] },
+      { label: '과제/포트폴리오 제출', value: 'assignment', featureMap: ['quiz'] },
+    ]},
+    { id: 'eval-method', question: '평가 방식은?', type: 'checkbox', options: [
+      { label: '퀴즈/시험 (자동 채점)', value: 'quiz', featureMap: ['quiz'] },
+      { label: '과제 제출', value: 'assignment', featureMap: ['quiz'] },
+      { label: '수료증 자동 발급', value: 'certificate', featureMap: ['certificate'] },
+      { label: '평가 없음 (자유 수강)', value: 'none' },
+    ]},
+    { id: 'extras', question: '추가 기능이 필요하세요?', type: 'checkbox', options: [
+      { label: 'Q&A 게시판/커뮤니티', value: 'community', featureMap: ['community'] },
+      { label: '출석 체크', value: 'attendance', featureMap: ['attendance'] },
+      { label: '수업 리마인더 알림', value: 'notification', featureMap: ['notification'] },
+      { label: '매출/수강 통계', value: 'dashboard', featureMap: ['dashboard'] },
+    ]},
+  ],
+  'facility-mgmt': [
+    { id: 'facility-type', question: '어떤 시설을 관리하나요?', type: 'radio', options: [
+      { label: '아파트/주거단지', value: 'apartment' },
+      { label: '오피스빌딩/상업시설', value: 'office' },
+      { label: '공유오피스/코워킹', value: 'coworking' },
+      { label: '상가/쇼핑몰', value: 'mall' },
+      { label: '기타 시설', value: 'other' },
+    ]},
+    { id: 'complaint-type', question: '주요 민원 유형은? (복수 선택)', type: 'checkbox', options: [
+      { label: '하자보수 (누수/벽면/설비)', value: 'repair', featureMap: ['maintenance'] },
+      { label: '소음/층간소음', value: 'noise', featureMap: ['complaint'] },
+      { label: '주차 문제', value: 'parking', featureMap: ['facility-booking'] },
+      { label: '시설 이용 문의', value: 'facility', featureMap: ['facility-booking'] },
+      { label: '관리비 관련', value: 'billing', featureMap: ['billing'] },
+    ]},
+    { id: 'scale', question: '관리 규모는?', type: 'radio', options: [
+      { label: '소규모 (~100세대/호실)', value: 'small' },
+      { label: '중규모 (100~500세대)', value: 'medium', featureMap: ['dashboard'] },
+      { label: '대규모 (500세대 이상)', value: 'large', featureMap: ['dashboard', 'phone-log'] },
+    ]},
+    { id: 'extras', question: '추가 기능이 필요하세요?', type: 'checkbox', options: [
+      { label: '시설 예약 (회의실/커뮤니티)', value: 'booking', featureMap: ['facility-booking'] },
+      { label: '관리비 청구/수납', value: 'billing', featureMap: ['billing'] },
+      { label: '전화 민원 자동 기록', value: 'phone', featureMap: ['phone-log'] },
+      { label: '알림톡 (공지/처리결과)', value: 'notification', featureMap: ['notification'] },
+      { label: '만족도 조사', value: 'satisfaction', featureMap: ['satisfaction'] },
+    ]},
+  ],
 };
 
 // ── 스텝 정의 ──────────────────────────────────────────
@@ -231,7 +374,70 @@ function generatePreviewHtml(templateId: string, name: string, features: Set<str
     </div>`;
   }
 
-  // booking-crm
+  // O2O 매칭
+  if (templateId === 'o2o-matching') {
+    return `<div style="font-family:system-ui;min-height:100vh;background:${c.bg}">
+      <div style="background:${c.accent};color:white;padding:14px 20px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:700;font-size:16px">🔗 ${appName}</span>
+        <span style="font-size:12px;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:6px">관리자</span>
+      </div>
+      <div style="padding:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+        <div style="background:${c.card};padding:12px;border-radius:10px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">활성 제공자</div><div style="font-size:18px;font-weight:700;color:${c.accent}">24명</div></div>
+        <div style="background:${c.card};padding:12px;border-radius:10px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">오늘 매칭</div><div style="font-size:18px;font-weight:700">37건</div></div>
+        <div style="background:${c.card};padding:12px;border-radius:10px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">평균 평점</div><div style="font-size:18px;font-weight:700;color:#f59e0b">4.8⭐</div></div>
+      </div>
+      <div style="padding:0 16px"><div style="background:${c.card};padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+        <div style="font-size:13px;font-weight:600;margin-bottom:10px">실시간 매칭 현황</div>
+        <div style="font-size:12px;padding:8px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span>🟢 김도우미 → 강남구 청소</span><span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:10px">진행중</span></div>
+        <div style="font-size:12px;padding:8px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span>🟡 박기사 → 서초구 배달</span><span style="background:#fef9c3;color:#ca8a04;padding:2px 8px;border-radius:10px;font-size:10px">이동중</span></div>
+        <div style="font-size:12px;padding:8px 0;display:flex;justify-content:space-between"><span>🔵 이전문 → 송파구 레슨</span><span style="background:#dbeafe;color:#2563eb;padding:2px 8px;border-radius:10px;font-size:10px">수락대기</span></div>
+      </div></div>
+    </div>`;
+  }
+
+  // 에듀테크 (LMS)
+  if (templateId === 'edutech') {
+    return `<div style="font-family:system-ui;min-height:100vh;background:${c.bg}">
+      <div style="background:${c.accent};color:white;padding:14px 20px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:700;font-size:16px">🎓 ${appName}</span>
+        <span style="font-size:12px;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:6px">관리자</span>
+      </div>
+      <div style="padding:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+        <div style="background:${c.card};padding:12px;border-radius:10px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">수강생</div><div style="font-size:18px;font-weight:700;color:${c.accent}">248명</div></div>
+        <div style="background:${c.card};padding:12px;border-radius:10px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">완료율</div><div style="font-size:18px;font-weight:700">67%</div></div>
+        <div style="background:${c.card};padding:12px;border-radius:10px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">이번주 매출</div><div style="font-size:18px;font-weight:700;color:#16a34a">₩3.2M</div></div>
+      </div>
+      <div style="padding:0 16px"><div style="background:${c.card};padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+        <div style="font-size:13px;font-weight:600;margin-bottom:10px">인기 강의</div>
+        <div style="font-size:12px;padding:8px 0;border-bottom:1px solid #f1f5f9"><span>📹 Python 기초 마스터</span><div style="background:#e2e8f0;border-radius:4px;height:6px;margin-top:4px"><div style="background:${c.accent};border-radius:4px;height:6px;width:73%"></div></div><span style="font-size:10px;color:#64748b">수강생 89명 · 완료율 73%</span></div>
+        <div style="font-size:12px;padding:8px 0;border-bottom:1px solid #f1f5f9"><span>📹 웹개발 부트캠프</span><div style="background:#e2e8f0;border-radius:4px;height:6px;margin-top:4px"><div style="background:${c.accent};border-radius:4px;height:6px;width:45%"></div></div><span style="font-size:10px;color:#64748b">수강생 56명 · 완료율 45%</span></div>
+        <div style="font-size:12px;padding:8px 0"><span>📹 데이터 분석 입문</span><div style="background:#e2e8f0;border-radius:4px;height:6px;margin-top:4px"><div style="background:${c.accent};border-radius:4px;height:6px;width:91%"></div></div><span style="font-size:10px;color:#64748b">수강생 103명 · 완료율 91%</span></div>
+      </div></div>
+    </div>`;
+  }
+
+  // 관리업체/시설관리
+  if (templateId === 'facility-mgmt') {
+    return `<div style="font-family:system-ui;min-height:100vh;background:${c.bg}">
+      <div style="background:${c.accent};color:white;padding:14px 20px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:700;font-size:16px">🏢 ${appName}</span>
+        <span style="font-size:12px;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:6px">관리자</span>
+      </div>
+      <div style="padding:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+        <div style="background:${c.card};padding:12px;border-radius:10px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">접수 민원</div><div style="font-size:18px;font-weight:700;color:#ef4444">8건</div></div>
+        <div style="background:${c.card};padding:12px;border-radius:10px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">처리 완료</div><div style="font-size:18px;font-weight:700;color:#16a34a">92%</div></div>
+        <div style="background:${c.card};padding:12px;border-radius:10px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">입주민</div><div style="font-size:18px;font-weight:700">342세대</div></div>
+      </div>
+      <div style="padding:0 16px"><div style="background:${c.card};padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+        <div style="font-size:13px;font-weight:600;margin-bottom:10px">최근 민원</div>
+        <div style="font-size:12px;padding:8px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span>🔧 301동 502호 · 화장실 누수</span><span style="background:#fef9c3;color:#ca8a04;padding:2px 8px;border-radius:10px;font-size:10px">처리중</span></div>
+        <div style="font-size:12px;padding:8px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span>🔊 105동 1203호 · 층간소음</span><span style="background:#fee2e2;color:#ef4444;padding:2px 8px;border-radius:10px;font-size:10px">접수</span></div>
+        <div style="font-size:12px;padding:8px 0;display:flex;justify-content:space-between"><span>🅿️ 지하2층 B-15 · 주차 문의</span><span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:10px">완료</span></div>
+      </div></div>
+    </div>`;
+  }
+
+  // booking-crm (기본)
   const FEATURE_LABELS: Record<string, string> = {
     'reservation': '📅 예약', 'sales': '💰 매출', 'customer': '👥 고객', 'staff': '👤 스태프',
     'service-menu': '✂️ 시술', 'dashboard': '📊 대시보드', 'online-booking': '🌐 온라인예약',
@@ -459,7 +665,7 @@ export default function Home() {
 
             <div className="mt-10 text-center text-[#6b7684]">
               <p className="text-sm">더 많은 템플릿이 준비 중입니다</p>
-              <p className="text-xs mt-1.5">카페/요식업 | 피트니스/헬스 | 병원/클리닉 | 학원/교육 | 부동산 | 숙박</p>
+              <p className="text-xs mt-1.5">카페/요식업 | 피트니스/헬스 | 병원/클리닉 | 부동산 | 숙박 | 펫서비스</p>
             </div>
           </div>
         )}
