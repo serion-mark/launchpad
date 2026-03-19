@@ -15,7 +15,7 @@ export class AdminController {
   ) {}
 
   private async checkAdmin(req: any) {
-    const user = await this.prisma.user.findUnique({ where: { id: req.user.sub } });
+    const user = await this.prisma.user.findUnique({ where: { id: req.user.userId } });
     if (!user || !ADMIN_EMAILS.includes(user.email)) {
       throw new ForbiddenException('Admin access only');
     }
