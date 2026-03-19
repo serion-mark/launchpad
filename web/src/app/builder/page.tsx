@@ -145,7 +145,11 @@ function BuilderContent() {
   const [previewTemplate, setPreviewTemplate] = useState<string | null>(null);
   const [mode, setMode] = useState<'build' | 'discuss'>('build');
   const [saving, setSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<string>('');
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
+  const [tokenUsed, setTokenUsed] = useState(0); // 이번 세션 토큰 사용량
+  const [showSaveToast, setShowSaveToast] = useState(false);
+  const [showCostModal, setShowCostModal] = useState<'deploy' | 'download' | null>(null);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [previewMode, setPreviewMode] = useState<'mobile' | 'desktop'>('mobile');
@@ -211,7 +215,7 @@ function BuilderContent() {
     })();
   }, [projectId]);
 
-  const saveChatHistory = (msgs: Message[]) => {
+  const saveChatHistory = (msgs: Message[], showToast = false) => {
     if (!projectId || msgs.length === 0) return;
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(async () => {
@@ -221,10 +225,30 @@ function BuilderContent() {
           method: 'PATCH',
           body: JSON.stringify({ chatHistory: msgs }),
         });
+        const now = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+        setLastSaved(now);
+        if (showToast) {
+          setShowSaveToast(true);
+          setTimeout(() => setShowSaveToast(false), 2000);
+        }
       } catch { /* */ }
       setSaving(false);
-    }, 2000);
+    }, showToast ? 0 : 2000);
   };
+
+  // 수동 저장
+  const handleManualSave = () => {
+    saveChatHistory(messages, true);
+  };
+
+  // 자동 저장 (30초마다)
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const interval = setInterval(() => {
+      saveChatHistory(messages);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [messages]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -355,6 +379,15 @@ function BuilderContent() {
       chatHistory: chatHistory.slice(-10),
       template: templateId,
     });
+
+    // 크레딧 잔액 다시 조회
+    authFetch('/credits/balance').then(r => r.ok ? r.json() : null).then(d => {
+      if (d) setCreditBalance(d.balance);
+    }).catch(() => {});
+
+    // 토큰 사용량 추정 (메시지 길이 기반)
+    const estimatedTokens = Math.ceil((input.trim().length + aiContent.length) / 3);
+    setTokenUsed(prev => prev + estimatedTokens);
 
     const aiMsg: Message = {
       id: (Date.now() + 1).toString(), role: 'assistant',
@@ -814,7 +847,16 @@ function BuilderContent() {
               </div>
             )}
           </div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
+            {/* 저장 버튼 */}
+            <button onClick={handleManualSave} className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${saving ? 'bg-[#30d158]/20 text-[#30d158]' : 'bg-[#2c2c35] text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#3a3a45]'}`}>
+              {saving ? '💾 저장 중...' : lastSaved ? `💾 ${lastSaved}` : '💾 저장'}
+            </button>
+            {/* 토큰 사용량 */}
+            {tokenUsed > 0 && (
+              <span className="rounded-lg bg-[#2c2c35] px-2.5 py-1.5 text-[10px] text-[#8b95a1]" title="이번 세션에서 사용한 토큰">🔥 ~{tokenUsed.toLocaleString()}토큰</span>
+            )}
+            {/* 크레딧 잔액 */}
             {creditBalance !== null && (
               <a href="/credits" className="flex items-center gap-1.5 rounded-lg bg-[#2c2c35] px-3 py-1.5 text-xs font-medium text-[#ffd60a] hover:bg-[#3a3a45] transition-colors">
                 <span>⚡</span><span>{creditBalance.toLocaleString()}</span>
@@ -825,8 +867,8 @@ function BuilderContent() {
             )}
             {buildPhase === 'done' && (
               <>
-                <button onClick={handleDeploy} className="rounded-xl bg-[#3182f6] px-5 py-2 text-sm font-bold text-white hover:bg-[#1b64da] transition-colors">배포하기</button>
-                <button onClick={handleDownload} className="rounded-xl bg-[#a855f7] px-4 py-2 text-sm font-bold text-white hover:bg-[#9333ea] transition-colors">다운로드</button>
+                <button onClick={() => setShowCostModal('deploy')} className="rounded-xl bg-[#3182f6] px-4 py-2 text-sm font-bold text-white hover:bg-[#1b64da] transition-colors">배포하기</button>
+                <button onClick={() => setShowCostModal('download')} className="rounded-xl bg-[#a855f7] px-4 py-2 text-sm font-bold text-white hover:bg-[#9333ea] transition-colors">다운로드</button>
               </>
             )}
             <a href="/dashboard" className="rounded-xl bg-[#2c2c35] px-4 py-2 text-sm font-medium text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">프로젝트 목록</a>
@@ -967,10 +1009,83 @@ function BuilderContent() {
             </button>
           </div>
           <p className="mx-auto mt-2.5 max-w-2xl text-center text-xs text-[#6b7684]">
-            {buildPhase === 'questionnaire' ? `질문 ${questionIndex + 1}/${questions.length} — 보기를 클릭하거나 직접 입력하세요` : 'AI가 앱을 생성합니다. 생성된 앱은 수정/배포할 수 있습니다.'}
+            {buildPhase === 'questionnaire' ? `질문 ${questionIndex + 1}/${questions.length} — 보기를 클릭하거나 직접 입력하세요`
+              : tokenUsed > 0 ? `채팅할 때마다 크레딧이 소모됩니다 · 이번 세션: ~${tokenUsed.toLocaleString()}토큰 사용`
+              : 'AI가 앱을 생성합니다. 생성된 앱은 수정/배포할 수 있습니다.'}
           </p>
         </div>
       </div>
+
+      {/* 저장 완료 토스트 */}
+      {showSaveToast && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 rounded-xl bg-[#30d158] px-5 py-2.5 text-sm font-semibold text-white shadow-lg animate-bounce">
+          💾 저장 완료!
+        </div>
+      )}
+
+      {/* 배포/다운로드 비용 안내 모달 */}
+      {showCostModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowCostModal(null)}>
+          <div className="w-[480px] max-w-[90vw] rounded-2xl bg-[#1b1b21] border border-[#2c2c35] p-6" onClick={e => e.stopPropagation()}>
+            {showCostModal === 'deploy' ? (
+              <>
+                <h3 className="text-lg font-bold text-[#f2f4f6] mb-1">🚀 배포하기</h3>
+                <p className="text-sm text-[#8b95a1] mb-4">Foundry 서버에 앱을 배포하면 바로 사용할 수 있습니다.</p>
+                <div className="rounded-xl bg-[#2c2c35] p-4 mb-4 space-y-3">
+                  <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">호스팅 비용</span><span className="text-[#ffd60a] font-bold">월 9,900원</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">서브도메인</span><span className="text-[#f2f4f6]">{project?.name || 'myapp'}.foundry.kr</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">배포 후 수정</span><span className="text-[#30d158]">✅ 채팅으로 언제든 수정 가능</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">SSL/HTTPS</span><span className="text-[#30d158]">✅ 자동 적용</span></div>
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => setShowCostModal(null)} className="flex-1 rounded-xl bg-[#2c2c35] py-3 text-sm font-medium text-[#8b95a1] hover:bg-[#3a3a45]">취소</button>
+                  <button onClick={() => { setShowCostModal(null); handleDeploy(); }} className="flex-1 rounded-xl bg-[#3182f6] py-3 text-sm font-bold text-white hover:bg-[#1b64da]">월 9,900원 배포하기</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-bold text-[#f2f4f6] mb-1">📦 소스코드 다운로드</h3>
+                <p className="text-sm text-[#8b95a1] mb-4">전체 소스코드를 ZIP으로 다운로드합니다. 코드 소유권 100% 보장.</p>
+                <div className="rounded-xl bg-[#2c2c35] p-4 mb-4 space-y-3">
+                  <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">다운로드 비용</span><span className="text-[#ffd60a] font-bold">3,000 크레딧</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">포함 내용</span><span className="text-[#f2f4f6]">프론트+백엔드+DB 전체</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">ERD + API 명세</span><span className="text-[#30d158]">✅ 포함</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">코드 소유권</span><span className="text-[#30d158]">✅ 100% 사용자 소유</span></div>
+                </div>
+                <div className="rounded-xl bg-[#ffd60a]/10 border border-[#ffd60a]/20 p-3 mb-4">
+                  <p className="text-xs text-[#ffd60a]">💡 <b>절약 팁:</b> 배포(월 9,900원)로 먼저 사용해보고, 만족하면 다운로드하세요. 배포 중에도 수정이 가능합니다!</p>
+                </div>
+                {creditBalance !== null && creditBalance < 3000 && (
+                  <div className="rounded-xl bg-[#f43f5e]/10 border border-[#f43f5e]/20 p-3 mb-4">
+                    <p className="text-xs text-[#f43f5e]">⚠️ 크레딧 부족 (현재 {creditBalance.toLocaleString()}) — <a href="/credits" className="underline font-bold">충전하러 가기</a></p>
+                  </div>
+                )}
+                <div className="flex gap-3">
+                  <button onClick={() => setShowCostModal(null)} className="flex-1 rounded-xl bg-[#2c2c35] py-3 text-sm font-medium text-[#8b95a1] hover:bg-[#3a3a45]">취소</button>
+                  <button onClick={() => { setShowCostModal(null); handleDownload(); }} className="flex-1 rounded-xl bg-[#a855f7] py-3 text-sm font-bold text-white hover:bg-[#9333ea]" disabled={creditBalance !== null && creditBalance < 3000}>3,000 크레딧 다운로드</button>
+                </div>
+              </>
+            )}
+
+            {/* 다중 앱 비용 안내 */}
+            <div className="mt-4 pt-4 border-t border-[#2c2c35]">
+              <p className="text-xs text-[#6b7684] mb-2">💼 여러 앱이 필요하신가요?</p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded-lg bg-[#2c2c35] p-3">
+                  <div className="font-bold text-[#f2f4f6] mb-1">프로 플랜</div>
+                  <div className="text-[#ffd60a] font-bold">₩99,000/월</div>
+                  <div className="text-[#8b95a1]">앱 5개 + 10,000 크레딧</div>
+                </div>
+                <div className="rounded-lg bg-[#2c2c35] p-3">
+                  <div className="font-bold text-[#f2f4f6] mb-1">엔터프라이즈</div>
+                  <div className="text-[#ffd60a] font-bold">₩249,000/월</div>
+                  <div className="text-[#8b95a1]">무제한 앱 + 50,000 크레딧</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
