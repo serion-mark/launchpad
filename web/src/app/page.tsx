@@ -287,6 +287,7 @@ export default function Home() {
   const [progress, setProgress] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [refImages, setRefImages] = useState<{ file: File; preview: string }[]>([]);
+  const [previewMode, setPreviewMode] = useState<'mobile' | 'desktop'>('mobile');
 
   const handleSelectTemplate = (template: typeof TEMPLATES[0]) => {
     setSelectedTemplate(template);
@@ -838,13 +839,30 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* 오른쪽: 아이폰 프레임 미리보기 */}
+              {/* 오른쪽: PC/모바일 전환 미리보기 */}
               <div className="flex flex-col items-center">
-                <p className="mb-3 text-sm text-[#6b7684]">미리보기</p>
-                <div className="w-[300px] rounded-[2rem] border-4 border-[#2c2c35] bg-[#1b1b21] p-2 shadow-2xl">
-                  {/* 노치 */}
-                  <div className="mx-auto mb-1 h-5 w-24 rounded-full bg-[#17171c]" />
-                  <div className="overflow-hidden rounded-2xl bg-white" style={{ height: '520px' }}>
+                <div className="mb-3 flex items-center gap-3">
+                  <span className="text-sm text-[#6b7684]">미리보기</span>
+                  <div className="flex rounded-lg bg-[#2c2c35] p-0.5">
+                    <button
+                      onClick={() => setPreviewMode('mobile')}
+                      className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${previewMode === 'mobile' ? 'bg-[#3182f6] text-white' : 'text-[#8b95a1] hover:text-[#f2f4f6]'}`}
+                    >📱 모바일</button>
+                    <button
+                      onClick={() => setPreviewMode('desktop')}
+                      className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${previewMode === 'desktop' ? 'bg-[#3182f6] text-white' : 'text-[#8b95a1] hover:text-[#f2f4f6]'}`}
+                    >🖥 PC</button>
+                  </div>
+                </div>
+                <div className={`overflow-hidden border border-[#2c2c35] bg-white shadow-2xl transition-all duration-300 ${
+                  previewMode === 'mobile' ? 'w-[300px] rounded-[2rem]' : 'w-[520px] rounded-xl'
+                }`}>
+                  {previewMode === 'mobile' && (
+                    <div className="flex h-[32px] items-center justify-center bg-[#f8fafc] border-b border-[#e2e8f0]">
+                      <div className="h-[4px] w-[80px] rounded-full bg-[#1b1b21]" />
+                    </div>
+                  )}
+                  <div className="overflow-hidden bg-white" style={{ height: previewMode === 'mobile' ? '520px' : '420px' }}>
                     <iframe
                       srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,-apple-system,sans-serif;font-size:14px}</style></head><body>${generatePreviewHtml(selectedTemplate.id, projectName, selectedFeatures, selectedTheme.id)}</body></html>`}
                       className="h-full w-full border-0"
