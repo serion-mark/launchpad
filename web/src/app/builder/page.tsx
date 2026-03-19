@@ -450,17 +450,50 @@ function BuilderContent() {
   };
   const tm = THEME_MAP[project?.theme || 'basic-light'] || THEME_MAP['basic-light'];
 
-  // ── 기능 라벨 맵 ────────────────────────────────────
+  // ── 업종별 기능 라벨 맵 ─────────────────────────────
+  const industry = answers.industry || '';
+  const isBeauty = templateId === 'beauty-salon';
+  const isCommerce = templateId === 'ecommerce';
+  const isClinic = industry.includes('병원') || industry.includes('클리닉');
+  const isFitness = industry.includes('피트니스') || industry.includes('요가') || industry.includes('헬스');
+  const isEdu = industry.includes('학원') || industry.includes('교육');
+  const isFood = industry.includes('식당') || industry.includes('카페');
+  const isLodging = industry.includes('펜션') || industry.includes('숙박');
+
   const FEAT_LABEL: Record<string, string> = {
-    'reservation': '📅 예약', 'sales': '💰 매출', 'customer': '👥 고객', 'staff': '👤 스태프',
-    'service-menu': '✂️ 시술', 'dashboard': '📊 대시보드', 'online-booking': '🌐 온라인예약',
-    'alimtalk': '💬 알림톡', 'settlement': '📋 정산', 'prepaid': '🎫 정액권',
+    'dashboard': '📊 대시보드',
+    'reservation': isBeauty ? '💇 예약' : isClinic ? '🏥 진료예약' : isFitness ? '🏋️ 수업예약' : isEdu ? '📚 수강예약' : isFood ? '🍽 테이블예약' : isLodging ? '🛏 객실예약' : '📅 예약',
+    'booking': isBeauty ? '💇 예약' : isClinic ? '🏥 진료예약' : isFitness ? '🏋️ 수업예약' : isEdu ? '📚 수강예약' : isFood ? '🍽 테이블예약' : isLodging ? '🛏 객실예약' : '📅 예약',
+    'sales': isCommerce ? '💰 판매' : '💰 매출',
+    'customer': isEdu ? '🎓 학생관리' : isClinic ? '🏥 환자관리' : isFitness ? '💪 회원관리' : '👥 고객',
+    'staff': isBeauty ? '💇 디자이너' : isClinic ? '👨‍⚕️ 의료진' : isEdu ? '👨‍🏫 강사' : isFitness ? '🏃 트레이너' : isFood ? '👨‍🍳 직원' : '👤 스태프',
+    'service-menu': isBeauty ? '✂️ 시술메뉴' : isClinic ? '💊 진료과목' : isEdu ? '📖 수업과목' : isFitness ? '🏋️ 프로그램' : isFood ? '📋 메뉴판' : '📋 서비스',
+    'online-booking': '🌐 온라인예약',
+    'alimtalk': '💬 알림톡', 'notification': '🔔 알림',
+    'settlement': '📋 정산', 'payment': '💳 결제',
+    'prepaid': isEdu ? '🎫 수강권' : isFitness ? '🎫 이용권' : '🎫 정액권',
+    'membership': isEdu ? '🎓 수강권' : isFitness ? '💪 회원권' : '🎫 회원권',
     'admin-dashboard': '📊 관리', 'attendance': '✅ 출석', 'coupon': '🎟 쿠폰',
     'review': '⭐ 리뷰', 'wishlist': '❤️ 찜', 'inventory': '📦 재고',
     'product': '🛍 상품', 'cart': '🛒 장바구니', 'order': '📋 주문', 'shipping': '🚚 배송',
-    'booking': '📅 예약', 'notification': '🔔 알림', 'payment': '💳 결제', 'membership': '🎫 회원권',
     'seo': '🔍 SEO',
   };
+
+  // ── 업종별 데모 데이터 ──────────────────────────────
+  const demoNames = isEdu ? ['김수진', '이태현', '박지은', '최민호'] :
+    isClinic ? ['김지현', '이서윤', '박민준', '최하은'] :
+    isFitness ? ['김유진', '이준혁', '박소연', '최강민'] :
+    isFood ? ['김철수', '이영희', '박상준', '최미경'] :
+    isBeauty ? ['김지현', '이서윤', '박민준', '최하은'] :
+    ['김지현', '이서윤', '박민준', '최하은'];
+  const demoServices = isEdu ? ['수학 심화', '영어 회화', '과학 실험', '코딩 기초'] :
+    isClinic ? ['일반 진료', '건강검진', '재활치료', '상담'] :
+    isFitness ? ['PT 10회', '요가 클래스', '필라테스', '크로스핏'] :
+    isFood ? ['4인 테이블', '룸 예약', '단체석', '바 좌석'] :
+    isBeauty ? ['커트+펌', '염색', '클리닉', '드라이'] :
+    ['서비스 A', '서비스 B', '서비스 C', '서비스 D'];
+  const demoStaffTitle = isBeauty ? '디자이너' : isClinic ? '의사' : isEdu ? '강사' : isFitness ? '트레이너' : '담당자';
+  const demoStaffNames = isEdu ? ['정선생', '김강사'] : isClinic ? ['정원장', '김의사'] : isFitness ? ['정트레이너', '김코치'] : ['정원장', '김매니저'];
 
   // ── 메뉴별 화면 콘텐츠 생성 ──────────────────────────
   const generatePageContent = (menuId: string, accent: string): string => {
@@ -470,64 +503,52 @@ function BuilderContent() {
         <span style="background:${accent};color:white;padding:6px 14px;border-radius:8px;font-size:11px;font-weight:600">관리자</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
-        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">오늘 매출</div><div style="font-size:22px;font-weight:700;color:${accent}">₩1,280,000</div></div>
-        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">오늘 예약</div><div style="font-size:22px;font-weight:700">12건</div></div>
-        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">신규 고객</div><div style="font-size:22px;font-weight:700;color:#16a34a">+3명</div></div>
+        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">${isEdu ? '이번 달 수강료' : '오늘 매출'}</div><div style="font-size:22px;font-weight:700;color:${accent}">${isEdu ? '₩4,200,000' : '₩1,280,000'}</div></div>
+        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">${isEdu ? '오늘 수업' : isFitness ? '오늘 클래스' : '오늘 예약'}</div><div style="font-size:22px;font-weight:700">${isEdu ? '8강' : '12건'}</div></div>
+        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">${isEdu ? '신규 등록' : '신규 고객'}</div><div style="font-size:22px;font-weight:700;color:#16a34a">+3${isEdu ? '명' : '명'}</div></div>
       </div>
       <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
-        <div style="font-size:14px;font-weight:600;margin-bottom:12px">오늘 일정</div>
-        <div style="font-size:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span><b style="color:${accent}">10:00</b> 김지현</span><span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:10px">확정</span></div>
-        <div style="font-size:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span><b style="color:${accent}">11:30</b> 이서윤</span><span style="background:#dbeafe;color:#2563eb;padding:2px 8px;border-radius:10px;font-size:10px">진행중</span></div>
-        <div style="font-size:12px;padding:10px 0;display:flex;justify-content:space-between"><span><b style="color:${accent}">14:00</b> 박민준</span><span style="background:#fef9c3;color:#ca8a04;padding:2px 8px;border-radius:10px;font-size:10px">대기</span></div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:12px">${isEdu ? '오늘 수업 일정' : '오늘 일정'}</div>
+        <div style="font-size:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span><b style="color:${accent}">10:00</b> ${demoNames[0]} · ${demoServices[0]}</span><span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:10px">확정</span></div>
+        <div style="font-size:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span><b style="color:${accent}">11:30</b> ${demoNames[1]} · ${demoServices[1]}</span><span style="background:#dbeafe;color:#2563eb;padding:2px 8px;border-radius:10px;font-size:10px">진행중</span></div>
+        <div style="font-size:12px;padding:10px 0;display:flex;justify-content:space-between"><span><b style="color:${accent}">14:00</b> ${demoNames[2]} · ${demoServices[2]}</span><span style="background:#fef9c3;color:#ca8a04;padding:2px 8px;border-radius:10px;font-size:10px">대기</span></div>
       </div>`,
       reservation: `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <h2 style="font-size:18px;font-weight:700;color:#1e293b">📅 예약 관리</h2>
-        <button style="background:${accent};color:white;border:none;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">+ 새 예약</button>
+        <h2 style="font-size:18px;font-weight:700;color:#1e293b">${FEAT_LABEL['reservation'] || '📅 예약'} 관리</h2>
+        <button style="background:${accent};color:white;border:none;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">+ 새 ${isEdu ? '수강' : '예약'}</button>
       </div>
       <div style="background:white;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)">
         <div style="display:grid;grid-template-columns:60px 1fr 1fr 80px;padding:10px 16px;background:#f8fafc;font-size:11px;color:#64748b;font-weight:600">
-          <div>시간</div><div>고객</div><div>서비스</div><div>상태</div>
+          <div>시간</div><div>${isEdu ? '학생' : isClinic ? '환자' : '고객'}</div><div>${isEdu ? '과목' : '서비스'}</div><div>상태</div>
         </div>
         <div style="display:grid;grid-template-columns:60px 1fr 1fr 80px;padding:12px 16px;border-bottom:1px solid #f1f5f9;font-size:12px;align-items:center">
-          <div style="font-weight:700;color:${accent}">09:00</div><div>김지현</div><div>일반 진료</div><div><span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:10px">확정</span></div>
+          <div style="font-weight:700;color:${accent}">09:00</div><div>${demoNames[0]}</div><div>${demoServices[0]}</div><div><span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:10px">확정</span></div>
         </div>
         <div style="display:grid;grid-template-columns:60px 1fr 1fr 80px;padding:12px 16px;border-bottom:1px solid #f1f5f9;font-size:12px;align-items:center">
-          <div style="font-weight:700;color:${accent}">10:30</div><div>이서윤</div><div>건강검진</div><div><span style="background:#dbeafe;color:#2563eb;padding:2px 8px;border-radius:10px;font-size:10px">진행중</span></div>
+          <div style="font-weight:700;color:${accent}">10:30</div><div>${demoNames[1]}</div><div>${demoServices[1]}</div><div><span style="background:#dbeafe;color:#2563eb;padding:2px 8px;border-radius:10px;font-size:10px">진행중</span></div>
         </div>
         <div style="display:grid;grid-template-columns:60px 1fr 1fr 80px;padding:12px 16px;border-bottom:1px solid #f1f5f9;font-size:12px;align-items:center">
-          <div style="font-weight:700;color:${accent}">11:00</div><div>박민준</div><div>재활치료</div><div><span style="background:#fef9c3;color:#ca8a04;padding:2px 8px;border-radius:10px;font-size:10px">대기</span></div>
+          <div style="font-weight:700;color:${accent}">11:00</div><div>${demoNames[2]}</div><div>${demoServices[2]}</div><div><span style="background:#fef9c3;color:#ca8a04;padding:2px 8px;border-radius:10px;font-size:10px">대기</span></div>
         </div>
         <div style="display:grid;grid-template-columns:60px 1fr 1fr 80px;padding:12px 16px;font-size:12px;align-items:center">
-          <div style="font-weight:700;color:${accent}">14:00</div><div>최하은</div><div>상담</div><div><span style="background:#f3e8ff;color:#9333ea;padding:2px 8px;border-radius:10px;font-size:10px">예정</span></div>
+          <div style="font-weight:700;color:${accent}">14:00</div><div>${demoNames[3]}</div><div>${demoServices[3]}</div><div><span style="background:#f3e8ff;color:#9333ea;padding:2px 8px;border-radius:10px;font-size:10px">예정</span></div>
         </div>
       </div>`,
       customer: `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <h2 style="font-size:18px;font-weight:700;color:#1e293b">👥 고객 관리</h2>
+        <h2 style="font-size:18px;font-weight:700;color:#1e293b">${FEAT_LABEL['customer'] || '👥 고객'}</h2>
         <div style="display:flex;gap:8px">
-          <input style="border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:12px;width:200px" placeholder="고객 검색..." />
-          <button style="background:${accent};color:white;border:none;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">+ 고객 등록</button>
+          <input style="border:1px solid #e2e8f0;border-radius:8px;padding:8px 12px;font-size:12px;width:200px" placeholder="${isEdu ? '학생' : '고객'} 검색..." />
+          <button style="background:${accent};color:white;border:none;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer">+ ${isEdu ? '학생' : '고객'} 등록</button>
         </div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
-        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div style="width:36px;height:36px;border-radius:50%;background:${accent}20;display:flex;align-items:center;justify-content:center;font-size:14px">김</div><div><div style="font-size:13px;font-weight:600">김지현</div><div style="font-size:11px;color:#94a3b8">010-1234-5678</div></div></div>
-          <div style="font-size:11px;color:#64748b">방문 12회 · VIP · 마지막 방문 3일 전</div>
-        </div>
-        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div style="width:36px;height:36px;border-radius:50%;background:#f43f5e20;display:flex;align-items:center;justify-content:center;font-size:14px">이</div><div><div style="font-size:13px;font-weight:600">이서윤</div><div style="font-size:11px;color:#94a3b8">010-9876-5432</div></div></div>
-          <div style="font-size:11px;color:#64748b">방문 8회 · 일반 · 마지막 방문 1주 전</div>
-        </div>
-        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div style="width:36px;height:36px;border-radius:50%;background:#16a34a20;display:flex;align-items:center;justify-content:center;font-size:14px">박</div><div><div style="font-size:13px;font-weight:600">박민준</div><div style="font-size:11px;color:#94a3b8">010-5555-1234</div></div></div>
-          <div style="font-size:11px;color:#64748b">방문 3회 · 신규 · 마지막 방문 오늘</div>
-        </div>
-        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div style="width:36px;height:36px;border-radius:50%;background:#d9770620;display:flex;align-items:center;justify-content:center;font-size:14px">최</div><div><div style="font-size:13px;font-weight:600">최하은</div><div style="font-size:11px;color:#94a3b8">010-3333-7890</div></div></div>
-          <div style="font-size:11px;color:#64748b">방문 5회 · 일반 · 마지막 방문 2주 전</div>
-        </div>
+        ${demoNames.map((n, i) => `<div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><div style="width:36px;height:36px;border-radius:50%;background:${[accent+'20','#f43f5e20','#16a34a20','#d9770620'][i]};display:flex;align-items:center;justify-content:center;font-size:14px">${n[0]}</div><div><div style="font-size:13px;font-weight:600">${n}</div><div style="font-size:11px;color:#94a3b8">010-${1234+i*1111}-${5678-i*1111}</div></div></div>
+          <div style="font-size:11px;color:#64748b">${isEdu ? `수강 ${[3,2,1,4][i]}과목` : `방문 ${[12,8,3,5][i]}회`} · ${['VIP','일반','신규','일반'][i]}</div>
+        </div>`).join('')}
       </div>`,
       sales: `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <h2 style="font-size:18px;font-weight:700;color:#1e293b">💰 매출 관리</h2>
+        <h2 style="font-size:18px;font-weight:700;color:#1e293b">💰 ${isEdu ? '수강료' : '매출'} 관리</h2>
         <span style="font-size:12px;color:#64748b">2026년 3월</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
@@ -537,23 +558,16 @@ function BuilderContent() {
         <div style="background:white;padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center"><div style="font-size:10px;color:#64748b">전월 대비</div><div style="font-size:16px;font-weight:700;color:#16a34a">+12%</div></div>
       </div>
       <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
-        <div style="font-size:14px;font-weight:600;margin-bottom:12px">최근 결제</div>
-        <div style="font-size:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span>김지현 · 일반 진료</span><span style="font-weight:700">₩85,000</span></div>
-        <div style="font-size:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span>이서윤 · 건강검진</span><span style="font-weight:700">₩350,000</span></div>
-        <div style="font-size:12px;padding:10px 0;display:flex;justify-content:space-between"><span>박민준 · 재활치료</span><span style="font-weight:700">₩120,000</span></div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:12px">최근 ${isEdu ? '수납' : '결제'}</div>
+        ${demoNames.slice(0,3).map((n,i) => `<div style="font-size:12px;padding:10px 0;${i<2?'border-bottom:1px solid #f1f5f9;':''}display:flex;justify-content:space-between"><span>${n} · ${demoServices[i]}</span><span style="font-weight:700">₩${['85,000','350,000','120,000'][i]}</span></div>`).join('')}
       </div>`,
-      staff: `<div style="margin-bottom:16px"><h2 style="font-size:18px;font-weight:700;color:#1e293b">👤 스태프 관리</h2></div>
+      staff: `<div style="margin-bottom:16px"><h2 style="font-size:18px;font-weight:700;color:#1e293b">${FEAT_LABEL['staff'] || '👤 스태프'} 관리</h2></div>
       <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
-        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="width:40px;height:40px;border-radius:50%;background:${accent};display:flex;align-items:center;justify-content:center;color:white;font-weight:700">정</div><div><div style="font-size:14px;font-weight:600">정원장</div><div style="font-size:11px;color:${accent}">원장</div></div></div>
-          <div style="font-size:11px;color:#64748b">오늘 예약 5건 · 매출 ₩680,000</div>
-          <div style="margin-top:8px;height:4px;background:#f1f5f9;border-radius:2px"><div style="height:100%;width:75%;background:${accent};border-radius:2px"></div></div>
-        </div>
-        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
-          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="width:40px;height:40px;border-radius:50%;background:#f43f5e;display:flex;align-items:center;justify-content:center;color:white;font-weight:700">김</div><div><div style="font-size:14px;font-weight:600">김디자이너</div><div style="font-size:11px;color:#f43f5e">시니어</div></div></div>
-          <div style="font-size:11px;color:#64748b">오늘 예약 4건 · 매출 ₩520,000</div>
-          <div style="margin-top:8px;height:4px;background:#f1f5f9;border-radius:2px"><div style="height:100%;width:60%;background:#f43f5e;border-radius:2px"></div></div>
-        </div>
+        ${demoStaffNames.map((n, i) => `<div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="width:40px;height:40px;border-radius:50%;background:${i===0?accent:'#f43f5e'};display:flex;align-items:center;justify-content:center;color:white;font-weight:700">${n[0]}</div><div><div style="font-size:14px;font-weight:600">${n}</div><div style="font-size:11px;color:${i===0?accent:'#f43f5e'}">${i===0?(isBeauty?'원장':isEdu?'수석강사':'팀장'):(isBeauty?'시니어':isEdu?'강사':'담당자')}</div></div></div>
+          <div style="font-size:11px;color:#64748b">오늘 ${isEdu?'수업':'예약'} ${5-i}건 · 매출 ₩${i===0?'680,000':'520,000'}</div>
+          <div style="margin-top:8px;height:4px;background:#f1f5f9;border-radius:2px"><div style="height:100%;width:${75-i*15}%;background:${i===0?accent:'#f43f5e'};border-radius:2px"></div></div>
+        </div>`).join('')}
       </div>`,
       'online-booking': `<div style="margin-bottom:16px"><h2 style="font-size:18px;font-weight:700;color:#1e293b">🌐 온라인 예약</h2></div>
       <div style="background:white;padding:20px;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);max-width:360px;margin:0 auto">
