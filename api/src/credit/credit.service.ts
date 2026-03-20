@@ -12,8 +12,8 @@ export type PackageId = keyof typeof CREDIT_PACKAGES;
 
 // ── 크레딧 소모 기준 (과금 전략 문서 반영) ──────────────
 export const CREDIT_COSTS = {
-  app_generate: 3000,        // 실제 앱 생성
-  ai_modify: 500,            // AI 수정 요청 1회
+  app_generate: 3000,        // 실제 앱 생성 (레거시 고정 비용)
+  ai_modify: 500,            // AI 수정 요청 1회 (레거시 고정 비용)
   premium_theme: 1000,       // 프리미엄 테마 적용
   code_download: 5000,       // 코드 다운로드
   server_deploy: 8000,       // 서버 배포
@@ -21,6 +21,21 @@ export const CREDIT_COSTS = {
 } as const;
 
 export type CreditAction = keyof typeof CREDIT_COSTS;
+
+// ── 모델별 크레딧 단가 (토큰 기반 과금) ─────────────────
+export type ModelTier = 'flash' | 'smart' | 'pro';
+
+export const MODEL_CREDIT_COSTS: Record<ModelTier, { perFile: number; base: number; label: string }> = {
+  flash:  { perFile: 1,  base: 50,  label: 'Flash (빠르고 저렴)' },
+  smart:  { perFile: 3,  base: 150, label: 'Smart (균형잡힌)' },
+  pro:    { perFile: 10, base: 500, label: 'Pro (최고 품질)' },
+};
+
+/** 모델 + 파일 수 기반 동적 크레딧 계산 */
+export function calculateModelCost(tier: ModelTier, fileCount: number): number {
+  const costs = MODEL_CREDIT_COSTS[tier];
+  return costs.base + (costs.perFile * fileCount);
+}
 
 const SIGNUP_BONUS = 500;    // 회원가입 보너스 크레딧
 
@@ -159,6 +174,64 @@ export class CreditService {
     });
 
     return { balance: updated.balance, cost, remaining: updated.balance };
+  }
+
+  // ── 모델 기반 동적 차감 (코드 생성 엔진용) ──────────
+  async deductByModel(userId: string, params: {
+    tier: ModelTier;
+    fileCount: number;
+    projectId?: string;
+    taskType?: string;
+    description?: string;
+  }) {
+    const cost = calculateModelCost(params.tier, params.fileCount);
+    const bal = await this.getBalance(userId);
+
+    if (bal.balance < cost) {
+      throw new ForbiddenException(
+        JSON.stringify({
+          code: 'INSUFFICIENT_CREDITS',
+          required: cost,
+          current: bal.balance,
+          tier: params.tier,
+          message: `크레딧이 부족합니다 (필요: ${cost}, 잔액: ${bal.balance})`,
+        }),
+      );
+    }
+
+    const updated = await this.prisma.creditBalance.update({
+      where: { id: bal.id },
+      data: {
+        balance: { decrement: cost },
+        totalUsed: { increment: cost },
+      },
+    });
+
+    await this.prisma.creditTransaction.create({
+      data: {
+        userId,
+        balanceId: bal.id,
+        type: 'USE',
+        amount: -cost,
+        balanceAfter: updated.balance,
+        description: params.description || `${params.tier} 모델 사용 (${params.fileCount}파일)`,
+        projectId: params.projectId,
+        taskType: params.taskType,
+        modelTier: params.tier,
+      },
+    });
+
+    return { balance: updated.balance, cost, remaining: updated.balance, tier: params.tier, fileCount: params.fileCount };
+  }
+
+  /** 예상 비용 조회 (차감 없이) */
+  estimateCost(tier: ModelTier, fileCount: number) {
+    return {
+      tier,
+      fileCount,
+      cost: calculateModelCost(tier, fileCount),
+      breakdown: MODEL_CREDIT_COSTS[tier],
+    };
   }
 
   // ── 트랜잭션 이력 조회 ──────────────────────────────

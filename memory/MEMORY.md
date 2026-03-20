@@ -1,3 +1,14 @@
+# ⛔ 필수 정보 (수정/삭제 절대 금지 — 모든 AI 세션에서 반드시 참조)
+- **대표자**: 김형석
+- **SSH 포트**: 3181 (22번 아님! 보안 변경됨)
+- **SSH 접속**: `ssh -i ~/.ssh/serion-key.pem -p 3181 root@175.45.200.162`
+- **답변은 항상 한글로**
+- **세리온 서버**: 223.130.162.133 (SSH 포트 3181)
+- **파운드리 서버**: 175.45.200.162 (SSH 포트 3181)
+- **VPC/ACG 공유**: 두 서버 동일 (serion-vpc-default-acg)
+
+---
+
 # Foundry — AI MVP 빌더
 
 ## 프로젝트 개요
@@ -35,7 +46,7 @@
 - **Redirect URI**: `http://175.45.200.162/api/auth/kakao/callback`
 - **동의항목**: 닉네임(필수 동의 완료), 이메일(비즈앱 전환 후 추가 예정)
 - **상태**: 앱 생성 + 로그인 활성화 + Redirect URI + 닉네임 동의 완료
-- **코드 연동**: 미완료 (다음 세션에서 진행)
+- **코드 연동**: ✅ 완료 (3/19, Passport 없이 직접 HTTP OAuth 구현)
 
 ## 템플릿 6종 (완료)
 | 템플릿 | 핵심 | ID |
@@ -77,8 +88,21 @@
 - ✅ 가이드 페이지 (/guide) — 시작하기+운영가이드+AI활용법+FAQ 4탭
 - ✅ 카카오 Redirect URI HTTPS 업데이트
 
+### Phase 3 (3/20~) — 코드 생성 엔진 🔴 진행 중
+- **플랜 파일**: `.claude/plans/calm-snacking-tome.md`
+- **전략**: B→A 점진적 전환 (스마트 스캐폴딩 → 풀 코드 생성)
+- **과금**: 토큰 기반 크레딧 차감 (고정가 아님, 사용한 만큼)
+- **모델 3단계**: Flash(Haiku, 1cr/파일) / Smart(Sonnet, 3cr) / Pro(Opus, 10cr) — 고객 자유 선택
+- **⚠️ Sonnet/Opus API 별도 키 필요** — Haiku로 먼저 파이프라인 완성 후 활성화
+- **핵심 기능**: AI 자기 평가(confidence), 자동 컨텍스트 저장(이어하기), 코드 헬스체크(동의 후 정리)
+- Sprint 1: DB스키마확장 + 크레딧차등 + 모델설정 + builder파일분리
+- Sprint 2: 코드 생성 파이프라인 (5단계) + ModelSelector UI
+- Sprint 3: 채팅 수정 루프 + 버전 관리 + 이어하기
+- Sprint 4: 프로젝트 컨텍스트 + 헬스체크
+- Sprint 5: AI 자기 평가 UI + 코드 정리 + 테스트
+
 ### ⚠️ 알려진 이슈
-- Anthropic API 키가 **Haiku만 접근 가능** (Sonnet/Opus 404) — 모든 모델 Haiku로 임시 통일
+- Anthropic API 키가 **Haiku만 접근 가능** (Sonnet/Opus 404) — 별도 API 키 발급 또는 크레딧 충전 필요
 - GitHub Actions 자동배포 시 `api/dist/` 충돌 — deploy.yml에 정리 로직 필요
 - 이메일 동의항목: 비즈앱 전환 필요 (현재 닉네임만 가능)
 
@@ -91,15 +115,19 @@
 
 ## 다음 작업 (미완료)
 
-### 🔴 카카오 OAuth 코드 연동 (다음 세션 최우선)
-- [ ] NestJS: KakaoStrategy + /auth/kakao/callback 엔드포인트
-- [ ] 프론트: "카카오로 시작하기" 버튼 (로그인 페이지)
-- [ ] 카카오 닉네임으로 자동 회원가입 + JWT 발급
+### ✅ 카카오 OAuth 코드 연동 (3/19 완료)
+- [x] NestJS: GET /auth/kakao + /auth/kakao/callback (Passport 없이 직접 HTTP)
+- [x] 프론트: "카카오로 시작하기" 버튼 + /auth/kakao/callback 콜백 페이지
+- [x] 카카오 닉네임 자동 회원가입 + 기존 이메일 유저 연동 + JWT 발급
+- [x] 운영서버 .env 카카오 환경변수 3개 추가 + 배포 완료
 
-### 🔴 앱 생성 후 관리/수정 기능 (대규모 작업)
-- [ ] 채팅으로 수정 → 실제 코드 반영 → 미리보기 업데이트
-- [ ] AI 운영 도우미: 대량 상품 등록, 콘텐츠 생성, 매출 분석 등
-- [ ] 배포 후 실시간 코드 수정 + 재배포
+### 🔴 코드 생성 엔진 (Sprint 1~5) — 현재 진행 중
+- [ ] Sprint 1: DB스키마(Project 확장) + 크레딧 모델별 차등 + AI 모델 3단계 + builder 파일분리
+- [ ] Sprint 2: generateFullApp 5단계 파이프라인 + ModelSelector UI
+- [ ] Sprint 3: 채팅 수정 → 코드 반영 + 버전 관리 + 이어하기 UI
+- [ ] Sprint 4: 자동 컨텍스트 저장 + 코드 헬스체크
+- [ ] Sprint 5: AI 자기 평가 + 코드 정리 + 통합 테스트
+- [ ] AI 운영 도우미: 대량 상품 등록, 콘텐츠 생성, 매출 분석 등 (Sprint 이후)
 
 ### 🟡 추가 개선
 - [ ] ERD 자동 생성 + API 명세서 자동 생성 (ZIP에 포함)
@@ -124,10 +152,13 @@ cd ../api && npm run build && pm2 restart launchpad-api
 ```
 cd "/Users/mark/Desktop/정부지원사업 MVP 빌더(가칭)/launchpad"
 
-[다음명령어]Foundry 이어서 작업해줘. memory/MEMORY.md 참고.
-[완료] ①~⑦기본기능 + AI연동(Haiku) + 크레딧시스템 + 빌더질문지6종 + PC/모바일레이아웃 + 인터랙티브미리보기 + 업종별커스터마이징(6업종) + 템플릿6종 + 어드민페이지(5탭) + 저장하기(수동+자동30초) + 토큰소모표시 + 배포/다운로드비용모달 + 카카오OAuth앱등록(ID:1409363) + 도메인SSL(foundry.ai.kr) + AI업종별프롬프트분리 + 미리보기데모데이터분리 + 가이드페이지(/guide 4탭)
-[다음] 카카오OAuth코드연동(NestJS+프론트) → 앱생성후관리/수정기능(대규모) → ERD/API명세자동생성 → 랜딩비교광고 → 모두의창업서류(4/1)
-[전략] 크레딧제(49k/99k/249k), 호스팅MRR(9,900원/월), 다운로드별도(3,000크레딧), AI운영도우미(대량등록/콘텐츠/분석/CS=지속토큰소모), 타겟확장(정부지원금+카페24대안+중소기업)
+Foundry 코드 생성 엔진 구현 이어서 작업해줘. memory/MEMORY.md 참고.
+- 플랜: .claude/plans/calm-snacking-tome.md
+- [완료] 기본기능 + AI연동(Haiku) + 크레딧 + 빌더질문지6종 + 미리보기 + 템플릿6종 + 어드민 + 도메인SSL + 카카오OAuth코드연동(3/19)
+- [현재] 코드 생성 엔진 구현 (Sprint 1~5)
+- [전략] B→A전환, 토큰과금, Flash/Smart/Pro 3모델, AI자기평가, 자동컨텍스트, 헬스체크
+- [주의] Haiku만 API 가능, Sonnet/Opus는 별도 키 필요 → Haiku로 먼저 파이프라인 완성
+- Sprint 1부터 시작: DB스키마 + 크레딧차등 + 모델설정 + builder파일분리
 [서버] web:3000(PM2) + api:4000(PM2) + PostgreSQL(launchpaddb) + nginx HTTPS + foundry.ai.kr
 [카카오] REST API키:2b61cab1882f996f30bd9e925a1ec3f8 / 앱ID:1409363 / Redirect:https://foundry.ai.kr/api/auth/kakao/callback
 ```

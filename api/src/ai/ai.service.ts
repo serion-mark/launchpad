@@ -1,15 +1,25 @@
 import { Injectable, Logger } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
-import { CreditService } from '../credit/credit.service';
+import { CreditService, type ModelTier as CreditModelTier } from '../credit/credit.service';
 import { PrismaService } from '../prisma.service';
 
-// ── 모델 티어 ────────────────────────────────────────
+// ── 모델 티어 (레거시 호환) ─────────────────────────────
 type ModelTier = 'fast' | 'standard' | 'premium';
 
+// ── 새 모델 3단계 (코드 생성 엔진) ─────────────────────
+type AppModelTier = 'flash' | 'smart' | 'pro';
+
+const APP_MODELS: Record<AppModelTier, { model: string; maxTokens: number; label: string }> = {
+  flash: { model: 'claude-haiku-4-5-20251001', maxTokens: 8192, label: 'Flash (빠르고 저렴)' },
+  smart: { model: 'claude-3-5-sonnet-20241022', maxTokens: 8192, label: 'Smart (균형잡힌)' },   // ⚠️ 현재 404 → 폴백
+  pro:   { model: 'claude-3-opus-20240229', maxTokens: 4096, label: 'Pro (최고 품질)' },         // ⚠️ 현재 404 → 폴백
+};
+
+// 레거시 모델맵 (기존 chat/generate 호환)
 const MODELS: Record<ModelTier, { model: string; maxTokens: number }> = {
   fast:     { model: 'claude-haiku-4-5-20251001', maxTokens: 8192 },
-  standard: { model: 'claude-haiku-4-5-20251001', maxTokens: 8192 },  // TODO: Sonnet 접근권한 확보 후 변경
-  premium:  { model: 'claude-haiku-4-5-20251001', maxTokens: 8192 },  // TODO: Opus 접근권한 확보 후 변경
+  standard: { model: 'claude-haiku-4-5-20251001', maxTokens: 8192 },
+  premium:  { model: 'claude-haiku-4-5-20251001', maxTokens: 8192 },
 };
 
 // ── 빌더 시스템 프롬프트 ─────────────────────────────
@@ -266,5 +276,84 @@ export class AiService {
       .join('\n');
 
     return { content, model: model.model };
+  }
+
+  // ══════════════════════════════════════════════════════
+  // ── 코드 생성 엔진 (Sprint 1~) ──────────────────────
+  // ══════════════════════════════════════════════════════
+
+  /** 모델별 폴백 호출 — Sonnet/Opus 404 시 Haiku로 자동 폴백 + 크레딧 보정 */
+  private async callWithFallback(
+    tier: AppModelTier,
+    system: string,
+    messages: Anthropic.MessageParam[],
+  ): Promise<{ content: string; actualTier: AppModelTier; inputTokens: number; outputTokens: number; fellBack: boolean }> {
+    const model = APP_MODELS[tier];
+
+    try {
+      const response = await this.anthropic.messages.create({
+        model: model.model,
+        max_tokens: model.maxTokens,
+        system,
+        messages,
+      });
+
+      const content = response.content
+        .filter(block => block.type === 'text')
+        .map(block => (block as Anthropic.TextBlock).text)
+        .join('\n');
+
+      return {
+        content,
+        actualTier: tier,
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+        fellBack: false,
+      };
+    } catch (error: any) {
+      // 404 또는 모델 접근 불가 → Haiku(flash)로 폴백
+      if (tier !== 'flash' && (error.status === 404 || error.status === 403 || error.message?.includes('model'))) {
+        this.logger.warn(`${tier} 모델 사용 불가 (${error.status}), flash로 폴백합니다`);
+
+        const fallbackModel = APP_MODELS.flash;
+        const response = await this.anthropic.messages.create({
+          model: fallbackModel.model,
+          max_tokens: fallbackModel.maxTokens,
+          system,
+          messages,
+        });
+
+        const content = response.content
+          .filter(block => block.type === 'text')
+          .map(block => (block as Anthropic.TextBlock).text)
+          .join('\n');
+
+        return {
+          content,
+          actualTier: 'flash',
+          inputTokens: response.usage.input_tokens,
+          outputTokens: response.usage.output_tokens,
+          fellBack: true,
+        };
+      }
+      throw error;
+    }
+  }
+
+  /** 사용 가능한 모델 목록 조회 (프론트 ModelSelector용) */
+  getAvailableModels() {
+    return Object.entries(APP_MODELS).map(([tier, config]) => ({
+      tier,
+      label: config.label,
+      model: config.model,
+      // ⚠️ Sonnet/Opus는 현재 사용 불가 → 표시만 하되 폴백 안내
+      available: tier === 'flash', // TODO: API 키 확보 후 true로 변경
+      fallbackNote: tier !== 'flash' ? '현재 Flash로 자동 전환됩니다 (비용은 Flash 기준)' : undefined,
+    }));
+  }
+
+  /** 예상 크레딧 비용 계산 (차감 없이) */
+  estimateGenerationCost(tier: AppModelTier, estimatedFileCount: number) {
+    return this.creditService.estimateCost(tier as CreditModelTier, estimatedFileCount);
   }
 }
