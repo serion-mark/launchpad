@@ -379,13 +379,22 @@ export class AiService {
   // ── 코드 생성 엔진 (Sprint 1~) ──────────────────────
   // ══════════════════════════════════════════════════════
 
-  /** 모델별 폴백 호출 — Sonnet/Opus 404 시 Haiku로 자동 폴백 + 크레딧 보정 */
+  /** rate limit 대응 딜레이 */
+  private async rateLimitDelay(ms: number = 3000): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /** 모델별 폴백 호출 — Sonnet/Opus 404 시 Haiku로 자동 폴백 + 크레딧 보정 + rate limit 재시도 */
   private async callWithFallback(
     tier: AppModelTier,
     system: string,
     messages: Anthropic.MessageParam[],
+    retryCount: number = 0,
   ): Promise<{ content: string; actualTier: AppModelTier; inputTokens: number; outputTokens: number; fellBack: boolean }> {
     const model = APP_MODELS[tier];
+
+    // 호출 간 딜레이 (rate limit 방지)
+    if (retryCount === 0) await this.rateLimitDelay(2000);
 
     try {
       const response = await this.anthropic.messages.create({
@@ -408,10 +417,19 @@ export class AiService {
         fellBack: false,
       };
     } catch (error: any) {
+      // rate limit → 대기 후 재시도 (최대 3회)
+      if (error.status === 429 && retryCount < 3) {
+        const waitSec = Math.min(30, 10 * (retryCount + 1)); // 10s, 20s, 30s
+        this.logger.warn(`Rate limit 도달, ${waitSec}초 후 재시도 (${retryCount + 1}/3)`);
+        await this.rateLimitDelay(waitSec * 1000);
+        return this.callWithFallback(tier, system, messages, retryCount + 1);
+      }
+
       // 404 또는 모델 접근 불가 → Haiku(flash)로 폴백
       if (tier !== 'flash' && (error.status === 404 || error.status === 403 || error.message?.includes('model'))) {
         this.logger.warn(`${tier} 모델 사용 불가 (${error.status}), flash로 폴백합니다`);
 
+        await this.rateLimitDelay(3000);
         const fallbackModel = APP_MODELS.flash;
         const response = await this.anthropic.messages.create({
           model: fallbackModel.model,
