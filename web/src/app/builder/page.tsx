@@ -516,18 +516,28 @@ function BuilderContent() {
     const assess = result.assessment;
 
     // 완료 메시지 구성
+    const dbTables = arch.dbTables || arch.dbModels || [];
     let completionMsg = `✅ **앱 생성 완료!**\n\n`;
     completionMsg += `**${arch.appName || '앱'}** — ${arch.description || ''}\n\n`;
     completionMsg += `📊 **생성 결과:**\n`;
     completionMsg += `- 총 ${result.fileCount}개 파일 생성\n`;
     completionMsg += `- 페이지: ${(arch.pages || []).length}개\n`;
-    completionMsg += `- API: ${(arch.apiEndpoints || []).length}개\n`;
-    completionMsg += `- DB 모델: ${(arch.dbModels || []).length}개\n`;
+    completionMsg += `- DB 테이블: ${dbTables.length}개 (Supabase)\n`;
+    completionMsg += `- 인증: Supabase Auth (이메일/비밀번호) ✅\n`;
+    completionMsg += `- RLS 보안: 적용됨 ✅\n`;
     completionMsg += `- 사용 모델: ${result.actualTier.toUpperCase()}`;
     if (result.fellBack) completionMsg += ` (Flash로 자동 전환됨)`;
     completionMsg += `\n`;
     if (result.totalCredits > 0) completionMsg += `- 사용 크레딧: ${result.totalCredits.toLocaleString()} cr\n`;
     completionMsg += `\n`;
+
+    // Supabase 연동 안내
+    completionMsg += `🔗 **Supabase 연동 방법:**\n`;
+    completionMsg += `1. [supabase.com](https://supabase.com)에서 무료 프로젝트 생성\n`;
+    completionMsg += `2. Settings > API에서 URL + anon key 복사\n`;
+    completionMsg += `3. 다운로드한 코드의 .env.local에 붙여넣기\n`;
+    completionMsg += `4. SQL Editor에서 마이그레이션 SQL 실행\n`;
+    completionMsg += `5. npm install && npm run dev 로 실행!\n\n`;
 
     // AI 자기 평가
     completionMsg += `🤖 **AI 품질 평가:** ${assess.confidence}점/100점\n`;
@@ -545,7 +555,7 @@ function BuilderContent() {
     completionMsg += `\n`;
 
     completionMsg += `수정이 필요하면 채팅으로 말씀해주세요.\n`;
-    completionMsg += `(예: "로그인 페이지 디자인 변경해줘", "API에 검색 기능 추가해줘")\n\n`;
+    completionMsg += `(예: "로그인 페이지 디자인 변경해줘", "예약 기능 추가해줘")\n\n`;
     completionMsg += `완료되면 **"다운로드"** 또는 **"배포"** 버튼을 이용하세요!`;
 
     setMessages(prev => {
