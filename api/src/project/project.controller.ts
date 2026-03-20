@@ -63,4 +63,15 @@ export class ProjectController {
   download(@Req() req: any, @Param('id') id: string) {
     return this.deployService.getDownloadManifest(id, req.user.userId);
   }
+
+  // ── Sprint 3: 버전 히스토리 ───────────────────────
+  @Get(':id/versions')
+  getVersions(@Req() req: any, @Param('id') id: string) {
+    return this.projectService.getVersions(id, req.user.userId);
+  }
+
+  @Post(':id/rollback')
+  rollback(@Req() req: any, @Param('id') id: string, @Body() body: { version: number }) {
+    return this.projectService.rollback(id, req.user.userId, body.version);
+  }
 }

@@ -8,6 +8,8 @@ import type { Question } from './constants';
 import { getDemoData } from './demo-data';
 import ModelSelector from './components/ModelSelector';
 import type { AppModelTier } from './components/ModelSelector';
+import VersionHistory from './components/VersionHistory';
+import WelcomeBack from './components/WelcomeBack';
 
 type Message = {
   id: string;
@@ -29,6 +31,10 @@ type ProjectData = {
   status: string;
   chatHistory: Message[] | null;
   generatedCode: any;
+  projectContext?: any;
+  currentVersion?: number;
+  totalModifications?: number;
+  modelUsed?: string;
 };
 
 // ── AI API 호출 ──────────────────────────────────────
@@ -100,6 +106,30 @@ async function callGenerateApp(params: {
   }
 }
 
+// ── Sprint 3: 코드 수정 API ─────────────────────────
+async function callModifyFiles(params: {
+  projectId: string;
+  message: string;
+  modelTier: 'flash' | 'smart' | 'pro';
+  targetFiles?: string[];
+}): Promise<{
+  modifiedFiles: { path: string; content: string }[];
+  totalCredits: number;
+  actualTier: string;
+  fellBack: boolean;
+} | null> {
+  try {
+    const res = await authFetch('/ai/modify-files', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 export default function BuilderPage() {
   return (
     <Suspense fallback={
@@ -133,6 +163,7 @@ function BuilderContent() {
   const [previewMode, setPreviewMode] = useState<'mobile' | 'desktop'>('mobile');
   const [projectFeatures, setProjectFeatures] = useState<string[]>([]); // 랜딩에서 선택한 기능
   const [activeMenu, setActiveMenu] = useState<string>('dashboard'); // 미리보기 활성 메뉴
+  const [showWelcomeBack, setShowWelcomeBack] = useState(false); // Sprint 3: 이어서 하기
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -165,6 +196,10 @@ function BuilderContent() {
             setMessages(data.chatHistory);
             if (data.status === 'active' || data.status === 'deployed') {
               setBuildPhase('done');
+              // Sprint 3: 이전 작업이 있으면 WelcomeBack 표시
+              if (data.projectContext?.lastAction || data.totalModifications > 0) {
+                setShowWelcomeBack(true);
+              }
             } else if (data.status === 'generating') {
               setBuildPhase('generating');
             } else {
@@ -347,13 +382,55 @@ function BuilderContent() {
     setInput('');
     setIsTyping(true);
 
+    // ── Sprint 3: done 상태에서는 코드 수정 API 호출 ────
+    if (buildPhase === 'done' && projectId) {
+      const modifyResult = await callModifyFiles({
+        projectId,
+        message: userMsg.content,
+        modelTier: selectedModelTier,
+      });
+
+      // 크레딧 잔액 새로고침
+      authFetch('/credits/balance').then(r => r.ok ? r.json() : null).then(d => {
+        if (d) setCreditBalance(d.balance);
+      }).catch(() => {});
+
+      if (modifyResult) {
+        const paths = modifyResult.modifiedFiles.map(f => f.path).join(', ');
+        let replyContent = `✅ **코드 수정 완료!**\n\n`;
+        replyContent += `수정된 파일 (${modifyResult.modifiedFiles.length}개): ${paths}\n`;
+        if (modifyResult.totalCredits > 0) replyContent += `사용 크레딧: ${modifyResult.totalCredits} cr\n`;
+        if (modifyResult.fellBack) replyContent += `⚠️ Flash 모델로 자동 전환됨\n`;
+        replyContent += `\n추가 수정이 필요하면 말씀해주세요!`;
+
+        const aiMsg: Message = {
+          id: (Date.now() + 1).toString(), role: 'assistant',
+          content: replyContent, timestamp: new Date().toISOString(), type: 'text',
+        };
+        const updatedMessages = [...newMessages, aiMsg];
+        setMessages(updatedMessages);
+        setIsTyping(false);
+        saveChatHistory(updatedMessages);
+      } else {
+        const aiMsg: Message = {
+          id: (Date.now() + 1).toString(), role: 'assistant',
+          content: '수정에 실패했습니다. 크레딧을 확인하고 다시 시도해주세요.',
+          timestamp: new Date().toISOString(), type: 'text',
+        };
+        setMessages([...newMessages, aiMsg]);
+        setIsTyping(false);
+      }
+      return;
+    }
+
+    // ── designing 상태: AI 채팅 ─────────────────────────
     const chatHistory = newMessages
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => ({ role: m.role, content: m.content }));
 
     const aiContent = await callAiChat({
       projectId,
-      message: input.trim(),
+      message: userMsg.content,
       chatHistory: chatHistory.slice(-10),
       template: templateId,
     });
@@ -364,7 +441,7 @@ function BuilderContent() {
     }).catch(() => {});
 
     // 토큰 사용량 추정 (메시지 길이 기반)
-    const estimatedTokens = Math.ceil((input.trim().length + aiContent.length) / 3);
+    const estimatedTokens = Math.ceil((userMsg.content.length + aiContent.length) / 3);
     setTokenUsed(prev => prev + estimatedTokens);
 
     const aiMsg: Message = {
@@ -799,6 +876,26 @@ function BuilderContent() {
             </div>
           )}
         </div>
+
+        {/* Sprint 3: 버전 히스토리 (done 상태에서만) */}
+        {buildPhase === 'done' && projectId && (
+          <div className="px-4 pb-4">
+            <VersionHistory
+              projectId={projectId}
+              onRollback={(ver) => {
+                setMessages(prev => [...prev, {
+                  id: Date.now().toString(), role: 'system' as const,
+                  content: `↩ v${ver}으로 롤백되었습니다. 미리보기가 업데이트됩니다.`,
+                  timestamp: new Date().toISOString(), type: 'status' as const,
+                }]);
+                // 프로젝트 데이터 새로고침
+                authFetch(`/projects/${projectId}`).then(r => r.ok ? r.json() : null).then(d => {
+                  if (d) setProject(d);
+                });
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {/* 오른쪽: 채팅 */}
@@ -856,6 +953,35 @@ function BuilderContent() {
         {/* 메시지 영역 */}
         <div className="flex-1 overflow-y-auto px-5 py-5">
           <div className="mx-auto max-w-2xl space-y-4">
+            {/* Sprint 3: 이어서 하기 카드 */}
+            {showWelcomeBack && project && (
+              <WelcomeBack
+                projectName={project.name}
+                context={project.projectContext as any}
+                currentVersion={(project as any).currentVersion || 1}
+                totalModifications={(project as any).totalModifications || 0}
+                onContinue={() => setShowWelcomeBack(false)}
+                onStartFresh={() => {
+                  setShowWelcomeBack(false);
+                  setBuildPhase('questionnaire');
+                  setQuestionIndex(0);
+                  setAnswers({});
+                  const tmpl = project.template || 'beauty-salon';
+                  const qs = QUESTIONNAIRES[tmpl] || QUESTIONNAIRES['beauty-salon'];
+                  setMessages([{
+                    id: '1', role: 'assistant',
+                    content: `**${project.name}** 프로젝트를 처음부터 다시 만들어볼게요!\n\n몇 가지 질문에 답해주시면 맞춤 앱을 설계해드립니다.`,
+                    timestamp: new Date().toISOString(), type: 'text',
+                  }, {
+                    id: '2', role: 'assistant',
+                    content: `**Q1.** ${qs[0].question}`,
+                    timestamp: new Date().toISOString(), type: 'text',
+                    chips: qs[0].chips,
+                  }]);
+                }}
+              />
+            )}
+
             {messages.map(msg => (
               <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-[85%] rounded-2xl px-5 py-3.5 text-sm leading-relaxed ${

@@ -754,7 +754,7 @@ ${JSON.stringify(project.projectContext || {}, null, 2)}`,
       }
     }
 
-    // 버전 + 수정 횟수 업데이트
+    // 버전 + 수정 횟수 업데이트 (수정 전 스냅샷 저장 → 롤백 가능)
     const versions = (project.versions as any[]) || [];
     const newVersion = (project.currentVersion || 1) + 1;
     versions.push({
@@ -763,6 +763,7 @@ ${JSON.stringify(project.projectContext || {}, null, 2)}`,
       description: params.message.slice(0, 100),
       fileCount: modifiedFiles.length,
       modifiedPaths: modifiedFiles.map(f => f.path),
+      snapshot: existingFiles, // 수정 전 상태 저장 (롤백용)
     });
 
     await this.prisma.project.update({
