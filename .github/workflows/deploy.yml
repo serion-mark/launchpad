@@ -31,4 +31,11 @@ jobs:
             npm run build
             pm2 restart launchpad-api
 
+            # nginx timeout 설정 (AI 생성 5단계 파이프라인은 120초+ 소요)
+            if ! grep -q 'proxy_read_timeout' /etc/nginx/sites-available/default 2>/dev/null; then
+              sed -i '/proxy_pass/a\        proxy_read_timeout 300s;\n        proxy_connect_timeout 60s;\n        proxy_send_timeout 120s;' /etc/nginx/sites-available/default
+              nginx -t && systemctl reload nginx
+              echo "nginx timeout updated"
+            fi
+
             echo "Deploy complete: $(date)"
