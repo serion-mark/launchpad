@@ -10,6 +10,7 @@ import ModelSelector from './components/ModelSelector';
 import type { AppModelTier } from './components/ModelSelector';
 import VersionHistory from './components/VersionHistory';
 import WelcomeBack from './components/WelcomeBack';
+import CodeHealthPanel from './components/CodeHealthPanel';
 
 type Message = {
   id: string;
@@ -117,6 +118,8 @@ async function callModifyFiles(params: {
   totalCredits: number;
   actualTier: string;
   fellBack: boolean;
+  suggestHealthCheck?: boolean;
+  totalModifications?: number;
 } | null> {
   try {
     const res = await authFetch('/ai/modify-files', {
@@ -401,6 +404,9 @@ function BuilderContent() {
         replyContent += `수정된 파일 (${modifyResult.modifiedFiles.length}개): ${paths}\n`;
         if (modifyResult.totalCredits > 0) replyContent += `사용 크레딧: ${modifyResult.totalCredits} cr\n`;
         if (modifyResult.fellBack) replyContent += `⚠️ Flash 모델로 자동 전환됨\n`;
+        if (modifyResult.suggestHealthCheck) {
+          replyContent += `\n🩺 **코드 건강 검진을 권장합니다!** (${modifyResult.totalModifications}회 수정)\n왼쪽 패널의 "코드 헬스체크"를 실행해보세요.\n`;
+        }
         replyContent += `\n추가 수정이 필요하면 말씀해주세요!`;
 
         const aiMsg: Message = {
@@ -879,7 +885,7 @@ function BuilderContent() {
 
         {/* Sprint 3: 버전 히스토리 (done 상태에서만) */}
         {buildPhase === 'done' && projectId && (
-          <div className="px-4 pb-4">
+          <div className="px-4 pb-4 space-y-3">
             <VersionHistory
               projectId={projectId}
               onRollback={(ver) => {
@@ -888,10 +894,20 @@ function BuilderContent() {
                   content: `↩ v${ver}으로 롤백되었습니다. 미리보기가 업데이트됩니다.`,
                   timestamp: new Date().toISOString(), type: 'status' as const,
                 }]);
-                // 프로젝트 데이터 새로고침
                 authFetch(`/projects/${projectId}`).then(r => r.ok ? r.json() : null).then(d => {
                   if (d) setProject(d);
                 });
+              }}
+            />
+            {/* Sprint 4: 코드 헬스체크 */}
+            <CodeHealthPanel
+              projectId={projectId}
+              onRequestCleanup={() => {
+                setMessages(prev => [...prev, {
+                  id: Date.now().toString(), role: 'system' as const,
+                  content: '🧹 AI 코드 정리를 시작합니다... 채팅에서 "코드 정리해줘"라고 입력해주세요.',
+                  timestamp: new Date().toISOString(), type: 'status' as const,
+                }]);
               }}
             />
           </div>

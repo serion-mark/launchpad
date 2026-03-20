@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AiService } from './ai.service';
 
@@ -97,5 +97,14 @@ export class AiController {
     },
   ) {
     return this.aiService.estimateGenerationCost(body.modelTier, body.estimatedFileCount);
+  }
+
+  // ══════════════════════════════════════════════════════
+  // ── Sprint 4: 코드 헬스체크 API ─────────────────────
+  // ══════════════════════════════════════════════════════
+
+  @Get('health-check/:projectId')
+  healthCheck(@Req() req: any, @Param('projectId') projectId: string) {
+    return this.aiService.healthCheck(req.user.userId, projectId);
   }
 }

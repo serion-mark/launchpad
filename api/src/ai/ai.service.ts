@@ -706,6 +706,8 @@ API 엔드포인트: ${JSON.stringify(apiEndpoints.filter((e: any) =>
     totalCredits: number;
     actualTier: AppModelTier;
     fellBack: boolean;
+    suggestHealthCheck: boolean;
+    totalModifications: number;
   }> {
     // 기존 프로젝트 로드
     const project = await this.prisma.project.findUnique({ where: { id: params.projectId } });
@@ -777,16 +779,106 @@ ${JSON.stringify(project.projectContext || {}, null, 2)}`,
         projectContext: {
           ...(project.projectContext as any || {}),
           lastAction: `수정: ${params.message.slice(0, 50)}`,
+          lastModifiedAt: new Date().toISOString(),
+          userPreferences: {
+            ...((project.projectContext as any)?.userPreferences || {}),
+            model: actualTier,
+          },
         } as any,
       },
     });
+
+    // 5회 수정마다 헬스체크 제안 플래그
+    const newTotal = (project.totalModifications || 0) + 1;
+    const suggestHealthCheck = newTotal > 0 && newTotal % 5 === 0;
 
     return {
       modifiedFiles,
       totalCredits: creditResult.cost,
       actualTier: actualTier as AppModelTier,
       fellBack: result.fellBack,
+      suggestHealthCheck,
+      totalModifications: newTotal,
     };
+  }
+
+  // ══════════════════════════════════════════════════════
+  // ── Sprint 4: 코드 헬스체크 ────────────────────────────
+  // ══════════════════════════════════════════════════════
+
+  async healthCheck(userId: string, projectId: string): Promise<{
+    score: number;
+    issues: { type: string; severity: 'low' | 'medium' | 'high'; count: number; description: string }[];
+    summary: string;
+    suggestCleanup: boolean;
+  }> {
+    const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) throw new Error('프로젝트를 찾을 수 없습니다');
+    if (project.userId !== userId) throw new Error('권한이 없습니다');
+
+    const files = (project.generatedCode as { path: string; content: string }[]) || [];
+    if (files.length === 0) return { score: 100, issues: [], summary: '생성된 코드가 없습니다.', suggestCleanup: false };
+
+    const allContent = files.map(f => f.content).join('\n');
+    const issues: { type: string; severity: 'low' | 'medium' | 'high'; count: number; description: string }[] = [];
+
+    // 1. TODO/FIXME 카운트
+    const todoCount = (allContent.match(/TODO|FIXME|HACK|XXX/gi) || []).length;
+    if (todoCount > 0) {
+      issues.push({ type: 'todo', severity: todoCount > 5 ? 'high' : 'medium', count: todoCount, description: `TODO/FIXME 주석 ${todoCount}개 발견` });
+    }
+
+    // 2. placeholder/빈 함수 감지
+    const placeholderCount = (allContent.match(/placeholder|lorem ipsum|dummy|sample data/gi) || []).length;
+    if (placeholderCount > 0) {
+      issues.push({ type: 'placeholder', severity: 'medium', count: placeholderCount, description: `플레이스홀더/더미 데이터 ${placeholderCount}개` });
+    }
+
+    // 3. console.log 잔여
+    const consoleCount = (allContent.match(/console\.(log|debug|warn|error)\(/g) || []).length;
+    if (consoleCount > 3) {
+      issues.push({ type: 'console', severity: 'low', count: consoleCount, description: `console.log 등 ${consoleCount}개 (배포 전 제거 권장)` });
+    }
+
+    // 4. type any 사용
+    const anyCount = (allContent.match(/:\s*any\b/g) || []).length;
+    if (anyCount > 5) {
+      issues.push({ type: 'any-type', severity: 'low', count: anyCount, description: `any 타입 ${anyCount}개 (타입 안전성 개선 권장)` });
+    }
+
+    // 5. 빈 catch 블록
+    const emptyCatchCount = (allContent.match(/catch\s*\([^)]*\)\s*\{\s*\}/g) || []).length;
+    if (emptyCatchCount > 0) {
+      issues.push({ type: 'empty-catch', severity: 'medium', count: emptyCatchCount, description: `빈 catch 블록 ${emptyCatchCount}개 (에러 처리 필요)` });
+    }
+
+    // 6. 중복 import 패턴 (대략적)
+    const importLines = allContent.match(/^import .+$/gm) || [];
+    const importSet = new Set(importLines);
+    const dupImports = importLines.length - importSet.size;
+    if (dupImports > 3) {
+      issues.push({ type: 'dup-import', severity: 'low', count: dupImports, description: `중복 import ${dupImports}개` });
+    }
+
+    // 점수 계산 (100점 만점)
+    let score = 100;
+    for (const issue of issues) {
+      const penalty = issue.severity === 'high' ? issue.count * 5 : issue.severity === 'medium' ? issue.count * 3 : issue.count * 1;
+      score -= penalty;
+    }
+    score = Math.max(0, Math.min(100, score));
+
+    const summary = issues.length === 0
+      ? '✅ 코드 품질이 우수합니다!'
+      : `${issues.length}가지 개선 항목이 있습니다. ${score >= 80 ? '전체적으로 양호합니다.' : score >= 50 ? '일부 개선이 필요합니다.' : '코드 정리를 권장합니다.'}`;
+
+    // DB에 점수 저장
+    await this.prisma.project.update({
+      where: { id: projectId },
+      data: { healthScore: score },
+    });
+
+    return { score, issues, summary, suggestCleanup: score < 70 };
   }
 
   // ══════════════════════════════════════════════════════
