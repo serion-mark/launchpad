@@ -68,6 +68,38 @@ async function callAiGenerate(params: {
   }
 }
 
+// ── Sprint 2: 전체 앱 생성 API ──────────────────────
+async function callGenerateApp(params: {
+  projectId: string;
+  template: string;
+  answers: Record<string, string | string[]>;
+  selectedFeatures: string[];
+  modelTier: 'flash' | 'smart' | 'pro';
+  theme?: string;
+  chatHistory?: { role: string; content: string }[];
+}): Promise<{
+  success: boolean;
+  files: { path: string; content: string }[];
+  architecture: any;
+  fileCount: number;
+  totalCredits: number;
+  actualTier: string;
+  fellBack: boolean;
+  assessment: { confidence: number; incompleteFeatures: string[]; suggestions: string[] };
+  steps: { step: string; status: string; fileCount: number }[];
+} | null> {
+  try {
+    const res = await authFetch('/ai/generate-app', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 export default function BuilderPage() {
   return (
     <Suspense fallback={
@@ -345,45 +377,90 @@ function BuilderContent() {
     saveChatHistory(updatedMessages);
   };
 
-  // ── 앱 생성 ──────────────────────────────────────
+  // ── 앱 생성 (Sprint 2: 5단계 파이프라인) ────────────
+  const [generateProgress, setGenerateProgress] = useState<string[]>([]);
+
   const handleGenerate = async () => {
     if (!projectId) return;
     setBuildPhase('generating');
+    setGenerateProgress([]);
 
-    await authFetch(`/projects/${projectId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status: 'generating' }),
-    });
+    const stepLabels: Record<string, string> = {
+      architecture: '📐 아키텍처 설계',
+      schema: '🗄️ 데이터베이스 설계',
+      backend: '⚙️ 백엔드 API 생성',
+      frontend: '🎨 프론트엔드 페이지 생성',
+      config: '📦 설정 파일 생성',
+    };
 
     setMessages(prev => [...prev, {
       id: Date.now().toString(), role: 'system',
-      content: '📐 AI가 앱 아키텍처를 설계하고 있습니다...', timestamp: new Date().toISOString(), type: 'status',
+      content: `🚀 **AI가 앱을 생성합니다** (${selectedModelTier.toUpperCase()} 모델)\n\n📐 아키텍처 설계 중...`,
+      timestamp: new Date().toISOString(), type: 'status',
     }]);
 
     const chatHistory = messages
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => ({ role: m.role, content: m.content }));
 
-    const result = await callAiGenerate({ projectId, chatHistory, template: templateId });
+    const result = await callGenerateApp({
+      projectId,
+      template: templateId,
+      answers,
+      selectedFeatures: projectFeatures,
+      modelTier: selectedModelTier,
+      theme: project?.theme || 'basic-light',
+      chatHistory: chatHistory.slice(-10),
+    });
 
     if (!result) {
       setBuildPhase('designing');
       setMessages(prev => [...prev, {
         id: Date.now().toString(), role: 'assistant',
-        content: '크레딧이 부족합니다! 앱을 생성하려면 크레딧을 충전해주세요.\n\n[크레딧 충전하기 →](/credits)',
+        content: '크레딧이 부족하거나 생성에 실패했습니다.\n\n크레딧을 확인하고 다시 시도해주세요.\n\n[크레딧 충전하기 →](/credits)',
         timestamp: new Date().toISOString(), type: 'text',
       }]);
-      await authFetch(`/projects/${projectId}`, { method: 'PATCH', body: JSON.stringify({ status: 'draft' }) });
       return;
     }
 
+    // 크레딧 잔액 새로고침
+    authFetch('/credits/balance').then(r => r.ok ? r.json() : null).then(d => {
+      if (d) setCreditBalance(d.balance);
+    }).catch(() => {});
+
     setBuildPhase('done');
     const arch = result.architecture;
+    const assess = result.assessment;
+
+    // 완료 메시지 구성
+    let completionMsg = `✅ **앱 생성 완료!**\n\n`;
+    completionMsg += `**${arch.appName || '앱'}** — ${arch.description || ''}\n\n`;
+    completionMsg += `📊 **생성 결과:**\n`;
+    completionMsg += `- 총 ${result.fileCount}개 파일 생성\n`;
+    completionMsg += `- 페이지: ${(arch.pages || []).length}개\n`;
+    completionMsg += `- API: ${(arch.apiEndpoints || []).length}개\n`;
+    completionMsg += `- DB 모델: ${(arch.dbModels || []).length}개\n`;
+    completionMsg += `- 사용 모델: ${result.actualTier.toUpperCase()}`;
+    if (result.fellBack) completionMsg += ` (Flash로 자동 전환됨)`;
+    completionMsg += `\n`;
+    if (result.totalCredits > 0) completionMsg += `- 사용 크레딧: ${result.totalCredits.toLocaleString()} cr\n`;
+    completionMsg += `\n`;
+
+    // AI 자기 평가
+    completionMsg += `🤖 **AI 품질 평가:** ${assess.confidence}점/100점\n`;
+    if (assess.suggestions.length > 0) {
+      completionMsg += assess.suggestions.map(s => `  ⚠️ ${s}`).join('\n') + '\n';
+    }
+    completionMsg += `\n`;
+
+    completionMsg += `수정이 필요하면 채팅으로 말씀해주세요.\n`;
+    completionMsg += `(예: "로그인 페이지 디자인 변경해줘", "API에 검색 기능 추가해줘")\n\n`;
+    completionMsg += `완료되면 **"다운로드"** 또는 **"배포"** 버튼을 이용하세요!`;
 
     setMessages(prev => {
       const final = [...prev, {
         id: Date.now().toString(), role: 'assistant' as const,
-        content: `${result.isFreeTrial ? '**맛보기 설계안 (무료 1회)**\n\n' : ''}앱 아키텍처가 설계되었습니다!\n\n**${arch.appName || '앱'}**\n${arch.description || ''}\n\n**설계된 구성:**\n- 프론트엔드: ${arch.pages?.length || 0}개 페이지\n- 백엔드: ${arch.apiEndpoints?.length || 0}개 API\n- 데이터베이스: ${arch.dbModels?.length || 0}개 테이블\n- 주요 기능: ${(arch.features || []).join(', ')}\n\n수정이 필요하면 채팅으로 말씀해주세요.\n완료되면 "배포" 또는 "다운로드" 버튼을 이용하세요.`,
+        content: completionMsg,
         timestamp: new Date().toISOString(), type: 'text' as const,
       }];
       saveChatHistory(final);

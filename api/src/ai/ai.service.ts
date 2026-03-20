@@ -75,6 +75,73 @@ const TEMPLATE_PROMPTS: Record<string, string> = {
 절대 사용하지 말 것: 예약(고객), 노쇼, 디자이너, 시술, 상품, 장바구니, 배송, 수강, 매칭`,
 };
 
+// ── Prisma 스키마 생성 프롬프트 ─────────────────────
+const SCHEMA_SYSTEM_PROMPT = `당신은 Prisma ORM 전문가입니다.
+주어진 모델 정의를 기반으로 완전한 Prisma 스키마를 생성합니다.
+
+규칙:
+- PostgreSQL 데이터소스 사용
+- 모든 모델에 id (cuid), createdAt, updatedAt 필드 포함
+- 관계(relation)는 명확하게 정의
+- @@map으로 테이블명은 소문자 복수형
+- 인덱스와 유니크 제약조건 적절히 추가
+- enum은 필요한 경우만 사용
+- 코드 블록 없이 순수 Prisma 스키마만 출력`;
+
+// ── 백엔드 모듈 생성 프롬프트 ───────────────────────
+const BACKEND_SYSTEM_PROMPT = `당신은 NestJS 백엔드 전문가입니다.
+주어진 엔드포인트 정의를 기반으로 NestJS 모듈(Controller + Service)을 생성합니다.
+
+규칙:
+- NestJS + Prisma 패턴 사용
+- Controller: @Controller, @Get/@Post/@Patch/@Delete, DTO 타입 정의
+- Service: @Injectable, PrismaService 주입, 비즈니스 로직
+- 에러 처리: NotFoundException, BadRequestException 등 적절히 사용
+- 각 파일을 [FILE: 경로] 형식으로 구분하여 출력
+
+출력 형식:
+[FILE: controller.ts]
+(컨트롤러 코드)
+
+[FILE: service.ts]
+(서비스 코드)
+
+[FILE: dto.ts]
+(DTO 정의)`;
+
+// ── 프론트엔드 페이지 생성 프롬프트 ─────────────────
+const FRONTEND_SYSTEM_PROMPT = `당신은 Next.js 16 프론트엔드 전문가입니다.
+주어진 페이지 정의를 기반으로 Next.js App Router 페이지를 생성합니다.
+
+규칙:
+- 'use client' 디렉티브 필수 (상태 사용 시)
+- TypeScript + Tailwind CSS 사용
+- 반응형 디자인 (모바일 우선)
+- fetch로 API 호출 (process.env.NEXT_PUBLIC_API_URL 기반)
+- 한국어 UI 텍스트
+- 컴포넌트는 같은 파일에 정의 (작은 경우) 또는 [FILE:] 태그로 분리
+- 모던하고 깔끔한 UI (rounded-xl, shadow-sm, 적절한 패딩)
+- 로딩/에러 상태 처리 포함
+
+출력 형식:
+[FILE: page.tsx]
+(페이지 코드)`;
+
+// ── 코드 수정 프롬프트 ──────────────────────────────
+const MODIFY_SYSTEM_PROMPT = `당신은 풀스택 코드 수정 전문가입니다.
+사용자의 수정 요청에 따라 기존 코드를 수정합니다.
+
+규칙:
+- 수정된 파일만 [FILE: 경로] 형식으로 출력
+- 수정하지 않은 파일은 출력하지 마세요
+- 기존 코드 스타일과 패턴을 유지
+- TypeScript 타입 안전성 유지
+- 한국어 주석/UI 텍스트 유지
+
+출력 형식:
+[FILE: 수정된파일경로]
+(수정된 전체 코드)`;
+
 // ── 앱 생성 시스템 프롬프트 ──────────────────────────
 const GENERATE_SYSTEM_PROMPT = `당신은 풀스택 웹 앱 아키텍트입니다.
 사용자의 대화 내역을 기반으로, 완전한 앱 아키텍처를 설계합니다.
@@ -355,5 +422,628 @@ export class AiService {
   /** 예상 크레딧 비용 계산 (차감 없이) */
   estimateGenerationCost(tier: AppModelTier, estimatedFileCount: number) {
     return this.creditService.estimateCost(tier as CreditModelTier, estimatedFileCount);
+  }
+
+  // ══════════════════════════════════════════════════════
+  // ── Sprint 2: 코드 생성 파이프라인 ────────────────────
+  // ══════════════════════════════════════════════════════
+
+  /**
+   * 전체 앱 생성 (5단계 파이프라인)
+   * 1. 아키텍처 설계 → JSON
+   * 2. Prisma 스키마 생성
+   * 3. 백엔드 모듈 생성 (NestJS)
+   * 4. 프론트엔드 페이지 생성 (Next.js)
+   * 5. 설정 파일 생성 (package.json, .env 등)
+   */
+  async generateFullApp(userId: string, params: {
+    projectId: string;
+    template: string;
+    answers: Record<string, string | string[]>;
+    selectedFeatures: string[];
+    modelTier: AppModelTier;
+    theme?: string;
+    chatHistory?: { role: string; content: string }[];
+  }): Promise<{
+    success: boolean;
+    files: { path: string; content: string }[];
+    architecture: any;
+    fileCount: number;
+    totalCredits: number;
+    actualTier: AppModelTier;
+    fellBack: boolean;
+    assessment: { confidence: number; incompleteFeatures: string[]; suggestions: string[] };
+    steps: { step: string; status: string; fileCount: number }[];
+  }> {
+    const steps: { step: string; status: string; fileCount: number }[] = [];
+    const allFiles: { path: string; content: string }[] = [];
+    let totalCredits = 0;
+    let fellBack = false;
+    const tier = params.modelTier;
+
+    // 프로젝트 상태 → generating
+    await this.prisma.project.update({
+      where: { id: params.projectId },
+      data: { status: 'generating', modelUsed: tier },
+    });
+
+    try {
+      // ── Step 1: 아키텍처 설계 ──────────────────────
+      this.logger.log(`[${params.projectId}] Step 1: 아키텍처 설계 (${tier})`);
+      steps.push({ step: 'architecture', status: 'in_progress', fileCount: 0 });
+
+      const answersText = Object.entries(params.answers)
+        .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
+        .join('\n');
+
+      const chatSummary = params.chatHistory
+        ?.map(m => `${m.role === 'user' ? '사용자' : 'AI'}: ${m.content}`)
+        .join('\n') || '';
+
+      const archResult = await this.callWithFallback(tier, GENERATE_SYSTEM_PROMPT, [{
+        role: 'user',
+        content: `앱 아키텍처를 설계해주세요.
+
+템플릿: ${params.template}
+${TEMPLATE_PROMPTS[params.template] || ''}
+
+사용자 답변:
+${answersText}
+
+선택한 기능: ${params.selectedFeatures.join(', ')}
+테마: ${params.theme || 'basic-light'}
+
+${chatSummary ? `대화 내역:\n${chatSummary}` : ''}`,
+      }]);
+
+      if (archResult.fellBack) fellBack = true;
+
+      let architecture: any;
+      try {
+        const jsonMatch = archResult.content.match(/\{[\s\S]*\}/);
+        architecture = jsonMatch ? JSON.parse(jsonMatch[0]) : { raw: archResult.content };
+      } catch {
+        architecture = { raw: archResult.content };
+      }
+
+      const archFile = { path: '_architecture.json', content: JSON.stringify(architecture, null, 2) };
+      allFiles.push(archFile);
+      steps[0] = { step: 'architecture', status: 'completed', fileCount: 1 };
+
+      // ── Step 2: Prisma 스키마 생성 ─────────────────
+      this.logger.log(`[${params.projectId}] Step 2: DB 스키마 생성`);
+      steps.push({ step: 'schema', status: 'in_progress', fileCount: 0 });
+
+      const dbModels = architecture.dbModels || [];
+      const schemaResult = await this.callWithFallback(tier, SCHEMA_SYSTEM_PROMPT, [{
+        role: 'user',
+        content: `아래 모델 정의를 기반으로 Prisma 스키마를 생성해주세요.
+
+DB 모델:
+${JSON.stringify(dbModels, null, 2)}
+
+앱 이름: ${architecture.appName || params.answers['biz_name'] || 'MyApp'}
+기능: ${params.selectedFeatures.join(', ')}`,
+      }]);
+
+      if (schemaResult.fellBack) fellBack = true;
+
+      const schemaContent = this.extractCodeBlock(schemaResult.content, 'prisma') || schemaResult.content;
+      allFiles.push({ path: 'prisma/schema.prisma', content: schemaContent });
+      steps[1] = { step: 'schema', status: 'completed', fileCount: 1 };
+
+      // ── Step 3: 백엔드 모듈 생성 ──────────────────
+      this.logger.log(`[${params.projectId}] Step 3: 백엔드 API 생성`);
+      steps.push({ step: 'backend', status: 'in_progress', fileCount: 0 });
+
+      const apiEndpoints = architecture.apiEndpoints || [];
+      const modules = this.groupEndpointsByModule(apiEndpoints);
+      let backendFileCount = 0;
+
+      for (const [moduleName, endpoints] of Object.entries(modules)) {
+        const backendResult = await this.callWithFallback(tier, BACKEND_SYSTEM_PROMPT, [{
+          role: 'user',
+          content: `NestJS 모듈을 생성해주세요.
+
+모듈명: ${moduleName}
+엔드포인트:
+${JSON.stringify(endpoints, null, 2)}
+
+Prisma 스키마:
+${schemaContent}
+
+앱 아키텍처:
+${JSON.stringify({ appName: architecture.appName, features: architecture.features }, null, 2)}`,
+        }]);
+
+        if (backendResult.fellBack) fellBack = true;
+
+        const backendFiles = this.parseFileOutput(backendResult.content, `src/${moduleName}`);
+        allFiles.push(...backendFiles);
+        backendFileCount += backendFiles.length;
+      }
+
+      // 공통 모듈 (app.module, prisma.service, auth)
+      allFiles.push(...this.generateCommonBackendFiles(architecture, Object.keys(modules)));
+      backendFileCount += 3; // app.module + prisma.service + main.ts
+      steps[2] = { step: 'backend', status: 'completed', fileCount: backendFileCount };
+
+      // ── Step 4: 프론트엔드 페이지 생성 ────────────
+      this.logger.log(`[${params.projectId}] Step 4: 프론트엔드 페이지 생성`);
+      steps.push({ step: 'frontend', status: 'in_progress', fileCount: 0 });
+
+      const pages = architecture.pages || [];
+      let frontendFileCount = 0;
+
+      for (const page of pages) {
+        const frontendResult = await this.callWithFallback(tier, FRONTEND_SYSTEM_PROMPT, [{
+          role: 'user',
+          content: `Next.js 페이지를 생성해주세요.
+
+페이지: ${page.name} (${page.path})
+설명: ${page.description}
+컴포넌트: ${(page.components || []).join(', ')}
+
+앱 이름: ${architecture.appName || ''}
+테마: ${params.theme || 'basic-light'}
+API 엔드포인트: ${JSON.stringify(apiEndpoints.filter((e: any) =>
+  e.path?.includes(page.path?.replace('/', '')) || e.description?.includes(page.name)
+), null, 2)}`,
+        }]);
+
+        if (frontendResult.fellBack) fellBack = true;
+
+        const frontendFiles = this.parseFileOutput(frontendResult.content, `src/app${page.path}`);
+        if (frontendFiles.length === 0) {
+          // AI가 [FILE:] 태그 없이 코드만 준 경우
+          allFiles.push({ path: `src/app${page.path}/page.tsx`, content: frontendResult.content });
+          frontendFileCount++;
+        } else {
+          allFiles.push(...frontendFiles);
+          frontendFileCount += frontendFiles.length;
+        }
+      }
+
+      // 레이아웃 + 글로벌 CSS
+      allFiles.push(...this.generateCommonFrontendFiles(architecture, params.theme || 'basic-light'));
+      frontendFileCount += 2;
+      steps[3] = { step: 'frontend', status: 'completed', fileCount: frontendFileCount };
+
+      // ── Step 5: 설정 파일 생성 ────────────────────
+      this.logger.log(`[${params.projectId}] Step 5: 설정 파일 생성`);
+      steps.push({ step: 'config', status: 'in_progress', fileCount: 0 });
+
+      const configFiles = this.generateConfigFiles(architecture, params.template);
+      allFiles.push(...configFiles);
+      steps[4] = { step: 'config', status: 'completed', fileCount: configFiles.length };
+
+      // ── 크레딧 차감 (모델 + 파일 수 기반) ─────────
+      const fileCount = allFiles.length;
+      const actualTier: CreditModelTier = fellBack ? 'flash' : (tier as CreditModelTier);
+
+      // 맛보기 체크
+      const balance = await this.creditService.getBalance(userId);
+      if (!balance.freeTrialUsed) {
+        await this.creditService.deduct(userId, {
+          action: 'free_trial',
+          projectId: params.projectId,
+          taskType: 'generate_full_app',
+          modelTier: actualTier,
+          description: `맛보기 앱 생성: ${architecture.appName || params.template}`,
+        });
+      } else {
+        const creditResult = await this.creditService.deductByModel(userId, {
+          tier: actualTier,
+          fileCount,
+          projectId: params.projectId,
+          taskType: 'generate_full_app',
+          description: `앱 생성: ${architecture.appName || params.template} (${fileCount}파일, ${actualTier})`,
+        });
+        totalCredits = creditResult.cost;
+      }
+
+      // ── AI 자기 평가 추출 ─────────────────────────
+      const assessment = this.extractAssessment(allFiles);
+
+      // ── DB 저장 ───────────────────────────────────
+      await this.prisma.project.update({
+        where: { id: params.projectId },
+        data: {
+          generatedCode: allFiles as any,
+          status: 'active',
+          modelUsed: actualTier,
+          currentVersion: 1,
+          versions: [{
+            version: 1,
+            createdAt: new Date().toISOString(),
+            description: '최초 생성',
+            fileCount,
+          }] as any,
+          projectContext: {
+            completedFeatures: architecture.features || params.selectedFeatures,
+            pendingFeatures: assessment.incompleteFeatures,
+            lastAction: '앱 생성 완료',
+            userPreferences: { model: actualTier, theme: params.theme || 'basic-light' },
+            architecture: { appName: architecture.appName, pages: (architecture.pages || []).length, apis: (architecture.apiEndpoints || []).length },
+          } as any,
+        },
+      });
+
+      this.logger.log(`[${params.projectId}] ✅ 생성 완료! ${fileCount}파일, ${totalCredits}cr`);
+
+      return {
+        success: true,
+        files: allFiles,
+        architecture,
+        fileCount,
+        totalCredits,
+        actualTier: actualTier as AppModelTier,
+        fellBack,
+        assessment,
+        steps,
+      };
+    } catch (error: any) {
+      this.logger.error(`[${params.projectId}] 생성 실패: ${error.message}`);
+
+      // 실패 시 상태 복원
+      await this.prisma.project.update({
+        where: { id: params.projectId },
+        data: { status: 'draft' },
+      });
+
+      throw error;
+    }
+  }
+
+  // ── 파일 수정 (채팅 기반) ─────────────────────────────
+  async modifyFiles(userId: string, params: {
+    projectId: string;
+    message: string;
+    modelTier: AppModelTier;
+    targetFiles?: string[];
+  }): Promise<{
+    modifiedFiles: { path: string; content: string }[];
+    totalCredits: number;
+    actualTier: AppModelTier;
+    fellBack: boolean;
+  }> {
+    // 기존 프로젝트 로드
+    const project = await this.prisma.project.findUnique({ where: { id: params.projectId } });
+    if (!project) throw new Error('프로젝트를 찾을 수 없습니다');
+    if (project.userId !== userId) throw new Error('권한이 없습니다');
+
+    const existingFiles = (project.generatedCode as { path: string; content: string }[]) || [];
+    const tier = params.modelTier;
+
+    // 수정 대상 파일 추출
+    const targetFileContents = params.targetFiles
+      ? existingFiles.filter(f => params.targetFiles!.some(t => f.path.includes(t)))
+      : existingFiles.slice(0, 10); // 최대 10개
+
+    const result = await this.callWithFallback(tier, MODIFY_SYSTEM_PROMPT, [{
+      role: 'user',
+      content: `수정 요청: ${params.message}
+
+현재 파일:
+${targetFileContents.map(f => `[FILE: ${f.path}]\n${f.content}`).join('\n\n')}
+
+프로젝트 컨텍스트:
+${JSON.stringify(project.projectContext || {}, null, 2)}`,
+    }]);
+
+    const modifiedFiles = this.parseFileOutput(result.content, '');
+    const actualTier: CreditModelTier = result.fellBack ? 'flash' : (tier as CreditModelTier);
+
+    // 크레딧 차감
+    const creditResult = await this.creditService.deductByModel(userId, {
+      tier: actualTier,
+      fileCount: modifiedFiles.length || 1,
+      projectId: params.projectId,
+      taskType: 'modify',
+      description: `AI 수정: ${params.message.slice(0, 50)} (${modifiedFiles.length}파일)`,
+    });
+
+    // 기존 파일에 수정 적용
+    const updatedFiles = [...existingFiles];
+    for (const mod of modifiedFiles) {
+      const idx = updatedFiles.findIndex(f => f.path === mod.path);
+      if (idx >= 0) {
+        updatedFiles[idx] = mod;
+      } else {
+        updatedFiles.push(mod);
+      }
+    }
+
+    // 버전 + 수정 횟수 업데이트
+    const versions = (project.versions as any[]) || [];
+    const newVersion = (project.currentVersion || 1) + 1;
+    versions.push({
+      version: newVersion,
+      createdAt: new Date().toISOString(),
+      description: params.message.slice(0, 100),
+      fileCount: modifiedFiles.length,
+      modifiedPaths: modifiedFiles.map(f => f.path),
+    });
+
+    await this.prisma.project.update({
+      where: { id: params.projectId },
+      data: {
+        generatedCode: updatedFiles as any,
+        currentVersion: newVersion,
+        versions: versions as any,
+        totalModifications: { increment: 1 },
+        modelUsed: actualTier,
+        projectContext: {
+          ...(project.projectContext as any || {}),
+          lastAction: `수정: ${params.message.slice(0, 50)}`,
+        } as any,
+      },
+    });
+
+    return {
+      modifiedFiles,
+      totalCredits: creditResult.cost,
+      actualTier: actualTier as AppModelTier,
+      fellBack: result.fellBack,
+    };
+  }
+
+  // ══════════════════════════════════════════════════════
+  // ── 유틸리티 메서드 ───────────────────────────────────
+  // ══════════════════════════════════════════════════════
+
+  /** [FILE: path] 태그로 구분된 AI 출력을 파싱 */
+  private parseFileOutput(output: string, defaultDir: string): { path: string; content: string }[] {
+    const files: { path: string; content: string }[] = [];
+    const regex = /\[FILE:\s*(.+?)\]\s*\n([\s\S]*?)(?=\[FILE:|$)/g;
+    let match;
+
+    while ((match = regex.exec(output)) !== null) {
+      let filePath = match[1].trim();
+      // 상대 경로 보정
+      if (defaultDir && !filePath.startsWith('src/') && !filePath.startsWith('prisma/') && !filePath.includes('/')) {
+        filePath = `${defaultDir}/${filePath}`;
+      }
+      files.push({ path: filePath, content: match[2].trim() });
+    }
+
+    // [FILE:] 태그가 없으면 코드 블록 추출 시도
+    if (files.length === 0 && output.trim()) {
+      const codeBlock = this.extractCodeBlock(output, 'typescript') || this.extractCodeBlock(output, 'tsx') || output.trim();
+      if (defaultDir) {
+        files.push({ path: `${defaultDir}/index.ts`, content: codeBlock });
+      }
+    }
+
+    return files;
+  }
+
+  /** 코드 블록 추출 (```lang ... ```) */
+  private extractCodeBlock(text: string, lang: string): string | null {
+    const regex = new RegExp('```' + lang + '\\s*\\n([\\s\\S]*?)```', 'i');
+    const match = text.match(regex);
+    return match ? match[1].trim() : null;
+  }
+
+  /** API 엔드포인트를 모듈 단위로 그룹핑 */
+  private groupEndpointsByModule(endpoints: any[]): Record<string, any[]> {
+    const modules: Record<string, any[]> = {};
+    for (const ep of endpoints) {
+      if (!ep.path) continue;
+      const parts = ep.path.split('/').filter(Boolean);
+      // /api/reservations/xxx → reservations
+      const moduleName = parts[1] || parts[0] || 'main';
+      if (!modules[moduleName]) modules[moduleName] = [];
+      modules[moduleName].push(ep);
+    }
+    return modules;
+  }
+
+  /** AI 자기 평가 추출 */
+  private extractAssessment(files: { path: string; content: string }[]): {
+    confidence: number;
+    incompleteFeatures: string[];
+    suggestions: string[];
+  } {
+    let todoCount = 0;
+    let placeholderCount = 0;
+    const incompleteFeatures: string[] = [];
+
+    for (const file of files) {
+      const content = file.content;
+      const todos = (content.match(/TODO|FIXME|HACK/g) || []).length;
+      const placeholders = (content.match(/placeholder|lorem|dummy|sample/gi) || []).length;
+      todoCount += todos;
+      placeholderCount += placeholders;
+
+      if (todos > 0 || placeholders > 0) {
+        incompleteFeatures.push(file.path);
+      }
+    }
+
+    const totalFiles = files.filter(f => !f.path.startsWith('_')).length;
+    const cleanFiles = totalFiles - incompleteFeatures.length;
+    const confidence = totalFiles > 0 ? Math.round((cleanFiles / totalFiles) * 100) : 50;
+
+    const suggestions: string[] = [];
+    if (confidence < 70) suggestions.push('더 정확한 결과를 위해 Smart 모델을 추천합니다');
+    if (todoCount > 5) suggestions.push(`TODO가 ${todoCount}개 남아있습니다. 추가 수정이 필요합니다`);
+    if (placeholderCount > 3) suggestions.push('플레이스홀더 데이터를 실제 데이터로 교체하세요');
+
+    return { confidence: Math.min(confidence, 100), incompleteFeatures, suggestions };
+  }
+
+  /** 공통 백엔드 파일 생성 */
+  private generateCommonBackendFiles(architecture: any, moduleNames: string[]): { path: string; content: string }[] {
+    const appName = (architecture.appName || 'my-app').toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+    return [
+      {
+        path: 'src/main.ts',
+        content: `import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  app.setGlobalPrefix('api');
+  app.enableCors();
+  await app.listen(process.env.PORT || 4000);
+  console.log(\`🚀 \${process.env.npm_package_name || '${appName}'} API running on port \${process.env.PORT || 4000}\`);
+}
+bootstrap();`,
+      },
+      {
+        path: 'src/app.module.ts',
+        content: `import { Module } from '@nestjs/common';
+import { PrismaService } from './prisma.service';
+${moduleNames.map(m => `// import { ${this.capitalize(m)}Module } from './${m}/${m}.module';`).join('\n')}
+
+@Module({
+  imports: [
+    ${moduleNames.map(m => `// ${this.capitalize(m)}Module,`).join('\n    ')}
+  ],
+  providers: [PrismaService],
+})
+export class AppModule {}`,
+      },
+      {
+        path: 'src/prisma.service.ts',
+        content: `import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
+
+@Injectable()
+export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  async onModuleInit() { await this.$connect(); }
+  async onModuleDestroy() { await this.$disconnect(); }
+}`,
+      },
+    ];
+  }
+
+  /** 공통 프론트엔드 파일 생성 */
+  private generateCommonFrontendFiles(architecture: any, theme: string): { path: string; content: string }[] {
+    const appName = architecture.appName || 'My App';
+
+    return [
+      {
+        path: 'src/app/layout.tsx',
+        content: `import type { Metadata } from 'next';
+import './globals.css';
+
+export const metadata: Metadata = {
+  title: '${appName}',
+  description: '${architecture.description || 'Foundry AI로 생성된 앱'}',
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="ko">
+      <body className="min-h-screen bg-gray-50 antialiased">{children}</body>
+    </html>
+  );
+}`,
+      },
+      {
+        path: 'src/app/globals.css',
+        content: `@import "tailwindcss";
+
+:root {
+  --color-primary: #3182f6;
+  --color-background: #ffffff;
+  --color-foreground: #171717;
+}`,
+      },
+    ];
+  }
+
+  /** 설정 파일 생성 */
+  private generateConfigFiles(architecture: any, template: string): { path: string; content: string }[] {
+    const appName = (architecture.appName || template || 'my-app').toLowerCase().replace(/[^a-z0-9가-힣]/g, '-');
+
+    return [
+      {
+        path: 'package.json',
+        content: JSON.stringify({
+          name: appName,
+          version: '1.0.0',
+          private: true,
+          scripts: {
+            dev: 'next dev',
+            build: 'next build',
+            start: 'next start',
+            'db:push': 'prisma db push',
+            'db:studio': 'prisma studio',
+          },
+          dependencies: {
+            next: '^16.0.0',
+            react: '^19.0.0',
+            'react-dom': '^19.0.0',
+            typescript: '^5.0.0',
+            tailwindcss: '^4.0.0',
+            '@prisma/client': '^6.0.0',
+          },
+          devDependencies: {
+            prisma: '^6.0.0',
+            '@types/node': '^22.0.0',
+            '@types/react': '^19.0.0',
+          },
+        }, null, 2),
+      },
+      {
+        path: 'tsconfig.json',
+        content: JSON.stringify({
+          compilerOptions: {
+            target: 'es2017',
+            lib: ['dom', 'es2017'],
+            jsx: 'preserve',
+            module: 'esnext',
+            moduleResolution: 'bundler',
+            strict: true,
+            esModuleInterop: true,
+            skipLibCheck: true,
+            paths: { '@/*': ['./src/*'] },
+          },
+          include: ['**/*.ts', '**/*.tsx'],
+          exclude: ['node_modules'],
+        }, null, 2),
+      },
+      {
+        path: '.env.example',
+        content: `DATABASE_URL="postgresql://user:password@localhost:5432/${appName}"
+NEXT_PUBLIC_API_URL="http://localhost:4000/api"
+JWT_SECRET="your-jwt-secret-here"
+PORT=4000`,
+      },
+      {
+        path: 'README.md',
+        content: `# ${architecture.appName || appName}
+
+${architecture.description || 'Foundry AI MVP 빌더로 생성된 프로젝트입니다.'}
+
+## 기술 스택
+- **프론트엔드**: Next.js 16 + TypeScript + Tailwind CSS
+- **백엔드**: NestJS + Prisma ORM
+- **DB**: PostgreSQL
+
+## 실행 방법
+\`\`\`bash
+npm install
+cp .env.example .env    # 환경변수 설정
+npx prisma db push      # DB 스키마 적용
+npm run dev             # 개발 서버 실행
+\`\`\`
+
+## 생성 정보
+- 템플릿: ${template}
+- 페이지 수: ${(architecture.pages || []).length}
+- API 수: ${(architecture.apiEndpoints || []).length}
+- DB 모델 수: ${(architecture.dbModels || []).length}
+`,
+      },
+    ];
+  }
+
+  private capitalize(str: string): string {
+    return str.charAt(0).toUpperCase() + str.slice(1);
   }
 }

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Get, Body, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AiService } from './ai.service';
 
@@ -21,7 +21,7 @@ export class AiController {
     return this.aiService.chat(req.user.userId, body);
   }
 
-  // ── 앱 아키텍처 생성 ───────────────────────────────
+  // ── 앱 아키텍처 생성 (레거시) ──────────────────────
   @Post('generate')
   generate(
     @Req() req: any,
@@ -34,7 +34,7 @@ export class AiController {
     return this.aiService.generateArchitecture(req.user.userId, body);
   }
 
-  // ── AI 코드 수정 ──────────────────────────────────
+  // ── AI 코드 수정 (레거시) ─────────────────────────
   @Post('modify')
   modify(
     @Req() req: any,
@@ -45,5 +45,57 @@ export class AiController {
     },
   ) {
     return this.aiService.modifyCode(req.user.userId, body);
+  }
+
+  // ══════════════════════════════════════════════════════
+  // ── Sprint 2: 코드 생성 엔진 API ─────────────────────
+  // ══════════════════════════════════════════════════════
+
+  // ── 전체 앱 생성 (5단계 파이프라인) ────────────────
+  @Post('generate-app')
+  generateApp(
+    @Req() req: any,
+    @Body() body: {
+      projectId: string;
+      template: string;
+      answers: Record<string, string | string[]>;
+      selectedFeatures: string[];
+      modelTier: 'flash' | 'smart' | 'pro';
+      theme?: string;
+      chatHistory?: { role: string; content: string }[];
+    },
+  ) {
+    return this.aiService.generateFullApp(req.user.userId, body);
+  }
+
+  // ── 채팅 기반 코드 수정 ───────────────────────────
+  @Post('modify-files')
+  modifyFiles(
+    @Req() req: any,
+    @Body() body: {
+      projectId: string;
+      message: string;
+      modelTier: 'flash' | 'smart' | 'pro';
+      targetFiles?: string[];
+    },
+  ) {
+    return this.aiService.modifyFiles(req.user.userId, body);
+  }
+
+  // ── 사용 가능한 모델 목록 ─────────────────────────
+  @Get('models')
+  getModels() {
+    return this.aiService.getAvailableModels();
+  }
+
+  // ── 예상 비용 계산 ────────────────────────────────
+  @Post('estimate-cost')
+  estimateCost(
+    @Body() body: {
+      modelTier: 'flash' | 'smart' | 'pro';
+      estimatedFileCount: number;
+    },
+  ) {
+    return this.aiService.estimateGenerationCost(body.modelTier, body.estimatedFileCount);
   }
 }
