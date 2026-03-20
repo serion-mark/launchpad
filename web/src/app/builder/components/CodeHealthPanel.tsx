@@ -17,9 +17,18 @@ type HealthResult = {
   suggestCleanup: boolean;
 };
 
+type CleanupResult = {
+  cleanedFiles: { path: string; content: string }[];
+  totalCredits: number;
+  improvements: string[];
+  actualTier: string;
+  fellBack: boolean;
+};
+
 type Props = {
   projectId: string;
-  onRequestCleanup?: () => void;
+  modelTier: 'flash' | 'smart' | 'pro';
+  onCleanupComplete?: (result: CleanupResult) => void;
 };
 
 const SEVERITY_COLORS = {
@@ -42,9 +51,10 @@ function getScoreLabel(score: number) {
   return '위험';
 }
 
-export default function CodeHealthPanel({ projectId, onRequestCleanup }: Props) {
+export default function CodeHealthPanel({ projectId, modelTier, onCleanupComplete }: Props) {
   const [result, setResult] = useState<HealthResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [cleaning, setCleaning] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
   const runCheck = async () => {
@@ -58,6 +68,24 @@ export default function CodeHealthPanel({ projectId, onRequestCleanup }: Props) 
       }
     } catch { /* */ }
     setLoading(false);
+  };
+
+  const runCleanup = async () => {
+    if (!confirm('AI로 코드를 정리합니다. 크레딧이 차감됩니다. 진행하시겠습니까?')) return;
+    setCleaning(true);
+    try {
+      const res = await authFetch('/ai/cleanup', {
+        method: 'POST',
+        body: JSON.stringify({ projectId, modelTier }),
+      });
+      if (res.ok) {
+        const data: CleanupResult = await res.json();
+        onCleanupComplete?.(data);
+        // 정리 후 재검사
+        await runCheck();
+      }
+    } catch { /* */ }
+    setCleaning(false);
   };
 
   return (
@@ -79,7 +107,7 @@ export default function CodeHealthPanel({ projectId, onRequestCleanup }: Props) 
         <button
           className="text-[10px] font-medium px-3 py-1.5 rounded-lg bg-[#2a2a35] hover:bg-[#33333f] text-[#8b8fa3] hover:text-[#f2f4f6] transition-colors disabled:opacity-50"
           onClick={runCheck}
-          disabled={loading}
+          disabled={loading || cleaning}
         >
           {loading ? '검사 중...' : result ? '다시 검사' : '검사하기'}
         </button>
@@ -118,13 +146,14 @@ export default function CodeHealthPanel({ projectId, onRequestCleanup }: Props) 
             </div>
           )}
 
-          {/* Cleanup Suggestion */}
-          {result.suggestCleanup && onRequestCleanup && (
+          {/* Cleanup Button */}
+          {result.suggestCleanup && (
             <button
-              className="w-full py-2.5 rounded-xl bg-[#6c5ce7]/20 hover:bg-[#6c5ce7]/30 text-[#a78bfa] text-xs font-semibold transition-colors border border-[#6c5ce7]/30"
-              onClick={onRequestCleanup}
+              className="w-full py-2.5 rounded-xl bg-[#6c5ce7]/20 hover:bg-[#6c5ce7]/30 text-[#a78bfa] text-xs font-semibold transition-colors border border-[#6c5ce7]/30 disabled:opacity-50"
+              onClick={runCleanup}
+              disabled={cleaning}
             >
-              🧹 AI로 코드 정리하기 (크레딧 사용)
+              {cleaning ? '🔄 AI 정리 중...' : '🧹 AI로 코드 정리하기 (크레딧 사용)'}
             </button>
           )}
 

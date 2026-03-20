@@ -881,6 +881,111 @@ ${JSON.stringify(project.projectContext || {}, null, 2)}`,
     return { score, issues, summary, suggestCleanup: score < 70 };
   }
 
+  // ── Sprint 5: AI 코드 정리 ──────────────────────────
+
+  async cleanupCode(userId: string, params: {
+    projectId: string;
+    modelTier: AppModelTier;
+  }): Promise<{
+    cleanedFiles: { path: string; content: string }[];
+    totalCredits: number;
+    improvements: string[];
+    actualTier: AppModelTier;
+    fellBack: boolean;
+  }> {
+    const project = await this.prisma.project.findUnique({ where: { id: params.projectId } });
+    if (!project) throw new Error('프로젝트를 찾을 수 없습니다');
+    if (project.userId !== userId) throw new Error('권한이 없습니다');
+
+    const existingFiles = (project.generatedCode as { path: string; content: string }[]) || [];
+    if (existingFiles.length === 0) throw new Error('정리할 코드가 없습니다');
+
+    const tier = params.modelTier;
+
+    // 코드 정리 프롬프트
+    const cleanupPrompt = `다음 코드를 정리해주세요. 수정한 파일만 [FILE: path] 형식으로 반환하세요.
+
+정리 항목:
+- TODO/FIXME 주석 제거 또는 구현
+- placeholder/더미 데이터 정리
+- console.log 불필요한 것 제거
+- any 타입을 구체적 타입으로 변경
+- 빈 catch 블록에 에러 처리 추가
+- 중복 코드 통합
+- 코드 스타일 정리
+
+마지막에 <!--IMPROVEMENTS ["개선1", "개선2"]--> 형식으로 개선사항 목록을 추가하세요.
+
+현재 파일:
+${existingFiles.slice(0, 15).map(f => `[FILE: ${f.path}]\n${f.content}`).join('\n\n')}`;
+
+    const result = await this.callWithFallback(tier, MODIFY_SYSTEM_PROMPT, [{
+      role: 'user',
+      content: cleanupPrompt,
+    }]);
+
+    const cleanedFiles = this.parseFileOutput(result.content, '');
+    const actualTier: CreditModelTier = result.fellBack ? 'flash' : (tier as CreditModelTier);
+
+    // 개선사항 추출
+    const impMatch = result.content.match(/<!--IMPROVEMENTS\s*(\[.*?\])\s*-->/s);
+    let improvements: string[] = [];
+    try {
+      if (impMatch) improvements = JSON.parse(impMatch[1]);
+    } catch { /* */ }
+
+    // 크레딧 차감
+    const creditResult = await this.creditService.deductByModel(userId, {
+      tier: actualTier,
+      fileCount: cleanedFiles.length || 1,
+      projectId: params.projectId,
+      taskType: 'cleanup',
+      description: `코드 정리 (${cleanedFiles.length}파일)`,
+    });
+
+    // 기존 파일에 정리 적용
+    const updatedFiles = [...existingFiles];
+    for (const cleaned of cleanedFiles) {
+      const idx = updatedFiles.findIndex(f => f.path === cleaned.path);
+      if (idx >= 0) updatedFiles[idx] = cleaned;
+    }
+
+    // 버전 + 스냅샷 저장
+    const versions = (project.versions as any[]) || [];
+    const newVersion = (project.currentVersion || 1) + 1;
+    versions.push({
+      version: newVersion,
+      createdAt: new Date().toISOString(),
+      description: `코드 정리 (${cleanedFiles.length}파일 개선)`,
+      fileCount: cleanedFiles.length,
+      snapshot: existingFiles,
+    });
+
+    await this.prisma.project.update({
+      where: { id: params.projectId },
+      data: {
+        generatedCode: updatedFiles as any,
+        currentVersion: newVersion,
+        versions: versions as any,
+        totalModifications: { increment: 1 },
+        modelUsed: actualTier,
+        projectContext: {
+          ...(project.projectContext as any || {}),
+          lastAction: `코드 정리 완료`,
+          lastModifiedAt: new Date().toISOString(),
+        } as any,
+      },
+    });
+
+    return {
+      cleanedFiles,
+      totalCredits: creditResult.cost,
+      improvements,
+      actualTier: actualTier as AppModelTier,
+      fellBack: result.fellBack,
+    };
+  }
+
   // ══════════════════════════════════════════════════════
   // ── 유틸리티 메서드 ───────────────────────────────────
   // ══════════════════════════════════════════════════════

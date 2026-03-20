@@ -531,8 +531,16 @@ function BuilderContent() {
 
     // AI 자기 평가
     completionMsg += `🤖 **AI 품질 평가:** ${assess.confidence}점/100점\n`;
+    if (assess.confidence < 70 && result.actualTier === 'flash') {
+      completionMsg += `\n💡 **더 높은 품질을 원하시면 Smart 모델을 추천합니다!**\n`;
+      completionMsg += `현재 Flash 모델은 빠르지만, Smart 모델이 더 정확한 코드를 생성합니다.\n`;
+    }
+    if (assess.incompleteFeatures.length > 0) {
+      completionMsg += `\n⚠️ **추가 작업이 필요한 기능:**\n`;
+      completionMsg += assess.incompleteFeatures.map(f => `  - ${f}`).join('\n') + '\n';
+    }
     if (assess.suggestions.length > 0) {
-      completionMsg += assess.suggestions.map(s => `  ⚠️ ${s}`).join('\n') + '\n';
+      completionMsg += assess.suggestions.map(s => `  💬 ${s}`).join('\n') + '\n';
     }
     completionMsg += `\n`;
 
@@ -899,14 +907,30 @@ function BuilderContent() {
                 });
               }}
             />
-            {/* Sprint 4: 코드 헬스체크 */}
+            {/* Sprint 4+5: 코드 헬스체크 + AI 정리 */}
             <CodeHealthPanel
               projectId={projectId}
-              onRequestCleanup={() => {
+              modelTier={selectedModelTier}
+              onCleanupComplete={(cleanupResult) => {
+                // 크레딧 잔액 새로고침
+                authFetch('/credits/balance').then(r => r.ok ? r.json() : null).then(d => {
+                  if (d) setCreditBalance(d.balance);
+                }).catch(() => {});
+                // 프로젝트 데이터 새로고침
+                authFetch(`/projects/${projectId}`).then(r => r.ok ? r.json() : null).then(d => {
+                  if (d) setProject(d);
+                });
+                // 결과 메시지
+                let msg = `🧹 **코드 정리 완료!**\n\n`;
+                msg += `정리된 파일: ${cleanupResult.cleanedFiles.length}개\n`;
+                if (cleanupResult.totalCredits > 0) msg += `사용 크레딧: ${cleanupResult.totalCredits} cr\n`;
+                if (cleanupResult.improvements.length > 0) {
+                  msg += `\n**개선 사항:**\n`;
+                  msg += cleanupResult.improvements.map(s => `• ${s}`).join('\n');
+                }
                 setMessages(prev => [...prev, {
-                  id: Date.now().toString(), role: 'system' as const,
-                  content: '🧹 AI 코드 정리를 시작합니다... 채팅에서 "코드 정리해줘"라고 입력해주세요.',
-                  timestamp: new Date().toISOString(), type: 'status' as const,
+                  id: Date.now().toString(), role: 'assistant' as const,
+                  content: msg, timestamp: new Date().toISOString(), type: 'text' as const,
                 }]);
               }}
             />

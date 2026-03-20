@@ -107,4 +107,16 @@ export class AiController {
   healthCheck(@Req() req: any, @Param('projectId') projectId: string) {
     return this.aiService.healthCheck(req.user.userId, projectId);
   }
+
+  // ── Sprint 5: AI 코드 정리 ─────────────────────────
+  @Post('cleanup')
+  cleanup(
+    @Req() req: any,
+    @Body() body: {
+      projectId: string;
+      modelTier: 'flash' | 'smart' | 'pro';
+    },
+  ) {
+    return this.aiService.cleanupCode(req.user.userId, body);
+  }
 }
