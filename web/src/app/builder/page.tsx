@@ -460,24 +460,19 @@ function BuilderContent() {
     saveChatHistory(updatedMessages);
   };
 
-  // ── 앱 생성 (Sprint 2: 5단계 파이프라인) ────────────
+  // ── 앱 생성 (F7: SSE 스트리밍 파이프라인) ────────────
   const [generateProgress, setGenerateProgress] = useState<string[]>([]);
+  const [generateStep, setGenerateStep] = useState<string>('');
 
   const handleGenerate = async () => {
     if (!projectId) return;
     setBuildPhase('generating');
     setGenerateProgress([]);
+    setGenerateStep('');
 
-    const stepLabels: Record<string, string> = {
-      architecture: '📐 아키텍처 설계',
-      schema: '🗄️ 데이터베이스 설계',
-      backend: '⚙️ 백엔드 API 생성',
-      frontend: '🎨 프론트엔드 페이지 생성',
-      config: '📦 설정 파일 생성',
-    };
-
+    const statusMsgId = Date.now().toString();
     setMessages(prev => [...prev, {
-      id: Date.now().toString(), role: 'system',
+      id: statusMsgId, role: 'system',
       content: `🚀 **AI가 앱을 생성합니다** (${selectedModelTier.toUpperCase()} 모델)\n\n📐 아키텍처 설계 중...`,
       timestamp: new Date().toISOString(), type: 'status',
     }]);
@@ -486,26 +481,122 @@ function BuilderContent() {
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => ({ role: m.role, content: m.content }));
 
-    const result = await callGenerateApp({
-      projectId,
-      template: templateId,
-      answers,
-      selectedFeatures: projectFeatures,
-      modelTier: selectedModelTier,
-      theme: project?.theme || 'basic-light',
-      chatHistory: chatHistory.slice(-10),
-    });
+    const token = localStorage.getItem('launchpad_token');
 
-    if (!result) {
+    try {
+      // F7: SSE 스트리밍으로 앱 생성
+      const response = await fetch(`${(await import('@/lib/api')).API_BASE}/ai/generate-app-sse`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          projectId,
+          template: templateId,
+          answers,
+          selectedFeatures: projectFeatures,
+          modelTier: selectedModelTier,
+          theme: project?.theme || 'basic-light',
+          chatHistory: chatHistory.slice(-10),
+        }),
+      });
+
+      if (!response.ok || !response.body) {
+        // SSE 실패 시 기존 API로 폴백
+        const result = await callGenerateApp({
+          projectId,
+          template: templateId,
+          answers,
+          selectedFeatures: projectFeatures,
+          modelTier: selectedModelTier,
+          theme: project?.theme || 'basic-light',
+          chatHistory: chatHistory.slice(-10),
+        });
+        if (result) {
+          handleGenerateComplete(result);
+        } else {
+          setBuildPhase('designing');
+          setMessages(prev => [...prev, {
+            id: Date.now().toString(), role: 'assistant',
+            content: '크레딧이 부족하거나 생성에 실패했습니다.\n\n[크레딧 충전하기 →](/credits)',
+            timestamp: new Date().toISOString(), type: 'text',
+          }]);
+        }
+        return;
+      }
+
+      // SSE 스트림 읽기
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      const stepLabels: Record<string, string> = {
+        architecture: '📐 아키텍처 설계',
+        schema: '🗄️ DB 스키마 생성',
+        supabase: '☁️ Supabase 프로비저닝',
+        frontend: '🎨 프론트엔드 생성',
+        config: '📦 설정 파일 생성',
+        quality: '🔍 코드 품질 검증',
+        credits: '💳 크레딧 정산',
+        complete: '✅ 완료',
+      };
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const data = JSON.parse(line.slice(6));
+
+            if (data.type === 'progress') {
+              const label = stepLabels[data.step] || data.step;
+              const msg = data.detail ? `${label}: ${data.detail}` : `${label} (${data.progress})`;
+              setGenerateProgress(prev => [...prev, msg]);
+              setGenerateStep(data.step);
+
+              // 상태 메시지 업데이트
+              const fileInfo = data.fileCount ? ` — ${data.fileCount}개 파일` : '';
+              setMessages(prev => prev.map(m =>
+                m.id === statusMsgId
+                  ? { ...m, content: `🚀 **AI가 앱을 생성합니다** (${selectedModelTier.toUpperCase()} 모델)\n\n${label} 중...${fileInfo}\n\n${data.message || ''}` }
+                  : m
+              ));
+            }
+
+            if (data.type === 'done') {
+              handleGenerateComplete(data);
+            }
+
+            if (data.type === 'error') {
+              setBuildPhase('designing');
+              setMessages(prev => [...prev, {
+                id: Date.now().toString(), role: 'assistant',
+                content: `생성 실패: ${data.message}\n\n다시 시도해주세요.`,
+                timestamp: new Date().toISOString(), type: 'text',
+              }]);
+            }
+          } catch { /* JSON 파싱 실패 무시 */ }
+        }
+      }
+    } catch {
       setBuildPhase('designing');
       setMessages(prev => [...prev, {
         id: Date.now().toString(), role: 'assistant',
-        content: '크레딧이 부족하거나 생성에 실패했습니다.\n\n크레딧을 확인하고 다시 시도해주세요.\n\n[크레딧 충전하기 →](/credits)',
+        content: '네트워크 오류가 발생했습니다. 다시 시도해주세요.',
         timestamp: new Date().toISOString(), type: 'text',
       }]);
-      return;
     }
+  };
 
+  /** 앱 생성 완료 처리 (SSE/폴백 공용) */
+  const handleGenerateComplete = (result: any) => {
     // 크레딧 잔액 새로고침
     authFetch('/credits/balance').then(r => r.ok ? r.json() : null).then(d => {
       if (d) setCreditBalance(d.balance);
@@ -513,49 +604,28 @@ function BuilderContent() {
 
     setBuildPhase('done');
     const arch = result.architecture;
-    const assess = result.assessment;
+    const assess = result.assessment || { confidence: 80, incompleteFeatures: [], suggestions: [] };
 
-    // 완료 메시지 구성
-    const dbTables = arch.dbTables || arch.dbModels || [];
+    const dbTables = arch?.dbTables || arch?.dbModels || [];
     let completionMsg = `✅ **앱 생성 완료!**\n\n`;
-    completionMsg += `**${arch.appName || '앱'}** — ${arch.description || ''}\n\n`;
+    completionMsg += `**${arch?.appName || '앱'}** — ${arch?.description || ''}\n\n`;
     completionMsg += `📊 **생성 결과:**\n`;
     completionMsg += `- 총 ${result.fileCount}개 파일 생성\n`;
-    completionMsg += `- 페이지: ${(arch.pages || []).length}개\n`;
+    completionMsg += `- 페이지: ${(arch?.pages || []).length}개\n`;
     completionMsg += `- DB 테이블: ${dbTables.length}개 (Supabase)\n`;
-    completionMsg += `- 인증: Supabase Auth (이메일/비밀번호) ✅\n`;
-    completionMsg += `- RLS 보안: 적용됨 ✅\n`;
-    completionMsg += `- 사용 모델: ${result.actualTier.toUpperCase()}`;
+    completionMsg += `- 인증: Supabase Auth ✅\n`;
+    completionMsg += `- 사용 모델: ${(result.actualTier || '').toUpperCase()}`;
     if (result.fellBack) completionMsg += ` (Flash로 자동 전환됨)`;
     completionMsg += `\n`;
     if (result.totalCredits > 0) completionMsg += `- 사용 크레딧: ${result.totalCredits.toLocaleString()} cr\n`;
     completionMsg += `\n`;
 
-    // Supabase 연동 안내
-    completionMsg += `🔗 **Supabase 연동 방법:**\n`;
-    completionMsg += `1. [supabase.com](https://supabase.com)에서 무료 프로젝트 생성\n`;
-    completionMsg += `2. Settings > API에서 URL + anon key 복사\n`;
-    completionMsg += `3. 다운로드한 코드의 .env.local에 붙여넣기\n`;
-    completionMsg += `4. SQL Editor에서 마이그레이션 SQL 실행\n`;
-    completionMsg += `5. npm install && npm run dev 로 실행!\n\n`;
-
-    // AI 자기 평가
     completionMsg += `🤖 **AI 품질 평가:** ${assess.confidence}점/100점\n`;
-    if (assess.confidence < 70 && result.actualTier === 'flash') {
-      completionMsg += `\n💡 **더 높은 품질을 원하시면 Smart 모델을 추천합니다!**\n`;
-      completionMsg += `현재 Flash 모델은 빠르지만, Smart 모델이 더 정확한 코드를 생성합니다.\n`;
-    }
     if (assess.incompleteFeatures.length > 0) {
-      completionMsg += `\n⚠️ **추가 작업이 필요한 기능:**\n`;
-      completionMsg += assess.incompleteFeatures.map(f => `  - ${f}`).join('\n') + '\n';
+      completionMsg += `\n⚠️ **추가 작업 필요:**\n`;
+      completionMsg += assess.incompleteFeatures.map((f: string) => `  - ${f}`).join('\n') + '\n';
     }
-    if (assess.suggestions.length > 0) {
-      completionMsg += assess.suggestions.map(s => `  💬 ${s}`).join('\n') + '\n';
-    }
-    completionMsg += `\n`;
-
-    completionMsg += `수정이 필요하면 채팅으로 말씀해주세요.\n`;
-    completionMsg += `(예: "로그인 페이지 디자인 변경해줘", "예약 기능 추가해줘")\n\n`;
+    completionMsg += `\n수정이 필요하면 채팅으로 말씀해주세요.\n`;
     completionMsg += `완료되면 **"다운로드"** 또는 **"배포"** 버튼을 이용하세요!`;
 
     setMessages(prev => {
@@ -608,7 +678,7 @@ function BuilderContent() {
             }]);
             return;
           }
-          // building/exporting 상태면 계속 폴링
+          // building/exporting/fixing 상태면 계속 폴링
         } catch { /* 네트워크 에러 시 계속 폴링 */ }
       }
 
@@ -890,7 +960,7 @@ function BuilderContent() {
                   : buildPhase === 'generating' ? 'bg-[#ffd60a]/15 text-[#ffd60a]'
                   : 'bg-[#3182f6]/15 text-[#3182f6]'
               }`}>
-                {buildPhase === 'done' ? '생성 완료' : buildPhase === 'generating' ? '생성 중...' : '설계 중'}
+                {buildPhase === 'done' ? '생성 완료' : buildPhase === 'generating' ? (generateStep ? `생성 중 — ${generateStep}` : '생성 중...') : '설계 중'}
               </span>
             )}
           </div>

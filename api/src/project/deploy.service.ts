@@ -1,5 +1,6 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, Inject, forwardRef, NotFoundException, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
+import { AiService } from '../ai/ai.service';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
@@ -13,12 +14,17 @@ const DEPLOY_DIR = path.resolve(process.env.DEPLOY_DIR || '/var/www/apps');
 const DEPLOY_DOMAIN = process.env.DEPLOY_DOMAIN || 'foundry.ai.kr';
 /** 빌드 타임아웃 (ms) */
 const BUILD_TIMEOUT = 5 * 60 * 1000; // 5분
+/** F6: 빌드 자동 수정 최대 시도 횟수 */
+const MAX_BUILD_FIX_ATTEMPTS = 3;
 
 @Injectable()
 export class DeployService {
   private readonly logger = new Logger(DeployService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(forwardRef(() => AiService)) private aiService: AiService,
+  ) {}
 
   /**
    * 서브도메인 자동 할당 (프로젝트명 기반, 영문+숫자만)
@@ -267,29 +273,60 @@ export default nextConfig;
         throw new Error(`npm install 실패: ${stderr.slice(0, 200)}`);
       }
 
-      // ── Step 3: next build (output: 'export') ──
+      // ── Step 3: next build (output: 'export') + F6 자동 수정 루프 ──
       await this.prisma.project.update({
         where: { id: projectId },
         data: { buildStatus: 'exporting' },
       });
-      appendLog('next build 시작...');
-      try {
-        execSync('npx next build 2>&1', {
-          cwd: outputDir,
-          timeout: BUILD_TIMEOUT,
-          env: {
-            ...process.env,
-            NODE_ENV: 'production',
-            // Supabase 환경변수 주입 (프로젝트에 저장된 값 사용)
-            ...(await this.getSupabaseEnv(projectId)),
-          },
-          stdio: 'pipe',
-        });
-        appendLog('next build 완료 (static export)');
-      } catch (e: any) {
-        const stderr = e.stderr?.toString() || e.stdout?.toString() || e.message;
-        appendLog(`next build 실패: ${stderr.slice(0, 500)}`);
-        throw new Error(`next build 실패: ${stderr.slice(0, 200)}`);
+
+      const supabaseEnv = await this.getSupabaseEnv(projectId);
+      let buildSuccess = false;
+
+      for (let attempt = 0; attempt <= MAX_BUILD_FIX_ATTEMPTS; attempt++) {
+        appendLog(attempt === 0 ? 'next build 시작...' : `next build 재시도 (${attempt}/${MAX_BUILD_FIX_ATTEMPTS})...`);
+        try {
+          execSync('npx next build 2>&1', {
+            cwd: outputDir,
+            timeout: BUILD_TIMEOUT,
+            env: { ...process.env, NODE_ENV: 'production', ...supabaseEnv },
+            stdio: 'pipe',
+          });
+          appendLog('next build 완료 (static export)');
+          buildSuccess = true;
+          break;
+        } catch (e: any) {
+          const stderr = e.stderr?.toString() || e.stdout?.toString() || e.message;
+          const errorLog = stderr.slice(0, 2000);
+          appendLog(`next build 실패 (시도 ${attempt + 1}): ${errorLog.slice(0, 300)}`);
+
+          if (attempt >= MAX_BUILD_FIX_ATTEMPTS) {
+            throw new Error(`next build 실패 (${MAX_BUILD_FIX_ATTEMPTS}회 자동 수정 후에도 실패): ${errorLog.slice(0, 200)}`);
+          }
+
+          // F6: AI 자동 수정 시도
+          appendLog(`[F6] AI 자동 수정 시도 (${attempt + 1}/${MAX_BUILD_FIX_ATTEMPTS})...`);
+          await this.prisma.project.update({
+            where: { id: projectId },
+            data: { buildStatus: 'fixing' },
+          });
+
+          try {
+            const fixed = await this.aiBuildFix(projectId, userId, outputDir, errorLog);
+            if (fixed) {
+              appendLog(`[F6] AI가 ${fixed}개 파일 수정 완료 → 재빌드`);
+            } else {
+              appendLog('[F6] AI 수정 불가 — 재시도 중단');
+              throw new Error(`next build 실패 (AI 수정 불가): ${errorLog.slice(0, 200)}`);
+            }
+          } catch (fixErr: any) {
+            if (fixErr.message?.includes('AI 수정 불가')) throw fixErr;
+            appendLog(`[F6] AI 수정 오류: ${fixErr.message?.slice(0, 200)}`);
+          }
+        }
+      }
+
+      if (!buildSuccess) {
+        throw new Error('next build 실패: 모든 자동 수정 시도 소진');
       }
 
       // ── Step 4: out/ 디렉토리를 DEPLOY_DIR/{subdomain}/ 으로 복사 ──
@@ -337,6 +374,66 @@ export default nextConfig;
         },
       });
     }
+  }
+
+  /**
+   * F6: AI 빌드 에러 자동 수정
+   * 빌드 에러 로그를 분석하여 문제 파일을 AI로 수정
+   */
+  private async aiBuildFix(projectId: string, userId: string, outputDir: string, errorLog: string): Promise<number> {
+    // 에러 로그에서 파일 경로 추출
+    const errorFileRegex = /(?:\.\/|src\/|pages\/)([^\s:]+\.(?:tsx?|jsx?))/g;
+    const errorFiles = new Set<string>();
+    let match;
+    while ((match = errorFileRegex.exec(errorLog)) !== null) {
+      errorFiles.add(match[1]);
+    }
+
+    // 프로젝트의 generatedCode 로드
+    const project = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: { generatedCode: true, modelUsed: true },
+    });
+    if (!project?.generatedCode) return 0;
+
+    const files = project.generatedCode as { path: string; content: string }[];
+    // 에러 관련 파일 또는 에러 파일이 추출 안 되면 전체 TSX 파일 중 앞 5개
+    let targetFiles = files.filter(f => [...errorFiles].some(ef => f.path.includes(ef)));
+    if (targetFiles.length === 0) {
+      targetFiles = files.filter(f => f.path.match(/\.(tsx?)$/)).slice(0, 5);
+    }
+
+    if (targetFiles.length === 0) return 0;
+
+    // AI에게 수정 요청
+    const tier = (project.modelUsed as any) || 'flash';
+    const modifyResult = await this.aiService.fixBuildErrors(tier, targetFiles, errorLog);
+
+    if (!modifyResult || modifyResult.length === 0) return 0;
+
+    // 수정된 파일을 파일시스템에 적용
+    let fixedCount = 0;
+    const updatedFiles = [...files];
+    for (const fixed of modifyResult) {
+      // 파일시스템에 쓰기
+      const filePath = path.join(outputDir, fixed.path);
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      fs.writeFileSync(filePath, fixed.content, 'utf-8');
+      fixedCount++;
+
+      // generatedCode에도 반영
+      const idx = updatedFiles.findIndex(f => f.path === fixed.path);
+      if (idx >= 0) updatedFiles[idx] = fixed;
+      else updatedFiles.push(fixed);
+    }
+
+    // DB 업데이트
+    await this.prisma.project.update({
+      where: { id: projectId },
+      data: { generatedCode: updatedFiles as any },
+    });
+
+    return fixedCount;
   }
 
   /**

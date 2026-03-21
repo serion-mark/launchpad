@@ -1,8 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { EventEmitter } from 'events';
 import Anthropic from '@anthropic-ai/sdk';
 import { CreditService, type ModelTier as CreditModelTier } from '../credit/credit.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { PrismaService } from '../prisma.service';
+
+// ── F7: SSE 진행상황 이벤트 타입 ─────────────────────
+export type GenerationProgress = {
+  step: 'architecture' | 'schema' | 'supabase' | 'frontend' | 'config' | 'quality' | 'credits' | 'complete' | 'error';
+  progress: string;     // "1/4", "2/4" 등
+  message: string;      // 사용자에게 보여줄 메시지
+  detail?: string;      // 파일명 등 상세 정보
+  fileCount?: number;   // 현재까지 생성된 파일 수
+  totalFiles?: number;  // 예상 전체 파일 수
+};
 
 // ── 모델 티어 (레거시 호환) ─────────────────────────────
 type ModelTier = 'fast' | 'standard' | 'premium';
@@ -494,6 +505,41 @@ export class AiService {
   // ══════════════════════════════════════════════════════
 
   /**
+   * F7: SSE 스트리밍 앱 생성 — EventEmitter를 반환하여 실시간 진행상황 전송
+   */
+  generateFullAppSSE(userId: string, params: {
+    projectId: string;
+    template: string;
+    answers: Record<string, string | string[]>;
+    selectedFeatures: string[];
+    modelTier: AppModelTier;
+    theme?: string;
+    chatHistory?: { role: string; content: string }[];
+  }): EventEmitter {
+    const emitter = new EventEmitter();
+    // 비동기 실행 (emitter를 통해 진행상황 전송)
+    this.generateFullApp(userId, params, emitter)
+      .then(result => {
+        emitter.emit('progress', {
+          step: 'complete',
+          progress: '4/4',
+          message: `앱 생성 완료! ${result.fileCount}개 파일`,
+          fileCount: result.fileCount,
+        } as GenerationProgress);
+        emitter.emit('done', result);
+      })
+      .catch(err => {
+        emitter.emit('progress', {
+          step: 'error',
+          progress: '0/4',
+          message: `생성 실패: ${err.message?.slice(0, 100)}`,
+        } as GenerationProgress);
+        emitter.emit('error', err);
+      });
+    return emitter;
+  }
+
+  /**
    * 전체 앱 생성 (4단계 Supabase 파이프라인)
    * 1. 아키텍처 설계 → JSON (Supabase 기반)
    * 2. Supabase SQL 스키마 생성 (CREATE TABLE + RLS)
@@ -508,7 +554,7 @@ export class AiService {
     modelTier: AppModelTier;
     theme?: string;
     chatHistory?: { role: string; content: string }[];
-  }): Promise<{
+  }, emitter?: EventEmitter): Promise<{
     success: boolean;
     files: { path: string; content: string }[];
     architecture: any;
@@ -535,6 +581,7 @@ export class AiService {
       // ── Step 1: 아키텍처 설계 (Supabase 기반) ─────
       this.logger.log(`[${params.projectId}] Step 1: 아키텍처 설계 (${tier})`);
       steps.push({ step: 'architecture', status: 'in_progress', fileCount: 0 });
+      emitter?.emit('progress', { step: 'architecture', progress: '1/4', message: '아키텍처 설계 중...' } as GenerationProgress);
 
       const answersText = Object.entries(params.answers)
         .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
@@ -577,6 +624,7 @@ ${chatSummary ? `대화 내역:\n${chatSummary}` : ''}`,
       // ── Step 2: Supabase SQL 스키마 생성 ──────────
       this.logger.log(`[${params.projectId}] Step 2: Supabase SQL 스키마 생성`);
       steps.push({ step: 'schema', status: 'in_progress', fileCount: 0 });
+      emitter?.emit('progress', { step: 'schema', progress: '2/4', message: 'DB 스키마 생성 중...', fileCount: allFiles.length } as GenerationProgress);
 
       const dbTables = architecture.dbTables || architecture.dbModels || [];
       const schemaResult = await this.callWithFallback(tier, SCHEMA_SYSTEM_PROMPT, [{
@@ -635,6 +683,7 @@ ${JSON.stringify(dbTables, null, 2)}
       steps.push({ step: 'frontend', status: 'in_progress', fileCount: 0 });
 
       const pages = architecture.pages || [];
+      emitter?.emit('progress', { step: 'frontend', progress: '3/4', message: '프론트엔드 페이지 생성 중...', fileCount: allFiles.length, totalFiles: (pages.length || 5) + 15 } as GenerationProgress);
       let frontendFileCount = 0;
 
       // 테이블 이름 목록 (프론트엔드에서 참조)
@@ -680,6 +729,7 @@ const supabase = createClient()
           allFiles.push(...frontendFiles);
           frontendFileCount += frontendFiles.length;
         }
+        emitter?.emit('progress', { step: 'frontend', progress: '3/4', message: `페이지 생성 완료: ${page.name}`, detail: page.path, fileCount: allFiles.length } as GenerationProgress);
       }
 
       // Supabase 유틸 + 인증 페이지 + 레이아웃
@@ -692,6 +742,7 @@ const supabase = createClient()
       // ── Step 4: 설정 파일 생성 ────────────────────
       this.logger.log(`[${params.projectId}] Step 4: 설정 파일 생성`);
       steps.push({ step: 'config', status: 'in_progress', fileCount: 0 });
+      emitter?.emit('progress', { step: 'config', progress: '4/4', message: '설정 파일 생성 중...', fileCount: allFiles.length } as GenerationProgress);
 
       const configFiles = this.generateConfigFiles(architecture, params.template, supabaseUrl, supabaseAnonKey);
       allFiles.push(...configFiles);
@@ -699,13 +750,18 @@ const supabase = createClient()
 
       // ── F2+F3: 코드 품질 자동 보정 ─────────────────
       this.logger.log(`[${params.projectId}] 코드 품질 보정: 마크다운 제거 + Import 검증`);
+      emitter?.emit('progress', { step: 'quality', progress: '4/4', message: '코드 품질 검증 중... (마크다운 제거 + Import 검증)', fileCount: allFiles.length } as GenerationProgress);
 
-      // F2: 마크다운 혼입 제거
+      // F2: 마크다운 혼입 제거 + F4: 코드 잘림 감지 → 이어서 생성
       for (let i = 0; i < allFiles.length; i++) {
         allFiles[i] = { ...allFiles[i], content: this.sanitizeCode(allFiles[i].content, allFiles[i].path) };
-        // F4: 코드 잘림 감지 (경고 로그)
+        // F4: 코드 잘림 감지 → 이어서 생성
         if (allFiles[i].path.match(/\.(tsx?|jsx?)$/) && this.isCodeTruncated(allFiles[i].content)) {
-          this.logger.warn(`[코드 잘림 감지] ${allFiles[i].path} — 불완전한 코드 가능성`);
+          this.logger.warn(`[F4 코드 잘림 감지] ${allFiles[i].path} — 이어서 생성 시도`);
+          allFiles[i] = {
+            ...allFiles[i],
+            content: await this.continueGeneration(tier, FRONTEND_SYSTEM_PROMPT, allFiles[i].content, allFiles[i].path),
+          };
         }
       }
 
@@ -1269,7 +1325,7 @@ ${existingFiles.slice(0, 15).map(f => `[FILE: ${f.path}]\n${f.content}`).join('\
   }
 
   // ══════════════════════════════════════════════════════
-  // ── F4: 코드 잘림 감지 ────────────────────────────────
+  // ── F4: 코드 잘림 감지 + 이어서 생성 ──────────────────
   // ══════════════════════════════════════════════════════
 
   /** 코드가 중간에 잘렸는지 감지 */
@@ -1292,6 +1348,101 @@ ${existingFiles.slice(0, 15).map(f => `[FILE: ${f.path}]\n${f.content}`).join('\
     ];
 
     return incompletePatterns.some(p => p.test(lastLine));
+  }
+
+  /** F4: 잘린 코드 이어서 생성 (최대 2회 continuation) */
+  private async continueGeneration(
+    tier: AppModelTier,
+    systemPrompt: string,
+    truncatedContent: string,
+    filePath: string,
+  ): Promise<string> {
+    let fullContent = truncatedContent;
+    const MAX_CONTINUATIONS = 2;
+
+    for (let attempt = 0; attempt < MAX_CONTINUATIONS; attempt++) {
+      if (!this.isCodeTruncated(fullContent)) break;
+
+      this.logger.log(`[F4 이어서 생성] ${filePath} — 시도 ${attempt + 1}/${MAX_CONTINUATIONS}`);
+
+      const lastLines = fullContent.split('\n').slice(-30).join('\n');
+      const contResult = await this.callWithFallback(tier, systemPrompt, [{
+        role: 'user',
+        content: `아래 코드가 중간에 잘렸습니다. 잘린 부분부터 이어서 작성해주세요.
+절대 처음부터 다시 작성하지 마세요. 잘린 지점부터 나머지만 출력하세요.
+마크다운 코드 블록(\`\`\`) 사용 금지! 순수 코드만 출력하세요.
+
+잘린 코드의 마지막 30줄:
+${lastLines}`,
+      }, {
+        role: 'assistant',
+        content: lastLines.split('\n').slice(-3).join('\n'),
+      }]);
+
+      // 이어붙이기 (중복 줄 제거)
+      const continuation = this.sanitizeCode(contResult.content, filePath);
+      const existingLines = fullContent.split('\n');
+      const newLines = continuation.split('\n');
+
+      // 겹치는 부분 찾기 (마지막 3줄 비교)
+      let overlapIdx = -1;
+      for (let i = 0; i < Math.min(5, newLines.length); i++) {
+        if (existingLines[existingLines.length - 1]?.trim() === newLines[i]?.trim() && newLines[i]?.trim()) {
+          overlapIdx = i;
+          break;
+        }
+      }
+
+      if (overlapIdx >= 0) {
+        fullContent = fullContent + '\n' + newLines.slice(overlapIdx + 1).join('\n');
+      } else {
+        fullContent = fullContent + '\n' + continuation;
+      }
+    }
+
+    return fullContent;
+  }
+
+  // ══════════════════════════════════════════════════════
+  // ── F6: 빌드 에러 AI 자동 수정 ────────────────────────
+  // ══════════════════════════════════════════════════════
+
+  /** 빌드 에러를 분석하고 파일을 수정하여 반환 */
+  async fixBuildErrors(
+    tier: string,
+    targetFiles: { path: string; content: string }[],
+    errorLog: string,
+  ): Promise<{ path: string; content: string }[]> {
+    const modelTier = (tier === 'smart' || tier === 'pro') ? tier as AppModelTier : 'flash' as AppModelTier;
+
+    const fixPrompt = `아래 Next.js 프로젝트에서 빌드 에러가 발생했습니다.
+에러 로그를 분석하고, 문제가 있는 파일을 수정해주세요.
+
+⚠️ 규칙:
+- 수정된 파일만 [FILE: 경로] 형식으로 반환
+- 파일의 전체 코드를 출력 (부분 수정 아님)
+- 마크다운 코드 블록(\`\`\`) 절대 금지
+- 미설치 패키지 import 금지 (@heroicons, react-icons 등)
+- lucide-react 아이콘은 사용 가능
+
+빌드 에러 로그:
+${errorLog.slice(0, 1500)}
+
+현재 파일:
+${targetFiles.map(f => `[FILE: ${f.path}]\n${f.content}`).join('\n\n')}`;
+
+    const result = await this.callWithFallback(modelTier, MODIFY_SYSTEM_PROMPT, [{
+      role: 'user',
+      content: fixPrompt,
+    }]);
+
+    const fixedFiles = this.parseFileOutput(result.content, '');
+
+    // 수정된 파일에 F2+F3 적용
+    return fixedFiles.map(f => ({
+      path: f.path,
+      content: this.sanitizeCode(f.content, f.path),
+    }));
   }
 
   /** API 엔드포인트를 모듈 단위로 그룹핑 */

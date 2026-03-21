@@ -14,151 +14,123 @@
 ## 프로젝트 개요
 - **브랜드**: Foundry (파운드리) — 이전 이름: Launchpad
 - **컨셉**: 정부지원사업(예창패/초창패) 창업자를 위한 AI MVP 빌더
-- **핵심 가치**: 외주 5,000만원 → 크레딧 49,000~249,000원
+- **핵심 비전**: 파운더리로 세리온 POS 같은 실제 작동하는 프로그램을 만들 수 있게!
+- **핵심 가치**: 외주 5,000만원 → 크레딧 20~30만원
 - **BM**: 크레딧제 (충전 → AI 앱 생성/수정/배포에 소진) + 호스팅 월 과금(MRR)
-- **경쟁사 레퍼런스**: Base44 (800억 매각), Polsia (ARR 25억)
+- **경쟁사 레퍼런스**: Base44 (800억 매각), Polsia (ARR 25억), Lovable
 - **엑싯 전략**: 부트스트랩 100% 지분 유지 → 인수합병 (Base44 모델)
 
 ## 프로젝트 구조
 - **위치**: `/Users/mark/Desktop/정부지원사업 MVP 빌더(가칭)/launchpad/`
 - **GitHub**: `https://github.com/serion-mark/launchpad` (private)
-- **스택**: Next.js 16 (web) + NestJS (api) + Prisma 6.x + PostgreSQL
+- **스택**: Next.js 16 (web) + NestJS (api) + Prisma 6.x + PostgreSQL + **Supabase (고객앱)**
 - **NCP 서버 (운영)**: `175.45.200.162` / s2-g3a (2vCPU, 8GB, 50GB)
-  - SSH: `ssh -i ~/.ssh/serion-key.pem root@175.45.200.162`
+  - SSH: `ssh -i ~/.ssh/serion-key.pem -p 3181 root@175.45.200.162`
   - root PW: `J7?RdhuD*G=h`
-  - PM2: `launchpad-web` (포트 3000) + `launchpad-api` (포트 4000, 1개 인스턴스)
-  - nginx: HTTP 리버스 프록시 (`/api/*` → 4000, `/*` → 3000)
-  - VPC: serion-vpc / ACG: serion-vpc-default-acg / 비공인 IP: 10.0.1.8
+  - PM2: `launchpad-web` (포트 3000) + `launchpad-api` (포트 4000) + `petmate-demo` (포트 3200)
+  - nginx: HTTPS 리버스 프록시 (`/api/*` → 4000, `/*` → 3000, `/petmate` → 3200)
+  - nginx timeout: 600s (`/etc/nginx/conf.d/proxy-timeout.conf`)
+  - nginx 와일드카드: `*.foundry.ai.kr` → `/var/www/apps/{subdomain}/` (static 서빙)
+  - SSL: `foundry.ai.kr` + `*.foundry.ai.kr` 와일드카드 (인증서: `foundry.ai.kr-0001`, 만료 2026-06-19)
   - DB: PostgreSQL `launchpaddb` / user: `launchpad` / pw: `launchpad1234`
-  - web 환경변수: `NEXT_PUBLIC_API_URL=/api` (.env.local)
-  - api 환경변수: `JWT_SECRET=launchpad-jwt-secret-2026-production`, `ANTHROPIC_API_KEY=sk-ant-api03-...`
-
-## 수익 모델
-| 기능 | 설명 | 비용 |
-|------|------|------|
-| **앱 생성** | AI가 설계 + 코드 생성 | 크레딧 차감 |
-| **배포하기** | Foundry 서버에 호스팅 | **월 9,900원** (고정 MRR) |
-| **다운로드** | 소스코드 ZIP (코드 소유권 100%) | **별도 3,000 크레딧** |
 
 ## 카카오 OAuth 설정
 - **앱 ID**: 1409363
 - **REST API 키**: `2b61cab1882f996f30bd9e925a1ec3f8`
-- **Redirect URI**: `http://175.45.200.162/api/auth/kakao/callback`
-- **동의항목**: 닉네임(필수 동의 완료), 이메일(비즈앱 전환 후 추가 예정)
-- **상태**: 앱 생성 + 로그인 활성화 + Redirect URI + 닉네임 동의 완료
-- **코드 연동**: ✅ 완료 (3/19, Passport 없이 직접 HTTP OAuth 구현)
-
-## 템플릿 6종 (완료)
-| 템플릿 | 핵심 | ID |
-|--------|------|----|
-| ✂️ 미용실 POS | 동시시술+정산 | beauty-salon |
-| 📅 범용 예약/CRM | 6개 업종 자동감지 | booking-crm |
-| 🛍 쇼핑몰/커머스 | 상품+주문+배송 | ecommerce |
-| 🔗 O2O 매칭 | 양면마켓+지도+수수료 | o2o-matching |
-| 🎓 에듀테크 LMS | 강의+진도율+수료증 | edutech |
-| 🏢 관리업체/시설관리 | 민원+시설예약+관리비 | facility-mgmt |
+- **Redirect URI**: `https://foundry.ai.kr/api/auth/kakao/callback`
 
 ## 완료 작업 ✅
 
-### Phase 1 (~3/18)
-- ✅ 사업 기획서 + Next.js/NestJS 세팅 + 템플릿 3종 + 테마 20종
-- ✅ 멀티 LLM 라우터 + 앱 생성 파이프라인
-- ✅ 토스페이먼츠 구독 결제 + Builder Chat UI + 회원가입/로그인
-- ✅ 프로젝트 CRUD + 원클릭 배포 + ZIP 다운로드 + SaaS 구독
-- ✅ GitHub Actions 자동배포 + 토스 디자인 + Foundry 브랜딩
+### Phase 1~2 (~3/19)
+- ✅ Next.js/NestJS 세팅 + 템플릿 6종 + 테마 20종
+- ✅ AI 연동 (Haiku) + 크레딧 시스템 + 빌더 질문지 6종
+- ✅ 인터랙티브 미리보기 + 어드민 + 도메인SSL + 카카오OAuth
+- ✅ 가이드 페이지 + 배포/다운로드 + GitHub Actions 자동배포
 
-### Phase 2 (3/19) — AI 연동 + 빌더 UX 고도화
-- ✅ AI 연동 (Claude Haiku API) — 빌더 대화, 한국어 시스템프롬프트
-- ✅ 크레딧 시스템 (DB+충전+차감+잔액조회) — CreditBalance/CreditTransaction 모델
-- ✅ 빌더 질문지 6종 (복수응답+직접추가+되돌아가기)
-- ✅ PC/모바일 미리보기 완전 분리 (사이드바 vs 하단탭)
-- ✅ 인터랙티브 미리보기 (메뉴 클릭 → 화면 전환, 업종별 데모 데이터)
-- ✅ 업종별 라벨/이모지 자동 커스터마이징 (6개 업종 감지)
-- ✅ 템플릿 3종 추가 (O2O/에듀테크/관리업체) — 질문지+featureMap+미리보기
-- ✅ 어드민 페이지 (/admin) — 대시보드+사용자+프로젝트+크레딧+AI사용량 5탭
-- ✅ 저장하기 버튼 (수동+30초 자동저장)
-- ✅ 채팅 토큰 소모 실시간 표시
-- ✅ 배포/다운로드 비용 안내 모달 (가격+설명+절약팁+다중앱 플랜 안내)
-- ✅ 무료 미리보기 체험 → 앱 생성(결제) 플로우
+### Phase 3 (3/20) — 코드 생성 엔진 + Supabase 전환
+- ✅ Sprint 1~5: 코드 생성 파이프라인 + Supabase 기반 전환
+- ✅ 펫메이트 E2E 테스트 — 33파일 생성 성공 (83cr)
 
-### Phase 2.5 (3/19 후반) — 도메인/AI프롬프트/가이드
-- ✅ 도메인 **https://foundry.ai.kr** + SSL (Let's Encrypt, 자동갱신)
-- ✅ AI 업종별 시스템 프롬프트 완전 분리 (6개 템플릿별 관련용어+금지용어)
-- ✅ 미리보기 데모 데이터 업종별 완전 분리 (관리업체/O2O/에듀테크 전용)
-- ✅ 가이드 페이지 (/guide) — 시작하기+운영가이드+AI활용법+FAQ 4탭
-- ✅ 카카오 Redirect URI HTTPS 업데이트
+### Phase 4 (3/21) — Supabase 자동 프로비저닝 + 배포 파이프라인
+- ✅ **Supabase 자동 프로비저닝** (커밋 96c6d7d)
+  - Management API 연동 (PAT), 프로젝트 자동 생성, SQL 마이그레이션, 환경변수 자동 주입
+  - 조직: sefhetzuysyhgcebslqd
+- ✅ **배포 파이프라인** (커밋 8d89cfd)
+  - deploy.service.ts: 5단계 빌드 (파일저장→npm install→next build export→/var/www/apps 복사→캐시정리)
+  - Prisma: buildStatus/buildLog/buildStartedAt/buildFinishedAt
+  - GET /projects/:id/build-status 폴링 API
+  - 빌더 UI: 배포 시 3초 폴링으로 빌드 상태 실시간 표시
+  - 대시보드: 빌드 상태 배지 (빌드중/실패/완료)
+  - DNS: *.foundry.ai.kr → 175.45.200.162 (가비아 A레코드)
+  - SSL: Let's Encrypt 와일드카드 인증서 발급 완료
+  - nginx: 서브도메인 → /var/www/apps/{subdomain}/ 정적 서빙
+  - 도메인 launchpad.kr → foundry.ai.kr 수정
+  - 테스트: https://test-app.foundry.ai.kr/ 정상 동작 확인
 
-### Phase 3 (3/20~) — 코드 생성 엔진 🔴 진행 중
-- **플랜 파일**: `.claude/plans/calm-snacking-tome.md`
-- **전략**: B→A 점진적 전환 (스마트 스캐폴딩 → 풀 코드 생성)
-- **과금**: 토큰 기반 크레딧 차감 (고정가 아님, 사용한 만큼)
-- **모델 3단계**: Flash(Haiku, 1cr/파일) / Smart(Sonnet, 3cr) / Pro(Opus, 10cr) — 고객 자유 선택
-- **⚠️ Sonnet/Opus API 별도 키 필요** — Haiku로 먼저 파이프라인 완성 후 활성화
-- **핵심 기능**: AI 자기 평가(confidence), 자동 컨텍스트 저장(이어하기), 코드 헬스체크(동의 후 정리)
-- Sprint 1: DB스키마확장 + 크레딧차등 + 모델설정 + builder파일분리
-- Sprint 2: 코드 생성 파이프라인 (5단계) + ModelSelector UI
-- Sprint 3: 채팅 수정 루프 + 버전 관리 + 이어하기
-- Sprint 4: 프로젝트 컨텍스트 + 헬스체크
-- Sprint 5: AI 자기 평가 UI + 코드 정리 + 테스트
+### 코드 품질 개선 (3/21)
+- ✅ **F4: 코드 잘림 → 이어서 생성** — isCodeTruncated() 감지 → continueGeneration() 최대 2회 이어붙이기
+- ✅ **F6: 빌드 자동 검증 + AI 수정 루프** — next build 실패 → 에러 로그 → AI fixBuildErrors() → 코드 수정 → 재빌드 (최대 3회)
+- ✅ **F7: SSE 비동기 파이프라인** — POST /ai/generate-app-sse (EventEmitter → SSE), 프론트엔드 fetch+ReadableStream으로 실시간 진행상황 표시, 기존 API 폴백 유지
 
-### ⚠️ 알려진 이슈
-- Anthropic API 키가 **Haiku만 접근 가능** (Sonnet/Opus 404) — 별도 API 키 발급 또는 크레딧 충전 필요
-- GitHub Actions 자동배포 시 `api/dist/` 충돌 — deploy.yml에 정리 로직 필요
-- 이메일 동의항목: 비즈앱 전환 필요 (현재 닉네임만 가능)
-
-## 타겟 전략 (3/19 확정)
-- **1차**: 정부지원금 받은 창업자 (예창패/초창패)
-- **2차**: 카페24/아임웹 대안 (비싸고 관리 못하는 사람들)
-- **3차**: 회사 홈페이지 필요한 중소기업 (외주 비싸서)
-- **핵심 차별점**: 만들 때만 돈 → **운영할 때도 AI가 도와줌** (토큰 소모 = MRR)
-- 전략 문서: `전략폴더/Foundry_AI운영도우미_전략_2026-03-19.docx`
-
-## 다음 작업 (미완료)
-
-### ✅ 카카오 OAuth 코드 연동 (3/19 완료)
-- [x] NestJS: GET /auth/kakao + /auth/kakao/callback (Passport 없이 직접 HTTP)
-- [x] 프론트: "카카오로 시작하기" 버튼 + /auth/kakao/callback 콜백 페이지
-- [x] 카카오 닉네임 자동 회원가입 + 기존 이메일 유저 연동 + JWT 발급
-- [x] 운영서버 .env 카카오 환경변수 3개 추가 + 배포 완료
-
-### 🔴 코드 생성 엔진 (Sprint 1~5) — 현재 진행 중
-- [ ] Sprint 1: DB스키마(Project 확장) + 크레딧 모델별 차등 + AI 모델 3단계 + builder 파일분리
-- [ ] Sprint 2: generateFullApp 5단계 파이프라인 + ModelSelector UI
-- [ ] Sprint 3: 채팅 수정 → 코드 반영 + 버전 관리 + 이어하기 UI
-- [ ] Sprint 4: 자동 컨텍스트 저장 + 코드 헬스체크
-- [ ] Sprint 5: AI 자기 평가 + 코드 정리 + 통합 테스트
-- [ ] AI 운영 도우미: 대량 상품 등록, 콘텐츠 생성, 매출 분석 등 (Sprint 이후)
-
-### 🟡 추가 개선
-- [ ] ERD 자동 생성 + API 명세서 자동 생성 (ZIP에 포함)
-- [ ] deploy.yml 수정 (api/dist/ 정리 로직)
-- [ ] Sonnet/Opus 모델 활성화 (Anthropic 크레딧 충전 후)
-- [ ] 랜딩페이지 비교광고 문구 (Base44/Polsia 대비)
-
-### 🟡 모두의창업 서류 (4/1 마감)
-- [ ] 신청서 작성 + 사업계획서 + 증빙서류
-
-## 배포 절차
-```bash
-# 자동배포: git push origin main → GitHub Actions → NCP SSH → build → PM2 restart
-# ⚠️ 자동배포 실패 시 수동배포:
-ssh -i ~/.ssh/serion-key.pem root@175.45.200.162
-cd /root/launchpad && rm -rf api/dist && git checkout -- . && git pull origin main
-cd web && rm -f .next/lock && npm run build && pm2 restart launchpad-web
-cd ../api && npm run build && pm2 restart launchpad-api
+## 아키텍처 (현재)
 ```
+Foundry 플랫폼: Next.js → NestJS → PostgreSQL → Claude API → AI 코드 생성
+고객 앱: Static Export (우리 서버) + Supabase (DB+인증+API)
+배포: "배포하기" → 빌드 → https://{subdomain}.foundry.ai.kr
+```
+
+## 🔴 다음 작업 (미완료)
+
+### 1순위: 코드 품질 개선
+- [x] F2: 마크다운 혼입 방지 (sanitizeCode + sanitizeSql) ✅ (3/21)
+- [x] F3: Import 검증 (금지패키지 제거 + 자동추가) ✅ (3/21)
+- [x] F4: maxTokens 동적 조절 + 코드 잘림 → 이어서 생성(continuation, 최대 2회) ✅ (3/21)
+- [x] F6: 빌드 자동 검증 + AI 수정 루프 (빌드 실패 → AI 에러분석 → 코드수정 → 재빌드, 최대 3회) ✅ (3/21)
+- [x] F7: SSE 비동기 파이프라인 (12분 블로킹 → 실시간 진행상황 스트리밍) ✅ (3/21)
+- [ ] E2E 테스트: Sonnet으로 실제 앱 생성 → 배포 → 서브도메인 접속
+
+### 기타
+- [x] Sonnet 모델 활성화 — 모델 ID 최신화 완료 (3/21), Anthropic 크레딧 $16 잔액 (자동충전 OFF)
+- [ ] ERD + API 명세서 자동 생성
+- [ ] 모두의창업 서류 (4/1 마감)
+
+## 모델 설정 (3/21 업데이트)
+| 티어 | 모델 ID | maxTokens | 용도 |
+|------|---------|-----------|------|
+| flash/fast | `claude-haiku-4-5-20251001` | 8192 | 대화, 간단한 수정 |
+| smart/standard | `claude-sonnet-4-5-20250514` | 16384 | 코드 생성 메인 엔진 |
+| pro/premium | `claude-sonnet-4-5-20250514` | 16384 | 복잡한 아키텍처 |
+
+- Anthropic 크레딧: $16.03 잔액 (자동충전 OFF, 수동 충전)
+- Sonnet으로 앱 약 2~3개 생성 가능
+
+## 알려진 이슈 ⚠️
+- Rate limit: 분당 출력 토큰 10,000 제한 → 2초 딜레이 + 재시도로 대응
+- AI 생성 코드에 마크다운 혼입 (```, ###, 등)
+- AI가 존재하지 않는 아이콘 import (heroicons 등)
+- maxTokens 8192(Haiku) / 16384(Sonnet) → 긴 페이지 코드 잘림 가능
+- 서버 비용: NCP ₩65,000/월 + 도메인 ₩20,000/년
+- API 비용: 앱 1개당 ~$2.48 (Haiku) / ~$7.5 (Sonnet)
 
 ## 재시작 명령어
 ```
 cd "/Users/mark/Desktop/정부지원사업 MVP 빌더(가칭)/launchpad"
 
-Foundry 코드 생성 엔진 구현 이어서 작업해줘. memory/MEMORY.md 참고.
-- 플랜: .claude/plans/calm-snacking-tome.md
-- [완료] 기본기능 + AI연동(Haiku) + 크레딧 + 빌더질문지6종 + 미리보기 + 템플릿6종 + 어드민 + 도메인SSL + 카카오OAuth코드연동(3/19)
-- [현재] 코드 생성 엔진 구현 (Sprint 1~5)
-- [전략] B→A전환, 토큰과금, Flash/Smart/Pro 3모델, AI자기평가, 자동컨텍스트, 헬스체크
-- [주의] Haiku만 API 가능, Sonnet/Opus는 별도 키 필요 → Haiku로 먼저 파이프라인 완성
-- Sprint 1부터 시작: DB스키마 + 크레딧차등 + 모델설정 + builder파일분리
-[서버] web:3000(PM2) + api:4000(PM2) + PostgreSQL(launchpaddb) + nginx HTTPS + foundry.ai.kr
-[카카오] REST API키:2b61cab1882f996f30bd9e925a1ec3f8 / 앱ID:1409363 / Redirect:https://foundry.ai.kr/api/auth/kakao/callback
+Foundry 코드 품질 개선 작업해줘. memory/MEMORY.md 참고.
+- [완료] Phase 1~2: 기본기능 + AI연동 + 크레딧 + 빌더질문지6종 + 미리보기 + 템플릿6종 + 어드민 + 도메인SSL + 카카오OAuth
+- [완료] Phase 3: 코드 생성 엔진 (Sprint 1~5) + Supabase 기반 전환 (3/20)
+- [완료] Phase 4: Supabase 자동 프로비저닝 + 배포 파이프라인 + 모델 ID 최신화 (3/21)
+- [완료] 코드 품질 개선 (F2~F7 전체 완료, 3/21):
+  - F2: 마크다운 혼입 방지 ✅
+  - F3: Import 검증 ✅
+  - F4: 코드 잘림 → 이어서 생성(continuation) ✅
+  - F6: 빌드 자동 검증 + AI 수정 루프 ✅
+  - F7: SSE 비동기 파이프라인 ✅
+- [현재] E2E 테스트: Sonnet으로 실제 앱 생성 → 배포 → 서브도메인 접속
+- [비전] 파운더리로 세리온 POS 같은 실제 프로그램을 만들 수 있게!
+- [모델] Haiku(flash) + Sonnet 4.5(smart/pro), Anthropic $16 잔액
+- [서버] SSH: ssh -i ~/.ssh/serion-key.pem -p 3181 root@175.45.200.162
+- [배포] 사용자 "배포하기" → 빌드 → https://{subdomain}.foundry.ai.kr
+- [보고서] memory/REPORT_2026-03-20.md (오류/구조문제/개선사항 상세)
+- Supabase 조직: sefhetzuysyhgcebslqd
 ```
