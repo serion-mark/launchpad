@@ -908,16 +908,36 @@ const supabase = createClient()
     const existingFiles = (project.generatedCode as { path: string; content: string }[]) || [];
     const tier = params.modelTier;
 
-    // 수정 대상 파일 추출
-    const targetFileContents = params.targetFiles
-      ? existingFiles.filter(f => params.targetFiles!.some(t => f.path.includes(t)))
-      : existingFiles.slice(0, 10); // 최대 10개
+    // 수정 대상 파일 스마트 선별
+    let targetFileContents: { path: string; content: string }[];
+
+    if (params.targetFiles && params.targetFiles.length > 0) {
+      // 프론트에서 명시적으로 지정한 파일
+      targetFileContents = existingFiles.filter(f => params.targetFiles!.some(t => f.path.includes(t)));
+    } else {
+      // AI가 관련 파일을 자동 선별 (2단계)
+      targetFileContents = this.smartFileSelection(existingFiles, params.message);
+    }
+
+    // 최대 8개 제한 (토큰 절약)
+    if (targetFileContents.length > 8) {
+      targetFileContents = targetFileContents.slice(0, 8);
+    }
+
+    // 파일 목록 요약 (AI에게 전체 구조 알려주기)
+    const fileIndex = existingFiles
+      .filter(f => f.path.match(/\.(tsx?|css)$/))
+      .map(f => f.path)
+      .join('\n');
 
     const result = await this.callWithFallback(tier, MODIFY_SYSTEM_PROMPT, [{
       role: 'user',
       content: `수정 요청: ${params.message}
 
-현재 파일:
+프로젝트 전체 파일 목록 (참고용):
+${fileIndex}
+
+수정 대상 파일:
 ${targetFileContents.map(f => `[FILE: ${f.path}]\n${f.content}`).join('\n\n')}
 
 프로젝트 컨텍스트:
@@ -1870,6 +1890,12 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   /** 공통 프론트엔드 파일 생성 */
   private generateCommonFrontendFiles(architecture: any, theme: string): { path: string; content: string }[] {
     const appName = architecture.appName || 'My App';
+    const pages = architecture.pages || [];
+
+    // 네비게이션 링크 생성 (로그인/회원가입 제외)
+    const navPages = pages
+      .filter((p: any) => !['/login', '/signup', '/auth'].includes(p.path))
+      .map((p: any) => `{ href: '${p.path}', label: '${p.name}' }`);
 
     return [
       {
@@ -1898,6 +1924,79 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   --color-primary: #3182f6;
   --color-background: #ffffff;
   --color-foreground: #171717;
+}`,
+      },
+      // 사이드바 네비게이션 컴포넌트
+      {
+        path: 'src/components/Sidebar.tsx',
+        content: `'use client';
+
+import { useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { createClient } from '@/utils/supabase/client';
+import { useUser } from '@/components/AuthGuard';
+
+const NAV_ITEMS = [
+  ${navPages.join(',\n  ')}
+];
+
+export default function Sidebar({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const { user, loading } = useUser();
+  const [collapsed, setCollapsed] = useState(false);
+  const supabase = createClient();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+  };
+
+  if (loading) return (
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+    </div>
+  );
+
+  if (!user) {
+    if (typeof window !== 'undefined') window.location.href = '/login';
+    return null;
+  }
+
+  return (
+    <div className="flex min-h-screen">
+      <aside className={\`\${collapsed ? 'w-16' : 'w-56'} flex flex-col border-r border-gray-200 bg-white transition-all duration-200\`}>
+        <div className="flex h-14 items-center justify-between border-b border-gray-100 px-4">
+          {!collapsed && <span className="text-sm font-bold text-gray-900">${appName}</span>}
+          <button onClick={() => setCollapsed(!collapsed)} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+            {collapsed ? '→' : '←'}
+          </button>
+        </div>
+        <nav className="flex-1 space-y-0.5 p-2">
+          {NAV_ITEMS.map(item => {
+            const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={\`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors \${
+                  isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                }\`}
+              >
+                <span className={\`\${collapsed ? 'mx-auto' : ''}\`}>{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="border-t border-gray-100 p-3">
+          <button onClick={handleLogout} className="w-full rounded-lg px-3 py-2 text-left text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700">
+            {collapsed ? '←' : '로그아웃'}
+          </button>
+        </div>
+      </aside>
+      <main className="flex-1 overflow-auto">{children}</main>
+    </div>
+  );
 }`,
       },
     ];
@@ -2033,6 +2132,85 @@ npm run dev
 `,
       },
     ];
+  }
+
+  /**
+   * 사용자 메시지에서 관련 파일을 스마트 선별
+   * 키워드 매칭 + 페이지 경로 추론으로 토큰 낭비 방지
+   */
+  private smartFileSelection(
+    files: { path: string; content: string }[],
+    message: string,
+  ): { path: string; content: string }[] {
+    const msg = message.toLowerCase();
+    const scored: { file: { path: string; content: string }; score: number }[] = [];
+
+    // 키워드 → 파일 경로/내용 매칭
+    const keywords: Record<string, string[]> = {
+      '로그인|login|signIn': ['login'],
+      '회원가입|signup|signUp|가입': ['signup'],
+      '대시보드|dashboard|홈|메인': ['dashboard', 'page.tsx'],
+      '예약|reservation|booking': ['reservation', 'booking'],
+      '고객|customer|회원|사용자': ['customer', 'user', 'member'],
+      '매출|sales|결제|payment': ['sales', 'payment'],
+      '설정|setting|config': ['setting', 'config'],
+      '스태프|staff|디자이너|직원': ['staff', 'designer'],
+      '색|color|테마|theme|디자인': ['globals.css', 'layout', 'theme'],
+      '버튼|button': [],
+      '헤더|header|네비|nav|메뉴': ['layout', 'nav', 'header'],
+      '푸터|footer': ['layout', 'footer'],
+      '폼|form|입력|input': [],
+      '테이블|table|목록|list': [],
+      '모달|modal|팝업|popup': [],
+      '차트|chart|그래프|통계|analytics': ['analytics', 'chart', 'dashboard'],
+    };
+
+    for (const file of files) {
+      if (!file.path.match(/\.(tsx?|css)$/)) continue;
+      let score = 0;
+      const pathLower = file.path.toLowerCase();
+      const contentLower = file.content.toLowerCase();
+
+      // 1. 키워드 → 경로 매칭
+      for (const [pattern, paths] of Object.entries(keywords)) {
+        if (new RegExp(pattern, 'i').test(msg)) {
+          // 경로 매칭
+          if (paths.some(p => pathLower.includes(p))) score += 10;
+          // 콘텐츠 매칭 (파일 내에 해당 키워드 존재)
+          if (new RegExp(pattern, 'i').test(contentLower)) score += 3;
+        }
+      }
+
+      // 2. 메시지에서 파일명/경로 직접 언급
+      const fileName = file.path.split('/').pop()?.replace(/\.tsx?$/, '') || '';
+      if (msg.includes(fileName.toLowerCase())) score += 15;
+
+      // 3. 페이지 파일 우선 (page.tsx)
+      if (file.path.includes('page.tsx')) score += 2;
+
+      // 4. 레이아웃/스타일은 디자인 관련 요청에만
+      if (file.path.includes('layout') || file.path.includes('globals.css')) {
+        if (/색|color|테마|theme|디자인|폰트|font|배경|background/i.test(msg)) {
+          score += 8;
+        }
+      }
+
+      if (score > 0) scored.push({ file, score });
+    }
+
+    // 점수순 정렬
+    scored.sort((a, b) => b.score - a.score);
+
+    // 매칭된 파일이 있으면 상위 파일 반환
+    if (scored.length > 0) {
+      return scored.map(s => s.file);
+    }
+
+    // 매칭 실패 시 page.tsx 파일들 + globals.css 반환
+    const pageFiles = files.filter(f => f.path.includes('page.tsx'));
+    const cssFiles = files.filter(f => f.path.includes('globals.css'));
+    const layoutFiles = files.filter(f => f.path.includes('layout.tsx'));
+    return [...pageFiles, ...cssFiles, ...layoutFiles].slice(0, 8);
   }
 
   private capitalize(str: string): string {
