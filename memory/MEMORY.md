@@ -274,10 +274,15 @@ cd "/Users/mark/Desktop/정부지원사업 MVP 빌더(가칭)/launchpad"
 Phase 9 (기본기 완성) 착수해줘. memory/ 폴더 전부 참고.
 마감: 4/1 전까지 배포. 안정성 최우선. 120%가 기본이다.
 
-## 필수 참조 파일
-- memory/MEMORY.md — 전체 프로젝트 상태 + 120% 로드맵 (Phase 9~13) + 특허 후보
+## 필수 참조 파일 (반드시 전부 읽을 것!)
+- memory/MEMORY.md — 전체 프로젝트 상태 + 120% 로드맵 (Phase 9~13)
+- memory/PHASE9_GUIDE.md — ⭐ Phase 9 개발 가이드 (Day별 구현 방법+코드 예시+검증)
 - memory/CODE_AUDIT_2026-03-22.md — 코드 감사 보고서 (17건 수정완료)
-- memory/DIRECTION_2026-03-21.md — 기술 방향성 (빌드 성공률 개선 전략)
+
+## 다음 Phase 가이드 (Phase 9 완료 후 순서대로)
+- memory/PHASE10_GUIDE.md — Lovable 핵심 (Agent Mode+Visual Edits+GitHub)
+- memory/PHASE11_GUIDE.md — 프로 기능 (결제+호스팅MRR+이미지생성-Gemini API)
+- memory/PHASE12_13_GUIDE.md — 120% 차별화+유니콘 (백엔드자동생성+한국특화+마켓플레이스+특허)
 
 ## 현재 상태 (2026-03-22)
 - Phase 1~8.5 전부 완료, 배포됨: https://foundry.ai.kr
