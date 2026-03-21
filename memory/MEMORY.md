@@ -167,40 +167,63 @@ cd "/Users/mark/Desktop/정부지원사업 MVP 빌더(가칭)/launchpad"
 
 Phase 8 착수해줘. memory/ 폴더 전부 참고.
 
-## 현재 상태
-- Phase 1~7.5 완료, 배포됨: https://foundry.ai.kr
-- Phase 7.5 최종 완료 (커밋 12d214f):
-  - AppMockup.tsx: 10종 CSS-only 미니 앱 목업 컴포넌트
-  - 포트폴리오/랜딩 카드: 이모지→CSS 목업 교체 + 펫메이트 실제 스크린샷(LIVE배지)
-  - 펫메이트 대시보드: /screenshots/petmate.png (Playwright로 촬영)
-  - 카페 세리온(e2e-sonnet-97dd): CSS 미적용 → 스크린샷 사용 불가
-- Phase 7.5 미완료 (코드 작업 아님): 약관 법적 검증 (변호사 검토)
-
 ## 필수 참조 파일
-- memory/MEMORY.md — 전체 프로젝트 상태, 완료 작업, 로드맵
+- memory/MEMORY.md — 전체 프로젝트 상태 + 로드맵 + 아키텍처
 - memory/STRATEGY_REPORT_2026-03-21.md — 핵심 전략 보고서
 - memory/TARGET_APPS_2026-03-21.md — 앱 카테고리 10개
 - memory/DIRECTION_2026-03-21.md — 기술 방향성 + Lovable 벤치마킹
 
-## Phase 8 작업 목록
-1. 세리온 코드 모듈화 → RAG 주입 (결제/알림톡/예약 검증된 모듈)
-2. 관계형 데이터 (JOIN, 중첩 쿼리)
-3. 파일 업로드 (Supabase Storage)
-4. 고객 앱 챗봇 (AI or FAQ 챗봇 컴포넌트 자동 포함)
+## 현재 상태
+- Phase 1~7.5 전부 완료, 배포됨: https://foundry.ai.kr
+- 최종 커밋: 7a4e707 (2026-03-21)
 
-## 배포된 앱 (스크린샷용)
-- 펫메이트 대시보드: https://foundry.ai.kr/petmate/dashboard (PM2, 포트3200)
-- 카페 세리온: https://e2e-sonnet-97dd.foundry.ai.kr (정적, CSS 깨짐)
-- DB에 프로젝트 19개 (대부분 draft/generating)
+## Phase 8 작업 4개 (고급 기능 + 템플릿 확장)
+
+### 작업 1: 세리온 코드 모듈화 → RAG 주입 ⭐ 핵심
+- 목적: AI가 생성하는 코드 품질을 세리온 POS 수준으로 끌어올림
+- 방법: 세리온 코드에서 검증된 모듈(결제/알림톡/예약/인증)을 추출 → RAG 벡터DB에 저장 → AI 코드 생성 시 참조
+- 세리온 코드 위치: /Users/mark/세리온 ai전화예약+POS통합관리/
+- 핵심 파일들:
+  - api/src/kakao/kakao.service.ts (알림톡 발송)
+  - api/src/sale/sale.service.ts (결제/환불 로직)
+  - api/src/reservation/reservation.service.ts (예약 생성/검증/트랜잭션)
+  - web/src/lib/api.ts (authFetch, fetchJson 패턴)
+- AI 프롬프트 위치: api/src/ai/ai.service.ts → generateApp() 메서드
+- 템플릿 프롬프트: api/src/ai/prompts/ 디렉토리 확인
+
+### 작업 2: 관계형 데이터 (JOIN, 중첩 쿼리)
+- 현재: AI가 생성하는 Supabase 쿼리가 단순 CRUD만 지원
+- 목표: 1:N, N:M 관계, JOIN 쿼리, 중첩 select 지원
+- 수정 대상: AI 코드 생성 프롬프트 + SQL 마이그레이션 생성 로직
+- 파일: api/src/ai/ai.service.ts, api/src/supabase/supabase.service.ts
+
+### 작업 3: 파일 업로드 (Supabase Storage)
+- 현재: 이미지/파일 업로드 미지원
+- 목표: Supabase Storage 버킷 자동 생성 + 업로드 컴포넌트 자동 포함
+- 수정 대상: Supabase 프로비저닝 + AI 프롬프트에 Storage 패턴 추가
+
+### 작업 4: 고객 앱 챗봇
+- AI 생성 앱에 FAQ 챗봇 컴포넌트 자동 포함
+- ChatWidget.tsx를 Foundry 자체용이 아닌, 고객 앱 템플릿으로 변환
+- 파일: web/src/app/components/ChatWidget.tsx 참고
+
+## 아키텍처 (코드 생성 파이프라인)
+```
+사용자 질문 응답 → POST /ai/generate-app-sse
+→ ai.service.ts: buildPrompt() → Claude API 호출
+→ 응답 파싱 (sanitizeCode) → 파일별 분리
+→ Supabase 프로비저닝 (프로젝트 생성 + SQL 마이그레이션)
+→ 파일 저장 (/var/www/apps/{subdomain}/)
+→ next build (export) → 배포
+```
 
 ## 서버/배포
 - git push origin main → GitHub Actions → 자동배포
 - SSH: ssh -i ~/.ssh/serion-key.pem -p 3181 root@175.45.200.162
 - 도메인: https://foundry.ai.kr
+- Anthropic 크레딧: ~$16 (Sonnet 앱 2~3개 생성 가능)
 
-## ⭐ 핵심 철학 (사장님 원문)
-> "AI의 가능성은 무한한데, 일반 사용자는 그 한계를 정해놓고 사용하지.
-> 우리는 그 무한한 영역을 연결해주는 도구."
+## ⭐ 핵심 철학
 > "우리 고객은 AI 전문가가 아니야. 채팅으로 AI 쓰는 사람들을
 > 전문가처럼 만들어주고 돈을 받는 서비스를 하는 거잖아?"
 
