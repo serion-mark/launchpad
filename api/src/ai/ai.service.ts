@@ -1200,9 +1200,9 @@ ${existingFiles.slice(0, 15).map(f => `[FILE: ${f.path}]\n${f.content}`).join('\
     // 2. 마크다운 헤더 제거 (### 제목 → // 제목)
     cleaned = cleaned.replace(/^#{1,6}\s+(.+)$/gm, '// $1');
 
-    // 3. 마크다운 볼드/이탤릭 제거
-    cleaned = cleaned.replace(/\*\*(.+?)\*\*/g, '$1');
-    cleaned = cleaned.replace(/\*(.+?)\*/g, '$1');
+    // 3. 마크다운 볼드/이탤릭 제거 (줄 시작 또는 공백 뒤에서만 — 코드의 곱하기 * 보호)
+    cleaned = cleaned.replace(/(?:^|\s)\*\*(.+?)\*\*(?=\s|$|[.,;:!?)])/gm, ' $1');
+    // 단일 * 이탤릭은 코드 곱하기와 충돌하므로 제거하지 않음
 
     // 4. 이모지 체크마크/X 제거 (줄 시작 부분)
     cleaned = cleaned.replace(/^[✅❌📌🔴🟡🟢⚠️🚀💡]\s*/gm, '');
