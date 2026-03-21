@@ -94,19 +94,28 @@ export class DeployService {
       let content = fs.readFileSync(configPath, 'utf-8');
       // output: 'export'가 없으면 추가
       if (!content.includes("output:") && !content.includes("output :")) {
-        content = content.replace(
-          /const\s+nextConfig\s*[:=]\s*\{/,
-          `const nextConfig = {\n  output: 'export',`,
+        // 다양한 패턴 지원: `const nextConfig = {`, `const nextConfig: NextConfig = {`, etc.
+        const replaced = content.replace(
+          /(const\s+nextConfig[\s\S]*?=\s*\{)/,
+          `$1\n  output: 'export',`,
         );
-        // images.unoptimized도 필요 (static export에서 Image 컴포넌트 사용 시)
-        if (!content.includes('unoptimized')) {
+        content = replaced !== content ? replaced : content;
+      }
+      // images.unoptimized 보장 (static export에서 Image 컴포넌트 사용 시)
+      if (!content.includes('unoptimized')) {
+        content = content.replace(
+          /images:\s*\{[^}]*\}/,
+          `images: { unoptimized: true }`,
+        );
+        // images 설정 자체가 없는 경우
+        if (!content.includes('images')) {
           content = content.replace(
-            /const\s+nextConfig\s*[:=]\s*\{\n\s*output:\s*'export',/,
-            `const nextConfig = {\n  output: 'export',\n  images: { unoptimized: true },`,
+            /(output:\s*'export',?)/,
+            `$1\n  images: { unoptimized: true },`,
           );
         }
-        fs.writeFileSync(configPath, content, 'utf-8');
       }
+      fs.writeFileSync(configPath, content, 'utf-8');
     } else {
       // 설정 파일이 아예 없으면 생성
       const config = `import type { NextConfig } from 'next';
