@@ -15,30 +15,81 @@ jobs:
           username: root
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 3181
+          command_timeout: 10m
           script: |
             cd /root/launchpad
             rm -rf api/dist
             git checkout -- .
             git pull origin main
 
-            # Web 빌드 + 재시작
-            cd web
-            npm run build
-            pm2 restart launchpad-web
+            # ── Prisma 스키마 동기화 ──
+            cd api
+            npx prisma db push --skip-generate 2>&1 || echo "prisma db push skipped"
+            npx prisma generate 2>&1
 
-            # API 재시작 (변경 있을 때만)
-            cd ../api
+            # ── API 빌드 + 재시작 ──
             npm run build
             pm2 restart launchpad-api
 
-            # nginx timeout 설정 (AI 생성 5단계 파이프라인은 120초+ 소요)
-            NGINX_CONF="/etc/nginx/conf.d/proxy-timeout.conf"
-            cat > "$NGINX_CONF" << 'NGINX_EOF'
-            proxy_read_timeout 300s;
+            # ── Web 빌드 + 재시작 ──
+            cd ../web
+            npm run build
+            pm2 restart launchpad-web
+
+            # ── nginx: 기본 타임아웃 설정 ──
+            NGINX_TIMEOUT="/etc/nginx/conf.d/proxy-timeout.conf"
+            cat > "$NGINX_TIMEOUT" << 'EOF'
+            proxy_read_timeout 600s;
             proxy_connect_timeout 60s;
             proxy_send_timeout 120s;
-            NGINX_EOF
-            sed -i 's/^            //' "$NGINX_CONF"
-            nginx -t && systemctl reload nginx && echo "nginx timeout conf applied"
+            EOF
+            sed -i 's/^            //' "$NGINX_TIMEOUT"
+
+            # ── nginx: 와일드카드 서브도메인 설정 (Static Export 서빙) ──
+            NGINX_WILDCARD="/etc/nginx/conf.d/wildcard-apps.conf"
+            cat > "$NGINX_WILDCARD" << 'WILDCARD_EOF'
+            server {
+                listen 80;
+                server_name *.foundry.ai.kr;
+                return 301 https://$host$request_uri;
+            }
+
+            server {
+                listen 443 ssl;
+                server_name ~^(?<subdomain>[a-z0-9][a-z0-9-]+)\.foundry\.ai\.kr$;
+
+                ssl_certificate     /etc/letsencrypt/live/foundry.ai.kr-0001/fullchain.pem;
+                ssl_certificate_key /etc/letsencrypt/live/foundry.ai.kr-0001/privkey.pem;
+                ssl_protocols TLSv1.2 TLSv1.3;
+                ssl_ciphers HIGH:!aNULL:!MD5;
+
+                root /var/www/apps/$subdomain;
+                index index.html;
+
+                location / {
+                    try_files $uri $uri.html $uri/index.html /index.html =404;
+                }
+
+                location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+                    expires 30d;
+                    add_header Cache-Control "public, immutable";
+                }
+
+                location /_next/static/ {
+                    expires 365d;
+                    add_header Cache-Control "public, immutable";
+                }
+
+                add_header X-Frame-Options "SAMEORIGIN" always;
+                add_header X-Content-Type-Options "nosniff" always;
+            }
+            WILDCARD_EOF
+            sed -i 's/^            //' "$NGINX_WILDCARD"
+
+            # ── 배포 디렉토리 보장 ──
+            mkdir -p /var/www/apps
+
+            # ── nginx 리로드 ──
+            nginx -t && systemctl reload nginx && echo "nginx reloaded"
 
             echo "Deploy complete: $(date)"

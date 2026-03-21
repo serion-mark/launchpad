@@ -18,6 +18,7 @@ export class ProjectService {
         status: true,
         subdomain: true,
         deployedUrl: true,
+        buildStatus: true,
         createdAt: true,
         updatedAt: true,
       },

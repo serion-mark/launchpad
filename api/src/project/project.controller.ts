@@ -58,6 +58,12 @@ export class ProjectController {
     return this.deployService.deploy(id, req.user.userId);
   }
 
+  // ── 빌드 상태 조회 (프론트에서 폴링) ──
+  @Get(':id/build-status')
+  getBuildStatus(@Req() req: any, @Param('id') id: string) {
+    return this.deployService.getBuildStatus(id, req.user.userId);
+  }
+
   // ── 코드 다운로드 (매니페스트 조회 → 프론트에서 JSZip 조립) ──
   @Get(':id/download')
   download(@Req() req: any, @Param('id') id: string) {

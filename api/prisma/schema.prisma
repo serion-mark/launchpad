@@ -56,6 +56,11 @@ model Project {
   supabaseServiceKey String?            // service_role key (서버용)
   supabaseDbPass     String?            // DB 비밀번호 (생성 시 저장)
   supabaseStatus     String?            // creating | active | failed
+  // ── 배포 파이프라인 ──
+  buildStatus        String?            // pending | building | exporting | done | failed
+  buildLog           String?            // 빌드 로그 (에러 디버깅용)
+  buildStartedAt     DateTime?
+  buildFinishedAt    DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

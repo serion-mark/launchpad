@@ -573,14 +573,51 @@ function BuilderContent() {
     if (!projectId) return;
     try {
       const res = await authFetch(`/projects/${projectId}/deploy`, { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(prev => [...prev, {
-          id: Date.now().toString(), role: 'assistant',
-          content: `배포가 완료되었습니다!\n\n**URL**: ${data.deployedUrl}\n**서브도메인**: ${data.subdomain}`,
-          timestamp: new Date().toISOString(), type: 'text',
-        }]);
+      if (!res.ok) return;
+      const data = await res.json();
+
+      // 즉시 응답: 빌드 시작 알림
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(), role: 'assistant',
+        content: `빌드를 시작합니다...\n\n**서브도메인**: ${data.subdomain}\n**URL**: ${data.deployedUrl}\n\n빌드 진행 중... (약 2~5분 소요)`,
+        timestamp: new Date().toISOString(), type: 'text',
+      }]);
+
+      // 빌드 상태 폴링 (3초 간격, 최대 5분)
+      const maxAttempts = 100;
+      for (let i = 0; i < maxAttempts; i++) {
+        await new Promise(r => setTimeout(r, 3000));
+        try {
+          const statusRes = await authFetch(`/projects/${projectId}/build-status`);
+          if (!statusRes.ok) continue;
+          const status = await statusRes.json();
+
+          if (status.buildStatus === 'done') {
+            setMessages(prev => [...prev, {
+              id: Date.now().toString(), role: 'assistant',
+              content: `배포가 완료되었습니다!\n\n**URL**: [${status.deployedUrl}](${status.deployedUrl})\n\n클릭하면 배포된 앱을 확인할 수 있습니다.`,
+              timestamp: new Date().toISOString(), type: 'text',
+            }]);
+            return;
+          }
+          if (status.buildStatus === 'failed') {
+            setMessages(prev => [...prev, {
+              id: Date.now().toString(), role: 'assistant',
+              content: `빌드에 실패했습니다.\n\n\`\`\`\n${(status.buildLog || '').split('\n').slice(-5).join('\n')}\n\`\`\`\n\n코드를 수정한 후 다시 배포해주세요.`,
+              timestamp: new Date().toISOString(), type: 'text',
+            }]);
+            return;
+          }
+          // building/exporting 상태면 계속 폴링
+        } catch { /* 네트워크 에러 시 계속 폴링 */ }
       }
+
+      // 타임아웃
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(), role: 'assistant',
+        content: '빌드 시간이 초과되었습니다. 잠시 후 대시보드에서 확인해주세요.',
+        timestamp: new Date().toISOString(), type: 'text',
+      }]);
     } catch { /* */ }
   };
 

@@ -12,6 +12,7 @@ type Project = {
   status: string;
   subdomain: string | null;
   deployedUrl: string | null;
+  buildStatus: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -27,6 +28,14 @@ const STATUS_BADGE: Record<string, { label: string; bg: string; text: string }> 
   generating: { label: '생성 중', bg: 'bg-[#ffd60a]/15', text: 'text-[#ffd60a]' },
   active: { label: '활성', bg: 'bg-[#30d158]/15', text: 'text-[#30d158]' },
   deployed: { label: '배포됨', bg: 'bg-[#3182f6]/15', text: 'text-[#3182f6]' },
+};
+
+const BUILD_STATUS_LABELS: Record<string, string> = {
+  pending: '빌드 대기',
+  building: '빌드 중...',
+  exporting: '내보내기 중...',
+  done: '빌드 완료',
+  failed: '빌드 실패',
 };
 
 export default function DashboardPage() {
@@ -227,7 +236,15 @@ export default function DashboardPage() {
                     {new Date(project.updatedAt).toLocaleDateString('ko-KR')} 수정
                   </div>
 
-                  {project.deployedUrl && (
+                  {project.buildStatus && project.buildStatus !== 'done' && (
+                    <div className={`mb-3 rounded-lg px-3 py-2 text-xs font-medium ${
+                      project.buildStatus === 'failed' ? 'bg-[#ff453a]/15 text-[#ff453a]' : 'bg-[#ffd60a]/15 text-[#ffd60a]'
+                    }`}>
+                      {BUILD_STATUS_LABELS[project.buildStatus] || project.buildStatus}
+                    </div>
+                  )}
+
+                  {project.deployedUrl && project.buildStatus === 'done' && (
                     <a
                       href={project.deployedUrl}
                       target="_blank"
