@@ -27,6 +27,12 @@ export class AuthController {
     return this.auth.getProfile(req.user.userId);
   }
 
+  @Post('agree')
+  @UseGuards(AuthGuard('jwt'))
+  agreeTerms(@Req() req: any, @Body() body: { terms: boolean; privacy: boolean; refund: boolean; marketing?: boolean }) {
+    return this.auth.agreeTerms(req.user.userId, body);
+  }
+
   /** 카카오 로그인 시작 — 프론트에서 이 URL로 리다이렉트 */
   @Get('kakao')
   kakaoLogin(@Res() res: Response) {

@@ -19,6 +19,11 @@ model User {
   planPrice     Int       @default(0)     // 월 가격 (원)
   planExpiresAt DateTime?
   planStatus    String    @default("ACTIVE") // ACTIVE, SUSPENDED, CANCELLED
+  // ── 약관 동의 ──
+  termsAgreedAt     DateTime?  // 이용약관 동의 일시
+  privacyAgreedAt   DateTime?  // 개인정보처리방침 동의 일시
+  refundAgreedAt    DateTime?  // 환불정책+소유권 동의 일시
+  marketingAgreedAt DateTime?  // 마케팅 수신 동의 일시 (선택)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 

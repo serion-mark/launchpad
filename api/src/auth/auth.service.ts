@@ -37,10 +37,27 @@ export class AuthService {
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, name: true, avatar: true, provider: true, plan: true, planExpiresAt: true, createdAt: true },
+      select: {
+        id: true, email: true, name: true, avatar: true, provider: true,
+        plan: true, planExpiresAt: true, createdAt: true,
+        termsAgreedAt: true, privacyAgreedAt: true, refundAgreedAt: true, marketingAgreedAt: true,
+      },
     });
     if (!user) throw new UnauthorizedException();
     return user;
+  }
+
+  /** 약관 동의 처리 */
+  async agreeTerms(userId: string, body: { terms: boolean; privacy: boolean; refund: boolean; marketing?: boolean }) {
+    const now = new Date();
+    const data: any = {};
+    if (body.terms) data.termsAgreedAt = now;
+    if (body.privacy) data.privacyAgreedAt = now;
+    if (body.refund) data.refundAgreedAt = now;
+    if (body.marketing) data.marketingAgreedAt = now;
+
+    const user = await this.prisma.user.update({ where: { id: userId }, data });
+    return { success: true, termsAgreedAt: user.termsAgreedAt };
   }
 
   // 소셜 로그인 (나중에 확장)

@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import LandingNav from '../components/LandingNav';
+import Footer from '../components/Footer';
 
 const TABS = [
   { id: 'start', label: '🚀 시작하기' },
@@ -26,18 +28,7 @@ export default function GuidePage() {
 
   return (
     <div className="min-h-screen bg-[#17171c] text-[#f2f4f6]">
-      <header className="border-b border-[#2c2c35] px-6 py-4">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <div className="flex items-center gap-3">
-            <a href="/" className="text-xl font-black"><span className="text-[#3182f6]">Found</span>ry</a>
-            <span className="rounded-lg bg-[#30d158]/20 px-2.5 py-0.5 text-xs font-bold text-[#30d158]">가이드</span>
-          </div>
-          <div className="flex gap-2">
-            <a href="/dashboard" className="rounded-lg bg-[#2c2c35] px-4 py-2 text-sm text-[#8b95a1] hover:text-white transition-colors">내 프로젝트</a>
-            <a href="/" className="rounded-lg bg-[#3182f6] px-4 py-2 text-sm font-bold text-white hover:bg-[#1b64da] transition-colors">앱 만들기</a>
-          </div>
-        </div>
-      </header>
+      <LandingNav />
 
       <div className="mx-auto max-w-5xl px-6 py-8">
         <div className="mb-8 flex gap-2 overflow-x-auto">
@@ -184,11 +175,12 @@ export default function GuidePage() {
             <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6 text-center">
               <p className="mb-2 text-lg font-bold">더 궁금한 점이 있으신가요?</p>
               <p className="mb-4 text-sm text-[#8b95a1]">빌더 채팅에서 AI에게 직접 물어보세요!</p>
-              <a href="/" className="inline-block rounded-xl bg-[#3182f6] px-6 py-3 text-sm font-bold text-white hover:bg-[#1b64da] transition-colors">앱 만들러 가기 →</a>
+              <a href="/start" className="inline-block rounded-xl bg-[#3182f6] px-6 py-3 text-sm font-bold text-white hover:bg-[#1b64da] transition-colors">앱 만들러 가기 →</a>
             </div>
           </div>
         )}
       </div>
+      <Footer />
     </div>
   );
 }

@@ -247,7 +247,7 @@ export default function PreviewPage() {
           <div className="flex items-center gap-2">
             <button onClick={() => setViewMode('desktop')} className={`rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${viewMode === 'desktop' ? 'bg-[#3a3a45] text-[#f2f4f6]' : 'bg-[#2c2c35] text-[#8b95a1]'}`}>🖥 데스크톱</button>
             <button onClick={() => setViewMode('mobile')} className={`rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${viewMode === 'mobile' ? 'bg-[#3a3a45] text-[#f2f4f6]' : 'bg-[#2c2c35] text-[#8b95a1]'}`}>📱 모바일</button>
-            <a href="/" className="ml-2 rounded-xl bg-[#3182f6] px-5 py-2 text-sm font-bold text-white hover:bg-[#1b64da] transition-colors sm:ml-4">내 프로젝트로 생성</a>
+            <a href="/start" className="ml-2 rounded-xl bg-[#3182f6] px-5 py-2 text-sm font-bold text-white hover:bg-[#1b64da] transition-colors sm:ml-4">내 프로젝트로 생성</a>
           </div>
         </div>
       </header>

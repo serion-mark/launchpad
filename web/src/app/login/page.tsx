@@ -49,7 +49,12 @@ export default function LoginPage() {
       localStorage.setItem('launchpad_token', data.token);
       localStorage.setItem('launchpad_user', JSON.stringify({ userId: data.userId, email: data.email }));
       const params = new URLSearchParams(window.location.search);
-      window.location.href = params.get('redirect') || '/dashboard';
+      // 회원가입 시 약관 동의 페이지로 이동
+      if (mode === 'signup') {
+        window.location.href = '/agree';
+      } else {
+        window.location.href = params.get('redirect') || '/dashboard';
+      }
     } catch {
       setError('서버에 연결할 수 없습니다');
     } finally {

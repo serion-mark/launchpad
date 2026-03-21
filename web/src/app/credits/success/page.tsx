@@ -45,7 +45,7 @@ function SuccessContent() {
       </div>
 
       <div className="flex gap-3">
-        <a href="/" className="flex-1 rounded-xl bg-[#3182f6] py-3.5 text-[15px] font-bold text-white text-center transition-colors hover:bg-[#1b64da]">
+        <a href="/start" className="flex-1 rounded-xl bg-[#3182f6] py-3.5 text-[15px] font-bold text-white text-center transition-colors hover:bg-[#1b64da]">
           MVP 만들러 가기
         </a>
         <a href="/credits" className="flex-1 rounded-xl border border-[#2c2c35] py-3.5 text-[15px] font-semibold text-[#8b95a1] text-center transition-colors hover:bg-[#2c2c35] hover:text-[#f2f4f6]">

@@ -1,0 +1,61 @@
+import LandingNav from '../components/LandingNav';
+import Footer from '../components/Footer';
+
+export default function RefundPage() {
+  return (
+    <div className="min-h-screen bg-[#17171c] text-[#f2f4f6]">
+      <LandingNav />
+      <main className="mx-auto max-w-3xl px-5 py-12 md:py-20">
+        <h1 className="mb-8 text-3xl font-bold">환불 정책 및 코드 소유권</h1>
+        <div className="prose prose-invert prose-sm max-w-none space-y-6 text-[#8b95a1] leading-relaxed [&_h2]:text-[#f2f4f6] [&_h2]:text-lg [&_h2]:font-bold [&_h2]:mt-8 [&_h2]:mb-3 [&_strong]:text-[#f2f4f6]">
+
+          <p className="text-xs text-[#6b7684]">시행일: 2026년 3월 21일</p>
+
+          {/* ── 환불 정책 ── */}
+          <h2>1. 크레딧 환불</h2>
+          <p>1. <strong>미사용 크레딧:</strong> 충전 후 7일 이내, 크레딧을 전혀 사용하지 않은 경우 전액 환불 가능합니다.</p>
+          <p>2. <strong>부분 사용:</strong> 충전 후 7일 이내에 일부 크레딧을 사용한 경우, 미사용 잔여 크레딧에 대해 환불합니다 (결제 수수료 10% 공제).</p>
+          <p>3. <strong>7일 경과:</strong> 충전 후 7일이 경과한 크레딧은 환불 불가합니다.</p>
+          <p>4. <strong>무료 크레딧:</strong> 회원가입 보너스 등 무료 지급된 크레딧은 환불 대상이 아닙니다.</p>
+
+          <h2>2. 호스팅 해지</h2>
+          <p>1. 호스팅은 월 단위 과금되며, 해지 신청 시 해당 월 말까지 서비스가 유지됩니다.</p>
+          <p>2. 해지 후 72시간 이내에 배포된 앱이 삭제됩니다.</p>
+          <p>3. 해지 전 코드 다운로드를 권장합니다 (다운로드 크레딧 별도).</p>
+          <p>4. 이미 결제된 월 호스팅 비용은 일할 환불하지 않습니다.</p>
+
+          <h2>3. 서비스 중도 해지</h2>
+          <p>1. 회원 탈퇴 시 미사용 크레딧은 위 환불 정책에 따라 처리됩니다.</p>
+          <p>2. 탈퇴 후 30일간 계정 복구가 가능하며, 이후 모든 데이터가 영구 삭제됩니다.</p>
+          <p>3. 호스팅 중인 앱은 탈퇴 즉시 중단됩니다.</p>
+
+          <h2>4. 환불 방법</h2>
+          <p>1. 환불 신청: 이메일(mark@serion.ai.kr)로 접수</p>
+          <p>2. 처리 기간: 신청일로부터 영업일 기준 5일 이내</p>
+          <p>3. 환불 수단: 원래 결제 수단으로 환불</p>
+
+          {/* ── 코드 소유권 ── */}
+          <div className="mt-12 rounded-2xl border border-[#3182f6]/30 bg-[#3182f6]/5 p-6">
+            <h2 className="!mt-0 text-[#3182f6]">5. 코드 소유권 보증</h2>
+            <p>Foundry는 생성된 코드에 대해 다음을 보증합니다:</p>
+            <p><strong>1. 100% 소유권:</strong> 서비스를 통해 생성된 모든 코드의 저작권 및 소유권은 이용자에게 귀속됩니다.</p>
+            <p><strong>2. 자유로운 사용:</strong> 이용자는 생성된 코드를 수정, 복제, 배포, 판매할 수 있습니다.</p>
+            <p><strong>3. 무제한 인수인계:</strong> ZIP 다운로드한 코드를 외주 개발자, 내부 개발팀 등 누구에게나 전달할 수 있습니다.</p>
+            <p><strong>4. 회사 무권리:</strong> 회사(서리온)는 이용자가 생성한 코드에 대해 어떠한 권리도 주장하지 않습니다.</p>
+          </div>
+
+          <h2>6. 면책 사항</h2>
+          <p>1. AI가 생성한 코드에 포함된 오픈소스 라이브러리는 해당 라이선스를 따릅니다 (MIT, Apache 2.0 등).</p>
+          <p>2. 생성된 코드의 버그, 보안 취약점에 대한 책임은 이용자에게 있습니다.</p>
+          <p>3. 생성된 코드를 이용한 서비스 운영에서 발생하는 법적 분쟁에 대해 회사는 책임지지 않습니다.</p>
+
+          <p className="mt-10 text-xs text-[#6b7684]">
+            시행일: 2026년 3월 21일<br />
+            서리온 대표: 김형석 | 이메일: mark@serion.ai.kr
+          </p>
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+}
