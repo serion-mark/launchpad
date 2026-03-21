@@ -273,6 +273,30 @@ export default nextConfig;
         throw new Error(`npm install 실패: ${stderr.slice(0, 200)}`);
       }
 
+      // ── Step 2.5: 빌드 전 자동 수정 ──
+      // TypeScript 패키지 보장
+      try {
+        execSync('npm install --save-dev typescript @types/react @types/node --legacy-peer-deps 2>&1', {
+          cwd: outputDir, timeout: 60000, stdio: 'pipe',
+        });
+        appendLog('TypeScript 패키지 설치 완료');
+      } catch { /* 이미 있으면 무시 */ }
+
+      // JSX가 포함된 .ts 파일을 .tsx로 리네임
+      const tsFiles = this.findFilesRecursive(outputDir, /\.ts$/);
+      for (const tsFile of tsFiles) {
+        if (tsFile.endsWith('.d.ts')) continue;
+        try {
+          const content = fs.readFileSync(tsFile, 'utf-8');
+          if (content.includes('<div') || content.includes('<span') || content.includes('<button') ||
+              content.includes('return (') || content.includes('React.FC') || content.includes('JSX')) {
+            const newPath = tsFile.replace(/\.ts$/, '.tsx');
+            fs.renameSync(tsFile, newPath);
+            appendLog(`JSX 파일 리네임: ${path.basename(tsFile)} → ${path.basename(newPath)}`);
+          }
+        } catch { /* 개별 파일 실패 무시 */ }
+      }
+
       // ── Step 3: next build (output: 'export') + F6 자동 수정 루프 ──
       await this.prisma.project.update({
         where: { id: projectId },
@@ -482,6 +506,22 @@ export default nextConfig;
     });
 
     return fixedCount;
+  }
+
+  /** 디렉토리에서 패턴 매칭 파일 재귀 탐색 */
+  private findFilesRecursive(dir: string, pattern: RegExp): string[] {
+    const results: string[] = [];
+    if (!fs.existsSync(dir)) return results;
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory() && entry.name !== 'node_modules' && entry.name !== '.next') {
+        results.push(...this.findFilesRecursive(fullPath, pattern));
+      } else if (entry.isFile() && pattern.test(entry.name)) {
+        results.push(fullPath);
+      }
+    }
+    return results;
   }
 
   /**
