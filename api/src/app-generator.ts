@@ -12,7 +12,10 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { Logger } from '@nestjs/common';
 import { LLMRouter } from './llm-router';
+
+const logger = new Logger('AppGenerator');
 
 interface TemplateConfig {
     id: string;
@@ -134,7 +137,7 @@ export class AppGenerator {
         fs.mkdirSync(outDir, { recursive: true });
 
         // ── Step 1: 아키텍처 설계 (Opus) ────────────────────
-        console.log('📐 Step 1: 아키텍처 설계...');
+        logger.log('Step 1: 아키텍처 설계...');
         const archResult = await this.llm.designArchitecture({
             templateId: params.templateId,
             selectedFeatures: params.selectedFeatures,
@@ -165,7 +168,7 @@ export class AppGenerator {
         totalCostUSD += archResult.estimatedCostUSD;
 
         // ── Step 2: DB 스키마 생성 (Sonnet) ─────────────────
-        console.log('🗄️ Step 2: DB 스키마 생성...');
+        logger.log('Step 2: DB 스키마 생성...');
         const dbModels = (architecture as any).dbModels || [];
         const schemaResult = await this.llm.generateSchema({ models: dbModels });
 
@@ -185,7 +188,7 @@ export class AppGenerator {
         totalCostUSD += schemaResult.estimatedCostUSD;
 
         // ── Step 3: 백엔드 API 생성 (Sonnet) ────────────────
-        console.log('⚙️ Step 3: 백엔드 API 생성...');
+        logger.log('Step 3: 백엔드 API 생성...');
         const apiEndpoints = (architecture as any).apiEndpoints || [];
         const modules = this.groupEndpointsByModule(apiEndpoints);
 
@@ -216,7 +219,7 @@ export class AppGenerator {
         }
 
         // ── Step 4: 프론트엔드 페이지 생성 (Sonnet) ─────────
-        console.log('🎨 Step 4: 프론트엔드 페이지 생성...');
+        logger.log('Step 4: 프론트엔드 페이지 생성...');
         const pages = (architecture as any).pages || [];
 
         for (const page of pages) {
@@ -244,7 +247,7 @@ export class AppGenerator {
             totalCostUSD += frontendResult.estimatedCostUSD;
         }
 
-        console.log(`✅ 생성 완료! 총 크레딧: ${totalCredits}, 예상 비용: $${totalCostUSD.toFixed(2)}`);
+        logger.log(`생성 완료! 총 크레딧: ${totalCredits}, 예상 비용: $${totalCostUSD.toFixed(2)}`);
 
         return {
             success: true,

@@ -491,9 +491,9 @@ export class AiService {
   }) {
     // 맛보기 체크 (freeTrialUsed가 false면 무료)
     const balance = await this.creditService.getBalance(userId);
-    const isFreeTria = !balance.freeTrialUsed;
+    const isFreeTrial = !balance.freeTrialUsed;
 
-    if (isFreeTria) {
+    if (isFreeTrial) {
       await this.creditService.deduct(userId, {
         action: 'free_trial',
         projectId: params.projectId,
@@ -555,7 +555,7 @@ export class AiService {
 
       return {
         architecture,
-        isFreeTrial: isFreeTria,
+        isFreeTriall: isFreeTrial,
         model: model.model,
         inputTokens: response.usage.input_tokens,
         outputTokens: response.usage.output_tokens,

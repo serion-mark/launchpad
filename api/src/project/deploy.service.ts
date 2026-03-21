@@ -13,7 +13,7 @@ const DEPLOY_DIR = path.resolve(process.env.DEPLOY_DIR || '/var/www/apps');
 /** 배포 도메인 */
 const DEPLOY_DOMAIN = process.env.DEPLOY_DOMAIN || 'foundry.ai.kr';
 /** 빌드 타임아웃 (ms) */
-const BUILD_TIMEOUT = 5 * 60 * 1000; // 5분
+const BUILD_TIMEOUT = parseInt(process.env.BUILD_TIMEOUT_MS || '', 10) || 5 * 60 * 1000;
 /** F6: 빌드 자동 수정 최대 시도 횟수 */
 const MAX_BUILD_FIX_ATTEMPTS = 3;
 
@@ -203,7 +203,7 @@ export default nextConfig;
         }
       }
     };
-    try { walk(dir); } catch { /* ignore */ }
+    try { walk(dir); } catch (e) { this.logger.warn(`파일 탐색 실패: ${dir} — ${e}`); }
     return content;
   }
 
@@ -301,7 +301,7 @@ export default nextConfig;
           cwd: outputDir, timeout: 60000, stdio: 'pipe',
         });
         appendLog('TypeScript 패키지 설치 완료');
-      } catch { /* 이미 있으면 무시 */ }
+      } catch (e) { this.logger.warn(`TypeScript 패키지 설치 실패 (무시): ${e}`); }
 
       // JSX가 포함된 .ts 파일을 .tsx로 리네임
       const tsFiles = this.findFilesRecursive(outputDir, /\.ts$/);
@@ -315,7 +315,7 @@ export default nextConfig;
             fs.renameSync(tsFile, newPath);
             appendLog(`JSX 파일 리네임: ${path.basename(tsFile)} → ${path.basename(newPath)}`);
           }
-        } catch { /* 개별 파일 실패 무시 */ }
+        } catch (e) { this.logger.warn(`JSX 리네임 실패: ${path.basename(tsFile)} — ${e}`); }
       }
 
       // 모든 페이지에서 서버 전용 기능 제거 (static export 호환)
@@ -346,7 +346,7 @@ export default nextConfig;
             fs.writeFileSync(file, content, 'utf-8');
             appendLog(`서버→클라이언트 전환: ${path.relative(outputDir, file)}`);
           }
-        } catch { /* 개별 파일 실패 무시 */ }
+        } catch (e) { this.logger.warn(`서버→클라이언트 전환 실패: ${path.relative(outputDir, file)} — ${e}`); }
       }
 
       // 동적 라우트 디렉토리 제거 (static export에서 generateStaticParams 없으면 빌드 실패)
@@ -482,6 +482,7 @@ export default nextConfig;
         },
       });
       appendLog('배포 완료!');
+      this.previousErrors = [];
 
     } catch (err: any) {
       log.push(`[ERROR] ${err.message}`);
@@ -493,6 +494,7 @@ export default nextConfig;
           buildFinishedAt: new Date(),
         },
       });
+      this.previousErrors = [];
     }
   }
 

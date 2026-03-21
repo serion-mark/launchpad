@@ -85,7 +85,7 @@ export class SupabaseService {
       organization_id: this.orgId,
       name: `foundry-${sanitizedName}`,
       db_pass: dbPass,
-      region: 'ap-northeast-1', // 도쿄 (한국 가장 가까움)
+      region: process.env.SUPABASE_REGION || 'ap-northeast-1',
     });
 
     // DB 비밀번호를 반환에 포함 (임시 저장용)

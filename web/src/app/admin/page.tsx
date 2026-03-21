@@ -246,10 +246,12 @@ export default function AdminPage() {
 
       <div className="mx-auto max-w-7xl px-5 py-6">
         {/* 탭 */}
-        <div className="flex gap-1.5 mb-6 overflow-x-auto">
+        <div className="flex gap-1.5 mb-6 overflow-x-auto" role="tablist">
           {tabs.map(t => (
             <button
               key={t.id}
+              role="tab"
+              aria-selected={tab === t.id}
               onClick={() => setTab(t.id)}
               className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors ${
                 tab === t.id ? 'bg-[#3182f6] text-white' : 'bg-[#2c2c35] text-[#8b95a1] hover:text-[#f2f4f6]'

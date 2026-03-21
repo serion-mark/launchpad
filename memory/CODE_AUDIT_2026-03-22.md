@@ -132,18 +132,29 @@
 ## 수정 작업 체크리스트
 
 ```
-[ ] C1. login useState → useEffect
-[ ] C2. Toss 키 환경변수 이동
-[ ] C3. previousErrors 초기화
-[ ] C4. rollback 엔드포인트 처리
-[ ] C5. console.log → Logger
-[ ] H1. admin 이메일 환경변수
-[ ] H2. 크레딧 차감 권한 검증
-[ ] H3. 빈 catch 블록 수정
-[ ] H4. isFreeTria 오타
-[ ] H5. 레거시 엔드포인트 정리
-[ ] H6. Kakao 이메일 검증
-[ ] M1~M12. 기술 부채 항목
+[x] C1. login useState → useEffect ✅ (2026-03-22)
+[x] C2. Toss 키 환경변수 이동 ✅ NEXT_PUBLIC_TOSS_CLIENT_KEY
+[x] C3. previousErrors 초기화 ✅ deploy 완료/실패 시 초기화
+[-] C4. rollback 엔드포인트 → 오탐 (project.service.ts에 구현 존재)
+[x] C5. console.log → Logger ✅ main.ts + app-generator.ts
+[x] H1. admin 이메일 환경변수 ✅ ADMIN_EMAILS 환경변수
+[x] H2. 크레딧 차감 권한 검증 ✅ projectId 소유자 검증 추가
+[x] H3. 빈 catch 블록 수정 ✅ deploy.service.ts 4곳 logger.warn 추가
+[x] H4. isFreeTria 오타 ✅ → isFreeTrial
+[x] H5. 레거시 엔드포인트 정리 ✅ /ai/modify 제거 (/ai/generate는 프론트 사용중 유지)
+[x] H6. Kakao 이메일 검증 ✅ kakao.foundry.ai.kr 도메인 + upsert
+[x] M5. ErrorBoundary ✅ 전역 레이아웃 적용
+[x] M6. 전역 에러 필터 ✅ AllExceptionsFilter 추가
+[x] M9. Supabase region 환경변수 ✅ SUPABASE_REGION
+[x] M10. 빌드 타임아웃 환경변수 ✅ BUILD_TIMEOUT_MS
+[x] M11. Apple 버튼 라벨 ✅ 'A' 텍스트 추가
+[x] M12. aria 속성 ✅ admin 탭 role="tab" + aria-selected
+[ ] M1. any 타입 정리 — 대규모 리팩토링, 추후 처리
+[ ] M2. 색상 토큰화 — 디자인 시스템 별도 작업
+[ ] M3. 중복 코드 추출 — 컴포넌트 리팩토링 별도 작업
+[ ] M4. execSync 비동기화 — 스케일업 시 전환
+[ ] M7. localStorage SSR 가드 — 'use client' 페이지라 실질 문제 없음
+[ ] M8. setTimeout 레이스 — 현재 동작에 영향 없음
 ```
 
 ---

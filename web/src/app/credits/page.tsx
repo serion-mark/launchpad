@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { authFetch, getUser } from '@/lib/api';
 
-const TOSS_CLIENT_KEY = 'test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq';
+const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || '';
 
 // ── 크레딧 패키지 ────────────────────────────────────
 const CREDIT_PACKAGES = [

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
@@ -13,14 +13,12 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   // 카카오 로그인 실패 시 에러 표시
-  useState(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const kakaoError = params.get('error');
-      if (kakaoError === 'kakao_denied') setError('카카오 로그인이 취소되었습니다');
-      else if (kakaoError === 'kakao_failed') setError('카카오 로그인에 실패했습니다. 다시 시도해주세요');
-    }
-  });
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const kakaoError = params.get('error');
+    if (kakaoError === 'kakao_denied') setError('카카오 로그인이 취소되었습니다');
+    else if (kakaoError === 'kakao_failed') setError('카카오 로그인에 실패했습니다. 다시 시도해주세요');
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,7 +169,7 @@ export default function LoginPage() {
                 <span className="text-sm font-bold">G</span>
               </button>
               <button disabled className="flex items-center justify-center rounded-xl bg-black py-3 text-white border border-[#2c2c35] opacity-40 cursor-not-allowed" title="준비 중">
-                <span className="text-sm font-bold"></span>
+                <span className="text-sm font-bold">A</span>
               </button>
             </div>
           </div>

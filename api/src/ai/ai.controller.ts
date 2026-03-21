@@ -36,19 +36,6 @@ export class AiController {
     return this.aiService.generateArchitecture(req.user.userId, body);
   }
 
-  // ── AI 코드 수정 (레거시) ─────────────────────────
-  @Post('modify')
-  modify(
-    @Req() req: any,
-    @Body() body: {
-      projectId: string;
-      instruction: string;
-      currentCode?: string;
-    },
-  ) {
-    return this.aiService.modifyCode(req.user.userId, body);
-  }
-
   // ══════════════════════════════════════════════════════
   // ── Sprint 2: 코드 생성 엔진 API ─────────────────────
   // ══════════════════════════════════════════════════════

@@ -1,12 +1,16 @@
-import { Controller, Get, Post, Body, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards, Req, ForbiddenException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { CreditService } from './credit.service';
+import { PrismaService } from '../prisma.service';
 import type { PackageId, CreditAction } from './credit.service';
 
 @Controller('credits')
 @UseGuards(AuthGuard('jwt'))
 export class CreditController {
-  constructor(private creditService: CreditService) {}
+  constructor(
+    private creditService: CreditService,
+    private prisma: PrismaService,
+  ) {}
 
   // ── 잔액 조회 ──────────────────────────────────────
   @Get('balance')
@@ -31,7 +35,7 @@ export class CreditController {
 
   // ── 크레딧 차감 (내부 호출용) ──────────────────────
   @Post('deduct')
-  deduct(
+  async deduct(
     @Req() req: any,
     @Body() body: {
       action: CreditAction;
@@ -41,6 +45,13 @@ export class CreditController {
       description?: string;
     },
   ) {
+    // projectId가 있으면 소유자 검증
+    if (body.projectId) {
+      const project = await this.prisma.project.findUnique({ where: { id: body.projectId } });
+      if (project && project.userId !== req.user.userId) {
+        throw new ForbiddenException('이 프로젝트에 대한 권한이 없습니다');
+      }
+    }
     return this.creditService.deduct(req.user.userId, body);
   }
 

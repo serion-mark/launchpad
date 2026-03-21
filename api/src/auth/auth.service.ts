@@ -103,8 +103,8 @@ export class AuthService {
     const kakaoId = String(userData.id);
     const nickname = userData.kakao_account?.profile?.nickname || userData.properties?.nickname || '사용자';
     const avatar = userData.kakao_account?.profile?.profile_image_url || userData.properties?.profile_image || null;
-    // 이메일은 비즈앱 전환 후 가능, 현재는 카카오ID 기반 가상 이메일
-    const email = userData.kakao_account?.email || `kakao_${kakaoId}@foundry.ai.kr`;
+    // 이메일은 비즈앱 전환 후 가능, 현재는 카카오ID 기반 가상 이메일 (도메인 분리로 충돌 방지)
+    const email = userData.kakao_account?.email || `kakao_${kakaoId}@kakao.foundry.ai.kr`;
 
     // 3) 기존 카카오 유저 찾기 (providerId 기준)
     let user = await this.prisma.user.findFirst({
@@ -120,9 +120,11 @@ export class AuthService {
           data: { provider: 'kakao', providerId: kakaoId, avatar: avatar || emailUser.avatar },
         });
       } else {
-        // 신규 가입
-        user = await this.prisma.user.create({
-          data: { email, name: nickname, avatar, provider: 'kakao', providerId: kakaoId },
+        // 신규 가입 (upsert로 레이스 컨디션 방지)
+        user = await this.prisma.user.upsert({
+          where: { email },
+          update: { provider: 'kakao', providerId: kakaoId, avatar },
+          create: { email, name: nickname, avatar, provider: 'kakao', providerId: kakaoId },
         });
       }
     }

@@ -3,8 +3,9 @@ import { AuthGuard } from '@nestjs/passport';
 import { AdminService } from './admin.service';
 import { PrismaService } from '../prisma.service';
 
-// 어드민 이메일 화이트리스트
-const ADMIN_EMAILS = ['admin@serion.ai.kr', 'mark@serion.ai.kr', 'mark@foundry.kr'];
+// 어드민 이메일 화이트리스트 (환경변수 우선, 쉼표 구분)
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'admin@serion.ai.kr,mark@serion.ai.kr,mark@foundry.kr')
+  .split(',').map(e => e.trim()).filter(Boolean);
 
 @Controller('admin')
 @UseGuards(AuthGuard('jwt'))
