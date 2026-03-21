@@ -125,3 +125,145 @@ export class ImageService {
 │ [빌더 열기]  [배포 URL]  [분석 보기]  │
 └─────────────────────────────────────┘
 ```
+
+---
+
+## AI 회의실 (/meeting) — Foundry 킬러 기능
+
+> 원래 독립 서비스(플랜 C)로 기획했으나, 브레인스토밍 중
+> "이거 Foundry에 넣으면?" 인사이트로 내장 기능으로 전환.
+> 결과: 추가 서버/도메인 0원, 고객·크레딧 공유, Lovable 차별점 확보.
+
+### 개요
+GenSpark 스타일의 멀티 AI 브레인스토밍 기능.
+하나의 주제에 대해 AI 3개가 각자 관점으로 분석하고 서로 토론.
+
+### 메뉴 구조
+```
+사이드바:
+🏠 홈
+🧠 AI 회의실 ← NEW
+🚀 앱 만들기
+🔨 내 프로젝트
+💰 크레딧
+📚 가이드
+```
+
+### 2단계 요금제
+
+**⚡ 스탠다드 회의 (300cr)**
+- Claude Sonnet + GPT-4o + Gemini Pro
+- 빠른 분석, 일반 브레인스토밍에 적합
+- 응답: ~15초
+
+**🔥 프리미엄 회의 (1,500cr)**
+- Claude Opus + GPT-o3 + Gemini Ultra
+- 최고급 AI 3개가 진지하게 토론
+- 사업계획서 평가, 중요한 결정에 추천
+- "비쌈... 그치만 정확함"
+- 응답: ~45초
+
+### AI 역할 (페르소나)
+```
+🔵 전략가 (Claude): 기술+전략 관점, 실행 가능성 중심
+🟢 분석가 (GPT): 시장+비즈니스 관점, 데이터 중심
+🔴 비평가 (Gemini): 리스크+반론 관점, 약점 집중 공격
+```
+
+### 핑퐁 로직 (핵심 구현)
+```typescript
+// api/src/ai/meeting.service.ts (새 파일)
+@Injectable()
+export class MeetingService {
+  async runMeeting(topic: string, tier: 'standard' | 'premium'): AsyncGenerator<MeetingEvent> {
+    const models = tier === 'standard'
+      ? { claude: 'sonnet', gpt: '4o', gemini: 'pro' }
+      : { claude: 'opus', gpt: 'o3', gemini: 'ultra' };
+
+    // Round 1: 각자 분석 (병렬 호출)
+    const [claudeResp, gptResp, geminiResp] = await Promise.all([
+      this.callClaude(topic, '전략가 관점으로 분석', models.claude),
+      this.callGPT(topic, '시장 분석가 관점으로 분석', models.gpt),
+      this.callGemini(topic, '비평가 관점으로 약점 집중', models.gemini),
+    ]);
+    yield { round: 1, type: 'individual', responses: [claudeResp, gptResp, geminiResp] };
+
+    // Round 2: AI끼리 토론 (순차 — 이전 답변을 컨텍스트로)
+    const debate1 = await this.callClaude(
+      `다른 AI들의 의견: \n분석가: ${gptResp}\n비평가: ${geminiResp}\n\n반박하거나 보완하세요.`,
+      '전략가', models.claude
+    );
+    const debate2 = await this.callGPT(
+      `전략가 반박: ${debate1}\n비평가 의견: ${geminiResp}\n\n추가 분석하세요.`,
+      '분석가', models.gpt
+    );
+    yield { round: 2, type: 'debate', responses: [debate1, debate2] };
+
+    // Round 3: 종합 보고서 (Haiku — 저렴하게 요약)
+    const summary = await this.callClaude(
+      `Round 1,2 전체 내용을 종합 보고서로 정리:\n${allResponses}`,
+      '종합', 'haiku'
+    );
+    yield { round: 3, type: 'summary', report: summary };
+  }
+}
+```
+
+### 빠른 시작 프리셋
+```
+/meeting 페이지 하단:
+[📋 사업계획서 평가]  → PDF 업로드 → 3개 AI가 점수+피드백
+[📊 시장 분석]       → 주제 입력 → 시장규모/경쟁/트렌드
+[💡 아이디어 검증]   → 아이디어 → 실현가능성/차별점/리스크
+[🎤 IR 피드백]      → 발표자료 → 투자자 관점 평가
+[⚔️ 경쟁사 분석]    → 경쟁사명 → 강점/약점/차별화 전략
+[🆓 자유 주제]      → 아무 주제나 AI 3개 토론
+```
+
+### "이걸로 앱 만들기" 연결
+```
+종합 보고서 하단:
+[📥 보고서 저장]  [🚀 이 분석으로 앱 만들기]
+                        ↓
+              /start로 이동 + 분석 결과가 컨텍스트로 자동 주입
+              → AI가 시장 데이터 기반으로 설계
+              → 품질 3배 향상 (대표 비법 자동화)
+```
+
+### 앱 생성 플로우 스마트 분석 (대표 비법 자동화)
+```
+질문지 완료 후:
+┌─────────────────────────────────────┐
+│ 🧠 AI 스마트 분석 (추천)             │
+│                                     │
+│ 앱 생성 전에 AI 3개가 자동으로:       │
+│ ✅ 시장 조사 (Gemini)               │
+│ ✅ 벤치마크 (GPT)                   │
+│ ✅ 설계 최적화 (Claude)              │
+│                                     │
+│ 스탠다드: 200cr / 프리미엄: 1,000cr  │
+│                                     │
+│ [🧠 스마트 분석 후 생성]             │
+│ [⚡ 바로 생성 (건너뛰기)]            │
+└─────────────────────────────────────┘
+
+내부 동작 (대표 비법 자동화):
+Step 1: Gemini → 유사 서비스 5개 조사 + 시장 규모 (= Gemini 딥리서치)
+Step 2: GPT → 유사 앱 UI 패턴 분석 (= 경쟁사 캡쳐 대체)
+Step 3: Claude → Step 1+2 받아서 아키텍처 설계 (= 컨텍스트 주입)
+→ 같은 프롬프트인데 결과 3배 (정보의 질이 다르니까)
+```
+
+### 전체 크레딧 소모 구조
+```
+기능                스탠다드    프리미엄
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AI 회의실            300cr     1,500cr
+사업계획서 평가       500cr     2,500cr
+스마트 분석           200cr     1,000cr
+앱 생성             3,000cr    10,000cr
+AI 수정              500cr     1,500cr
+이미지 생성           200cr       200cr
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+크레딧 소모 채널 6개 → Lovable(1개) 대비 ARPU 5배+
+```

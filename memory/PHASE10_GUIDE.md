@@ -208,3 +208,58 @@ Phase 9에서 80~90% 달성 후 추가:
   - `@babel/parser` 또는 `typescript` 컴파일러 API 사용
 - **TS 사전 컴파일**: `tsc --noEmit`을 빌드 전에 실행하여 타입 에러 선검출
 - **Fallback UI**: 빌드 실패해도 에러 화면 대신 → "자동 수정 중..." 표시 → Agent Mode 자동 실행
+
+---
+
+## 프로젝트 메모리 시스템 (세리온 MEMORY.md 패턴 적용)
+
+### 왜 필요한가
+대표가 Claude와 MEMORY.md로 세션 간 컨텍스트를 유지하는 것처럼,
+Foundry 고객도 다시 접속했을 때 AI가 이전 작업을 기억해야 한다.
+이것이 "도구"와 "동업자"의 차이.
+
+### DB 스키마
+```prisma
+model ProjectMemory {
+  id            String   @id @default(cuid())
+  projectId     String   @unique
+  project       Project  @relation(fields: [projectId], references: [id])
+  marketData    Json?    // 스마트 분석: 시장 조사 결과
+  benchmarkData Json?    // 스마트 분석: 벤치마크 결과
+  chatSummary   String?  // 대화 요약 (Haiku가 매 대화 후 자동 요약)
+  preferences   Json?    // 사용자 선호 자동 학습 { style, priority, tone }
+  modHistory    Json?    // 수정 히스토리 [{version, change, date}]
+  updatedAt     DateTime @updatedAt
+}
+
+model UserMemory {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id])
+  designPref    Json?    // 색상/폰트/레이아웃 선호 (모든 프로젝트 공통)
+  domain        String?  // 업종/분야 ("반려동물", "교육" 등)
+  meetingSummary String? // AI 회의실 히스토리 요약
+  updatedAt     DateTime @updatedAt
+}
+```
+
+### 메모리 자동 업데이트 로직
+```
+매 대화 끝 (자동):
+1. Haiku에게 "이 대화에서 기억할 것 3줄 요약" 요청 (비용: ~$0.0005)
+2. 기존 ProjectMemory.chatSummary + 새 요약 병합
+3. 사용자 선호 자동 감지 ("파란색으로 바꿔줘" → preferences.style 업데이트)
+4. DB 저장
+
+매 대화 시작 (자동):
+1. ProjectMemory + UserMemory 로드
+2. AI 시스템 프롬프트에 주입:
+   "이 사용자의 프로젝트: 펫돌봄 매칭앱, 파란색 선호, 매칭>리뷰>결제 우선순위.
+    지난 분석: 동네 기반이 핵심. 이 맥락으로 대화하세요."
+```
+
+### 적용 범위
+- 빌더 채팅: "아까 말한 기능" → AI가 기억
+- AI 회의실: 이전 분석 결과 이어서 진행
+- 스마트 분석: 2번째 앱 만들 때 첫 앱 경험 참고
+- 사업계획서 평가: 이전 평가 대비 개선점 집중 분석
