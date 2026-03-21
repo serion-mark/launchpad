@@ -231,4 +231,62 @@ export class SupabaseService {
       return { success: false, error: error.message };
     }
   }
+
+  /**
+   * Supabase Storage 버킷 생성 + RLS 정책 설정
+   * hasFileUpload === true인 프로젝트에서 자동 호출
+   */
+  async createStorageBucket(
+    projectRef: string,
+    bucketName: string = 'uploads',
+  ): Promise<{ success: boolean; error?: string }> {
+    if (!this.enabled || !projectRef) {
+      return { success: false, error: 'Supabase 미설정 또는 projectRef 없음' };
+    }
+
+    try {
+      // 1) Storage 버킷 생성 (공개 접근 허용)
+      await this.apiCall('POST', `/v1/projects/${projectRef}/storage/buckets`, {
+        id: bucketName,
+        name: bucketName,
+        public: true,
+        file_size_limit: 5242880, // 5MB
+        allowed_mime_types: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'],
+      });
+
+      // 2) Storage RLS 정책 — 인증 사용자 업로드/조회 허용
+      const storagePolicySql = `
+-- Storage RLS: 인증 사용자 파일 업로드 허용
+CREATE POLICY "Authenticated users can upload files"
+ON storage.objects FOR INSERT
+TO authenticated
+WITH CHECK (bucket_id = '${bucketName}');
+
+-- Storage RLS: 공개 읽기 허용
+CREATE POLICY "Public read access"
+ON storage.objects FOR SELECT
+TO public
+USING (bucket_id = '${bucketName}');
+
+-- Storage RLS: 본인 파일 삭제 허용
+CREATE POLICY "Users can delete own files"
+ON storage.objects FOR DELETE
+TO authenticated
+USING (bucket_id = '${bucketName}' AND auth.uid()::text = (storage.foldername(name))[1]);
+`;
+
+      await this.runMigration(projectRef, storagePolicySql);
+
+      this.logger.log(`✅ Storage 버킷 '${bucketName}' 생성 완료 (${projectRef})`);
+      return { success: true };
+    } catch (error: any) {
+      // 버킷이 이미 존재하면 무시
+      if (error.message?.includes('already exists') || error.message?.includes('409')) {
+        this.logger.log(`Storage 버킷 '${bucketName}' 이미 존재 — 건너뜀`);
+        return { success: true };
+      }
+      this.logger.error(`Storage 버킷 생성 실패: ${error.message}`);
+      return { success: false, error: error.message };
+    }
+  }
 }

@@ -119,6 +119,19 @@ const SCHEMA_SYSTEM_PROMPT = `당신은 Supabase PostgreSQL 전문가입니다.
 - 마크다운 문법(###, **, ✅ 등) 사용 금지
 - updated_at 자동 갱신 트리거 포함
 
+🟢 관계형 데이터 패턴 (반드시 적용):
+- 1:N 관계: FK 컬럼에 인덱스 자동 생성 (CREATE INDEX idx_orders_customer_id ON orders(customer_id))
+- N:M 관계: junction 테이블 사용 (복합 PK 또는 unique 제약조건)
+  예시: create table product_categories (
+    product_id uuid references products(id) on delete cascade,
+    category_id uuid references categories(id) on delete cascade,
+    primary key (product_id, category_id)
+  );
+- 상태 필드가 있으면 PostgreSQL enum 사용 (CREATE TYPE order_status AS ENUM('pending','confirmed','completed','cancelled'))
+- 집계용 컬럼 추가 (visit_count int default 0, total_amount numeric default 0 등 — 트리거로 자동 갱신)
+- 소프트 삭제: 중요 데이터는 deleted_at timestamptz nullable + is_active boolean default true
+- 복합 유니크: 비즈니스 규칙에 맞는 unique 제약조건 (예: UNIQUE(phone, shop_id))
+
 출력 예시:
 -- Users Profile (auth.users 확장)
 create table profiles (
@@ -213,6 +226,113 @@ const handleSelect = async (id: string) => {
 }
 // UI: selectedItem이 있으면 상세, 없으면 목록
 
+🟢 관계형 데이터 조회 패턴 (JOIN 대신 Supabase select 중첩):
+// 1:N 관계 조회 (주문 + 주문항목)
+const { data: orders } = await supabase
+  .from('orders')
+  .select('*, items:order_items(*, product:products(name, price))')
+  .eq('user_id', user.id)
+  .order('created_at', { ascending: false })
+
+// N:1 관계 조회 (예약 + 고객 + 스태프)
+const { data: reservations } = await supabase
+  .from('reservations')
+  .select('*, customer:customers(name, phone), staff:staff_members(name)')
+  .eq('user_id', user.id)
+
+// 집계 쿼리 (RPC 함수 호출)
+const { data } = await supabase.rpc('get_monthly_stats', { target_month: '2026-03' })
+
+// 필터 + 정렬 + 페이지네이션
+const { data, count } = await supabase
+  .from('products')
+  .select('*, category:categories(name)', { count: 'exact' })
+  .ilike('name', \`%\${search}%\`)
+  .order('created_at', { ascending: false })
+  .range(page * pageSize, (page + 1) * pageSize - 1)
+
+🟢 파일 업로드 패턴 (Supabase Storage):
+// 파일 업로드
+const handleUpload = async (file: File) => {
+  const ext = file.name.split('.').pop()
+  const path = \`\${user.id}/\${Date.now()}.\${ext}\`
+  const { error } = await supabase.storage.from('uploads').upload(path, file)
+  if (error) { alert('업로드 실패: ' + error.message); return null }
+  const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(path)
+  return publicUrl
+}
+// 이미지 미리보기 입력
+<input type="file" accept="image/*" onChange={async (e) => {
+  const file = e.target.files?.[0]
+  if (!file) return
+  const url = await handleUpload(file)
+  if (url) setImageUrl(url)
+}} />
+{imageUrl && <img src={imageUrl} alt="미리보기" className="w-32 h-32 object-cover rounded-lg" />}
+
+🟢 프로덕션 품질 패턴 (세리온 POS 검증):
+
+1. 데이터 변경 안전성 — 복수 테이블 변경 시 하나의 함수에서 순차 처리:
+const handleComplete = async () => {
+  setLoading(true)
+  try {
+    // 1) 메인 레코드 업데이트
+    const { error: e1 } = await supabase.from('orders').update({ status: 'completed' }).eq('id', orderId)
+    if (e1) throw e1
+    // 2) 관련 레코드 업데이트
+    const { error: e2 } = await supabase.from('customers').update({ visit_count: visitCount + 1 }).eq('id', customerId)
+    if (e2) throw e2
+    // 3) 성공 시 UI 갱신
+    await loadData()
+    alert('완료!')
+  } catch (err: any) {
+    alert('처리 실패: ' + (err.message || '알 수 없는 오류'))
+  } finally {
+    setLoading(false)
+  }
+}
+
+2. 상태 전이 — enum 기반 명시적 상태 머신:
+type OrderStatus = 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled'
+// 상태 변경 시 유효성 검사
+const STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+  pending: ['confirmed', 'cancelled'],
+  confirmed: ['in_progress', 'cancelled'],
+  in_progress: ['completed'],
+  completed: [],
+  cancelled: [],
+}
+
+3. RBAC 필터링 — role 기반 데이터 접근:
+// 관리자: 전체 데이터, 일반: 본인 데이터만
+const query = supabase.from('orders').select('*')
+if (userRole !== 'admin') {
+  query.eq('user_id', user.id)
+}
+const { data } = await query.order('created_at', { ascending: false })
+
+4. 에러 표시 — 일관된 토스트/알림 패턴:
+const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+// 사용: setToast({ message: '저장 완료', type: 'success' })
+// 3초 후 자동 닫기: useEffect(() => { if (toast) setTimeout(() => setToast(null), 3000) }, [toast])
+
+5. 입력 검증 — 제출 전 클라이언트 검증:
+const validate = (): string | null => {
+  if (!name.trim()) return '이름을 입력하세요'
+  if (!phone.match(/^01[0-9]{8,9}$/)) return '올바른 전화번호를 입력하세요'
+  if (price < 0) return '가격은 0 이상이어야 합니다'
+  return null
+}
+const handleSubmit = async () => {
+  const err = validate()
+  if (err) { setToast({ message: err, type: 'error' }); return }
+  // ... 저장 로직
+}
+
+6. 로딩/빈 상태 — 모든 데이터 페이지에 로딩+빈 상태 UI 필수:
+if (loading) return <div className="flex justify-center py-20"><div className="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full"/></div>
+if (items.length === 0) return <div className="text-center py-20 text-gray-400">데이터가 없습니다</div>
+
 ⚠️ 코드 출력 규칙:
 - 절대 마크다운 코드 블록(\`\`\`) 사용 금지! 순수 코드만 출력
 - ###, ##, **, ✅, ❌, 📌 등 마크다운/이모지 문법 금지
@@ -268,12 +388,21 @@ const GENERATE_SYSTEM_PROMPT = `당신은 Foundry AI MVP 빌더의 아키텍처 
   "appName": "앱 이름",
   "description": "한줄 설명",
   "pages": [{ "path": "/xxx", "name": "페이지명", "description": "설명", "components": ["컴포넌트1"] }],
-  "dbTables": [{ "name": "table_name", "fields": [{ "name": "field_name", "type": "uuid|text|int4|timestamptz|boolean|jsonb", "optional": false, "references": "other_table(id)" }] }],
+  "dbTables": [{ "name": "table_name", "fields": [{ "name": "field_name", "type": "uuid|text|int4|numeric|timestamptz|boolean|jsonb", "optional": false, "references": "other_table(id)" }] }],
+  "relations": [{ "from": "orders", "to": "customers", "type": "N:1", "fk": "customer_id" }],
   "features": ["기능1", "기능2"],
   "estimatedPages": 5,
   "hasAuth": true,
-  "hasFileUpload": false
-}`;
+  "hasFileUpload": false,
+  "hasChatbot": true
+}
+
+관계 설계 규칙:
+- 1:N 관계가 있으면 반드시 relations 배열에 명시
+- N:M 관계는 junction 테이블을 dbTables에 추가하고 relations에 두 개의 N:1로 표현
+- 상품+카테고리, 주문+상품, 예약+서비스 등 비즈니스 관계를 누락 없이 설계
+- hasFileUpload: 이미지/파일 업로드가 필요한 기능이 하나라도 있으면 true
+- hasChatbot: FAQ나 고객 안내가 필요한 서비스형 앱이면 true`;
 
 @Injectable()
 export class AiService {
@@ -729,6 +858,26 @@ ${JSON.stringify(dbTables, null, 2)}
         }
       } else {
         this.logger.log(`[${params.projectId}] Supabase 프로비저닝 건너뜀 (미설정)`);
+      }
+
+      // ── Step 2.6: Supabase Storage 버킷 생성 (파일 업로드 필요 시) ──
+      if (architecture.hasFileUpload && this.supabaseService.isEnabled()) {
+        const projectRef = await this.prisma.project.findUnique({
+          where: { id: params.projectId },
+          select: { supabaseProjectRef: true },
+        });
+        if (projectRef?.supabaseProjectRef) {
+          this.logger.log(`[${params.projectId}] Step 2.6: Storage 버킷 생성`);
+          const storageResult = await this.supabaseService.createStorageBucket(
+            projectRef.supabaseProjectRef,
+            'uploads',
+          );
+          if (storageResult.success) {
+            this.logger.log(`[${params.projectId}] ✅ Storage 버킷 생성 완료`);
+          } else {
+            this.logger.warn(`[${params.projectId}] ⚠️ Storage 버킷 생성 실패: ${storageResult.error}`);
+          }
+        }
       }
 
       // ── Step 3: 프론트엔드 페이지 생성 (Supabase 연동) ──
@@ -1645,6 +1794,62 @@ export function createClient() {
   )
 }`,
       },
+      {
+        path: 'src/hooks/useFileUpload.ts',
+        content: `'use client';
+
+import { useState } from 'react';
+import { createClient } from '@/utils/supabase/client';
+
+interface UploadResult {
+  url: string;
+  path: string;
+}
+
+export function useFileUpload(bucket: string = 'uploads') {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const supabase = createClient();
+
+  const upload = async (file: File, folder?: string): Promise<UploadResult | null> => {
+    setUploading(true);
+    setError(null);
+
+    try {
+      const ext = file.name.split('.').pop();
+      const fileName = Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+      const path = folder ? folder + '/' + fileName : fileName;
+
+      const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(path, file, { upsert: true });
+
+      if (uploadError) {
+        setError(uploadError.message);
+        return null;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(path);
+
+      return { url: publicUrl, path };
+    } catch (err: any) {
+      setError(err.message || '업로드 실패');
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const remove = async (path: string): Promise<boolean> => {
+    const { error } = await supabase.storage.from(bucket).remove([path]);
+    return !error;
+  };
+
+  return { upload, remove, uploading, error };
+}`,
+      },
       // Static Export에서는 server.ts, middleware.ts 불필요 → 생성하지 않음
     ];
   }
@@ -1917,6 +2122,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         path: 'src/app/layout.tsx',
         content: `import type { Metadata } from 'next';
 import './globals.css';
+${architecture.hasChatbot ? "import ChatBot from '@/components/ChatBot';" : ''}
 
 export const metadata: Metadata = {
   title: '${appName}',
@@ -1926,7 +2132,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
-      <body className="min-h-screen bg-gray-50 antialiased">{children}</body>
+      <body className="min-h-screen bg-gray-50 antialiased">
+        {children}
+        ${architecture.hasChatbot ? '<ChatBot />' : ''}
+      </body>
     </html>
   );
 }`,
@@ -2010,6 +2219,170 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
       <main className="flex-1 overflow-auto">{children}</main>
+    </div>
+  );
+}`,
+      },
+      // 챗봇 컴포넌트 (hasChatbot === true 시 자동 포함)
+      ...this.generateChatBotComponent(architecture),
+    ];
+  }
+
+  /** 고객 앱 챗봇 컴포넌트 생성 */
+  private generateChatBotComponent(architecture: any): { path: string; content: string }[] {
+    if (!architecture.hasChatbot) return [];
+
+    const appName = architecture.appName || 'My App';
+    const description = architecture.description || '';
+    const pages = architecture.pages || [];
+
+    // 페이지 기반 FAQ 자동 생성
+    const faqItems = pages
+      .filter((p: any) => !['/login', '/signup', '/auth'].includes(p.path))
+      .map((p: any) => `  { q: '${p.name} 기능은 어떻게 사용하나요?', a: '${(p.description || p.name + ' 페이지에서 이용하실 수 있습니다.').replace(/'/g, "\\'")}' }`)
+      .slice(0, 6);
+
+    return [
+      {
+        path: 'src/components/ChatBot.tsx',
+        content: `'use client';
+
+import { useState, useRef, useEffect } from 'react';
+
+interface Message {
+  id: string;
+  role: 'user' | 'bot';
+  content: string;
+}
+
+const FAQ = [
+  { q: '${appName}은 어떤 서비스인가요?', a: '${(description || appName + '은(는) 편리하게 이용할 수 있는 서비스입니다.').replace(/'/g, "\\'")}' },
+${faqItems.join(',\n')},
+  { q: '문의하고 싶어요', a: '하단의 입력창에 질문을 입력해주세요. 빠른 시일 내 답변 드리겠습니다.' },
+];
+
+const QUICK_BUTTONS = ['서비스 소개', '사용 방법', '문의하기'];
+
+export default function ChatBot() {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([
+    { id: '0', role: 'bot', content: '안녕하세요! ${appName}입니다. 무엇을 도와드릴까요?' },
+  ]);
+  const [input, setInput] = useState('');
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight);
+  }, [messages]);
+
+  const addBotMessage = (content: string) => {
+    setMessages(prev => [...prev, {
+      id: Date.now().toString(),
+      role: 'bot',
+      content,
+    }]);
+  };
+
+  const handleSend = () => {
+    const text = input.trim();
+    if (!text) return;
+
+    setMessages(prev => [...prev, {
+      id: Date.now().toString(),
+      role: 'user',
+      content: text,
+    }]);
+    setInput('');
+
+    const match = FAQ.find(f =>
+      text.includes(f.q.slice(0, 4)) ||
+      f.q.toLowerCase().includes(text.toLowerCase()) ||
+      text.toLowerCase().includes(f.q.toLowerCase().slice(0, 6))
+    );
+
+    setTimeout(() => {
+      if (match) {
+        addBotMessage(match.a);
+      } else {
+        addBotMessage('문의해 주셔서 감사합니다. 담당자가 확인 후 답변 드리겠습니다.');
+      }
+    }, 500);
+  };
+
+  const handleQuick = (text: string) => {
+    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', content: text }]);
+    setTimeout(() => {
+      if (text === '서비스 소개') addBotMessage(FAQ[0].a);
+      else if (text === '사용 방법') addBotMessage('메뉴에서 원하는 기능을 선택하시면 됩니다. 각 페이지에서 상세 안내를 확인하실 수 있어요.');
+      else addBotMessage('하단 입력창에 궁금한 점을 입력해주세요!');
+    }, 500);
+  };
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-all hover:scale-105 flex items-center justify-center text-2xl"
+        aria-label="챗봇 열기"
+      >
+        \\u{1F4AC}
+      </button>
+    );
+  }
+
+  return (
+    <div className="fixed bottom-6 right-6 z-50 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col" style={{ height: '480px' }}>
+      <div className="flex items-center justify-between px-4 py-3 bg-blue-600 text-white rounded-t-2xl">
+        <span className="font-semibold text-sm">${appName} 도우미</span>
+        <button onClick={() => setOpen(false)} className="text-white/80 hover:text-white text-lg">\\u2715</button>
+      </div>
+
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-2">
+        {messages.map(m => (
+          <div key={m.id} className={\\\`flex \\\${m.role === 'user' ? 'justify-end' : 'justify-start'}\\\`}>
+            <div className={\\\`max-w-[80%] px-3 py-2 rounded-xl text-sm \\\${
+              m.role === 'user'
+                ? 'bg-blue-600 text-white rounded-br-sm'
+                : 'bg-gray-100 text-gray-800 rounded-bl-sm'
+            }\\\`}>
+              {m.content}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {messages.length <= 2 && (
+        <div className="px-3 pb-2 flex flex-wrap gap-1.5">
+          {QUICK_BUTTONS.map(btn => (
+            <button
+              key={btn}
+              onClick={() => handleQuick(btn)}
+              className="px-3 py-1.5 text-xs bg-blue-50 text-blue-700 rounded-full hover:bg-blue-100 transition-colors"
+            >
+              {btn}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="p-3 border-t border-gray-100">
+        <div className="flex gap-2">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            placeholder="메시지를 입력하세요..."
+            className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <button
+            onClick={handleSend}
+            disabled={!input.trim()}
+            className="px-3 py-2 bg-blue-600 text-white rounded-xl text-sm hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            전송
+          </button>
+        </div>
+      </div>
     </div>
   );
 }`,
