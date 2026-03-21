@@ -55,6 +55,30 @@ export const QUESTIONNAIRES: Record<string, Question[]> = {
     { id: 'features', question: '필요한 기능은?', chips: ['시설 예약 (회의실/주차)', '관리비 청구/수납', '전화 민원 자동 기록', '알림톡 (공지/민원)', '만족도 조사', '민원 현황 대시보드'], multi: true },
     { id: 'pain', question: '가장 해결하고 싶은 문제는?', chips: ['전화 민원이 너무 많아요', '민원 처리 추적이 안 돼요', '공지 전달이 어려워요', '관리비 수납이 번거로워요'], multi: true },
   ],
+  'local-commerce': [
+    { id: 'biz_name', question: '매장(브랜드) 이름이 뭔가요?', chips: ['○○ 농장', '해녀의집', '산지직송 ○○'] },
+    { id: 'product_type', question: '어떤 상품을 판매하세요?', chips: ['수산물/해산물', '농산물/과일', '축산물/유제품', '수공예/특산품', '전통식품/장류'], multi: true },
+    { id: 'sales_method', question: '판매 방식은?', chips: ['온라인 직판 (택배)', '현장 판매 (가판대/장터)', '구독형 정기배송', '체험 관광 + 판매'], multi: true },
+    { id: 'delivery', question: '배송 방식은?', chips: ['택배 (일반)', '당일 배송', '새벽 배송', '직접 수령', '냉장/냉동 특수배송'], multi: true },
+    { id: 'features', question: '필요한 기능은?', chips: ['상품 관리', '주문/결제', '배송 추적', '리뷰/평점', '생산자 소개', '체험 예약', '정기구독 관리'], multi: true },
+    { id: 'pain', question: '가장 해결하고 싶은 문제는?', chips: ['온라인 판매 채널이 없어요', '주문 관리가 복잡해요', '배송 관리가 어려워요', '단골 고객 관리가 안 돼요'], multi: true },
+  ],
+  'healthcare': [
+    { id: 'biz_name', question: '서비스 이름이 뭔가요?', chips: ['하루습관', '헬스메이트', '○○ 트래커'] },
+    { id: 'health_type', question: '어떤 건강 관리를 하시나요?', chips: ['복약 관리', '운동/피트니스', '식단/영양', '수면 관리', '정신건강/명상', '만성질환 관리'], multi: true },
+    { id: 'tracking', question: '어떤 데이터를 기록하나요?', chips: ['일일 체크리스트', '수치 기록 (혈압/체중/혈당)', '사진 기록', '타이머/스톱워치'], multi: true },
+    { id: 'motivation', question: '동기부여 방식은?', chips: ['연속 달성 스트릭', '목표 달성 배지', '랭킹/리더보드', '리마인더 알림', '통계 리포트'], multi: true },
+    { id: 'features', question: '필요한 기능은?', chips: ['습관 체크리스트', '통계/차트', '목표 설정', '알림/리마인더', '커뮤니티', '전문가 상담'], multi: true },
+    { id: 'pain', question: '가장 해결하고 싶은 문제는?', chips: ['꾸준히 기록하기 어려워요', '동기부여가 안 돼요', '데이터를 한눈에 보고 싶어요', '전문가 조언이 필요해요'], multi: true },
+  ],
+  'matching': [
+    { id: 'biz_name', question: '서비스 이름이 뭔가요?', chips: ['○○ 매칭', '전문가 찾기', '견적비교'] },
+    { id: 'service_field', question: '어떤 분야의 전문가를 매칭하나요?', chips: ['인테리어/리모델링', '이사/청소', '법률/세무', '디자인/개발', '교육/과외', '기타 전문 서비스'], multi: true },
+    { id: 'matching_method', question: '매칭 방식은?', chips: ['고객 견적 요청 → 전문가 입찰', '고객이 전문가 리스트에서 선택', '자동 매칭 (조건 기반)'] },
+    { id: 'payment_method', question: '결제 방식은?', chips: ['플랫폼 결제 (에스크로)', '전문가에게 직접 결제', '현장 결제', '무료 (중개만)'] },
+    { id: 'features', question: '필요한 기능은?', chips: ['전문가 프로필/포트폴리오', '견적 요청/비교', '1:1 채팅', '리뷰/평점', '자동 매칭', '정산 관리'], multi: true },
+    { id: 'pain', question: '가장 해결하고 싶은 문제는?', chips: ['좋은 전문가 찾기 어려워요', '견적 비교가 번거로워요', '전문가 신뢰도 판단이 안 돼요', '정산이 복잡해요'], multi: true },
+  ],
   'custom': [
     { id: 'biz_name', question: '앱 이름을 정해주세요!', chips: ['마이앱', '○○ 관리', '○○ 도우미'] },
     { id: 'app_description', question: '어떤 앱을 만들고 싶으세요? 자유롭게 설명해주세요!', chips: ['포모도로 타이머', '가계부/지출관리', '할일 관리(투두)', '독서 기록', '커뮤니티/게시판', '블로그/포트폴리오'] },
@@ -120,6 +144,15 @@ export function getFeatLabel(templateId: string, industry: string): Record<strin
     'complaint': '📞 민원', 'tenant': '🏠 입주민', 'notice': '📢 공지',
     'maintenance': '🔧 보수', 'facility-booking': '🏢 시설예약',
     'billing': '💰 관리비', 'phone-log': '📞 전화기록', 'satisfaction': '😊 만족도',
+    // 지역커머스
+    'product-mgmt': '🛍 상품관리', 'producer': '👨‍🌾 생산자', 'subscription': '📦 정기구독',
+    'experience': '🎪 체험예약', 'local-delivery': '🚛 배송관리',
+    // 헬스케어
+    'habit': '✅ 습관체크', 'medication': '💊 복약관리', 'health-stats': '📊 건강통계',
+    'goal': '🎯 목표설정', 'streak': '🔥 스트릭', 'reminder': '⏰ 리마인더',
+    // 전문가매칭
+    'expert-profile': '👨‍💼 전문가프로필', 'request': '📝 견적요청',
+    'estimate': '💰 견적비교', 'portfolio': '📁 포트폴리오',
     // 범용
     'custom-app': '🚀 홈', 'auth': '🔑 인증', 'crud': '📋 데이터',
     'search': '🔍 검색', 'chart': '📈 차트', 'file-upload': '📎 파일',

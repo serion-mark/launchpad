@@ -254,7 +254,7 @@ export default function PortfolioPage() {
 
                 {/* CTA */}
                 <a
-                  href="/start"
+                  href={`/start?template=${app.template}`}
                   className="mt-5 block rounded-xl bg-[#3182f6] py-3 text-center text-sm font-bold text-white hover:bg-[#1b64da] transition-colors"
                 >
                   이 앱 만들어보기 &rarr;

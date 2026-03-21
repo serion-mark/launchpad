@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { authFetch, getUser } from '@/lib/api';
 
 // ── 템플릿 데이터 ──────────────────────────────────────
@@ -688,7 +689,17 @@ const THEMES = [
   { id: 'minimal-swiss', name: '미니멀 스위스', tier: 'premium', credits: 800, description: '스위스 디자인 타이포그래피', preview: { bg: 'bg-white', accent: 'bg-red-500', style: '타이포 / 아트' } },
 ];
 
-export default function StartPage() {
+// Suspense 래퍼 (useSearchParams는 Suspense 필요)
+export default function StartPageWrapper() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#0f0f14]"><div className="animate-spin h-8 w-8 border-b-2 border-blue-500 rounded-full" /></div>}>
+      <StartPage />
+    </Suspense>
+  );
+}
+
+function StartPage() {
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>('select-template');
   const [selectedTemplate, setSelectedTemplate] = useState<typeof TEMPLATES[0] | null>(null);
   const [selectedFeatures, setSelectedFeatures] = useState<Set<string>>(new Set());
@@ -708,6 +719,17 @@ export default function StartPage() {
     setAnswers({});
     setStep('questionnaire');
   };
+
+  // URL ?template= 파라미터로 템플릿 자동 선택 (포트폴리오에서 진입 시)
+  useEffect(() => {
+    const templateId = searchParams.get('template');
+    if (templateId && !selectedTemplate) {
+      const template = TEMPLATES.find(t => t.id === templateId);
+      if (template) {
+        handleSelectTemplate(template);
+      }
+    }
+  }, [searchParams]);
 
   const handleAnswer = (questionId: string, value: string, type: QuestionType, featureMap?: string[]) => {
     setAnswers(prev => {
