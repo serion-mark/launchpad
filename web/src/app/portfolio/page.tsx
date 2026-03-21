@@ -4,7 +4,7 @@ import { useState } from 'react';
 import LandingNav from '../components/LandingNav';
 import Footer from '../components/Footer';
 
-const CATEGORIES = ['전체', '뷰티/미용', 'O2O 매칭', '에듀테크', '쇼핑몰', '시설관리'];
+const CATEGORIES = ['전체', '뷰티/미용', 'O2O 매칭', '에듀테크', '쇼핑몰', '시설관리', '지역특산품', '전문가매칭', '헬스케어', '소셜/매칭', '스마트팜'];
 
 const APPS = [
   {
@@ -18,6 +18,7 @@ const APPS = [
     genTime: '약 3분',
     credits: '2,300',
     highlight: '디자이너 5명 규모 미용실에 최적화. 예약↔매출 자동 연동.',
+    badge: '지역',
   },
   {
     name: '펫메이트',
@@ -30,6 +31,7 @@ const APPS = [
     genTime: '약 3분',
     credits: '3,100',
     highlight: '자동 매칭 + 위치 기반 검색. 수수료 자동 정산.',
+    badge: '테크',
   },
   {
     name: '코드잇 LMS',
@@ -42,6 +44,7 @@ const APPS = [
     genTime: '약 3분',
     credits: '2,800',
     highlight: '영상 강의 + 퀴즈 자동채점. 수강생 248명 관리 중.',
+    badge: '테크',
   },
   {
     name: '트렌드샵',
@@ -54,6 +57,7 @@ const APPS = [
     genTime: '약 3분',
     credits: '2,500',
     highlight: '모바일 최적화 UI. 쿠폰 + 위시리스트 기본 포함.',
+    badge: '지역',
   },
   {
     name: '하나관리',
@@ -66,6 +70,72 @@ const APPS = [
     genTime: '약 3분',
     credits: '2,700',
     highlight: '342세대 아파트 운영. 민원 처리율 92%.',
+    badge: '지역',
+  },
+  {
+    name: '백설공주 사과농장',
+    category: '지역특산품',
+    icon: '🍎',
+    template: 'local-commerce',
+    desc: '영주 사과 산지직송몰. 농장 소개, 정기배송, 체험 예약까지.',
+    features: ['산지직송 주문', '농장 소개', '정기배송/구독', '체험 예약', '쿠폰/기획전', '상품 후기'],
+    techStack: 'Next.js + Supabase + PostgreSQL',
+    genTime: '약 3분',
+    credits: '2,600',
+    highlight: '귀농 청년 사과농장. 산지직송 + 농장체험 예약 원스톱.',
+    badge: '지역',
+  },
+  {
+    name: '매칭히어로',
+    category: '전문가매칭',
+    icon: '🔧',
+    template: 'matching',
+    desc: '전문가 매칭 플랫폼. 인테리어/이사/과외 등 견적 요청 & 매칭.',
+    features: ['견적 요청', '전문가 프로필', '자동 매칭', '1:1 채팅', '리뷰/평점', '수수료 정산'],
+    techStack: 'Next.js + Supabase + PostgreSQL',
+    genTime: '약 3분',
+    credits: '3,000',
+    highlight: '숨고 스타일. 카테고리별 전문가 3만명+ 규모 설계.',
+    badge: '테크',
+  },
+  {
+    name: '하루습관',
+    category: '헬스케어',
+    icon: '💊',
+    template: 'healthcare',
+    desc: '복약/운동/식단 습관 트래커. 기록하고 통계로 확인하세요.',
+    features: ['습관 기록', '복약 리마인더', '운동/식단 로그', '통계 차트', '목표 설정', '주간 리포트'],
+    techStack: 'Next.js + Supabase + PostgreSQL',
+    genTime: '약 3분',
+    credits: '2,400',
+    highlight: '삐약이 스타일. GLP-1 다이어트 관리에도 활용 가능.',
+    badge: '테크',
+  },
+  {
+    name: '취미모아',
+    category: '소셜/매칭',
+    icon: '💕',
+    template: 'custom',
+    desc: '취미 기반 동호회 매칭. 등산/러닝/독서 등 관심사로 연결.',
+    features: ['프로필 생성', '취미 매칭', '그룹 채팅', '모임 일정', '동호회 관리', '오프라인 모임'],
+    techStack: 'Next.js + Supabase + PostgreSQL',
+    genTime: '약 3분',
+    credits: '2,800',
+    highlight: '시니어 동호회, 지역 소모임에 최적. 5060 세대 블루오션.',
+    badge: '테크',
+  },
+  {
+    name: '팜투홈',
+    category: '스마트팜',
+    icon: '🌿',
+    template: 'local-commerce',
+    desc: '농장 직판몰 + 체험 예약. 소비자에게 직접 판매하세요.',
+    features: ['농산물 직판', '체험 예약', '정기배송', '농장 소개', '후기/사진', '주문 관리'],
+    techStack: 'Next.js + Supabase + PostgreSQL',
+    genTime: '약 3분',
+    credits: '2,500',
+    highlight: '귀농귀촌 청년 필수. 농장→소비자 직거래 플랫폼.',
+    badge: '지역',
   },
 ];
 
@@ -109,7 +179,10 @@ export default function PortfolioPage() {
           {filtered.map(app => (
             <div key={app.name} className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] overflow-hidden hover:border-[#3182f6]/30 transition-colors flex flex-col">
               {/* 헤더 */}
-              <div className="bg-gradient-to-br from-[#3182f6]/10 to-[#a855f7]/10 p-8 text-center">
+              <div className="bg-gradient-to-br from-[#3182f6]/10 to-[#a855f7]/10 p-8 text-center relative">
+                {app.badge && (
+                  <span className={`absolute top-3 right-3 rounded-full px-2.5 py-0.5 text-[10px] font-bold ${app.badge === '지역' ? 'bg-[#30d158]/10 text-[#30d158]' : 'bg-[#a855f7]/10 text-[#a855f7]'}`}>{app.badge}</span>
+                )}
                 <div className="text-5xl mb-3">{app.icon}</div>
                 <h3 className="text-xl font-bold">{app.name}</h3>
                 <span className="mt-1 inline-block rounded-full bg-[#2c2c35] px-3 py-0.5 text-xs text-[#8b95a1]">{app.category}</span>

@@ -2,12 +2,14 @@
 
 import LandingNav from './components/LandingNav';
 import Footer from './components/Footer';
+import ChatWidget from './components/ChatWidget';
 
-// ── 포트폴리오 예시 데이터 ──
+// ── 포트폴리오 예시 데이터 (대표 4개) ──
 const PORTFOLIO_ITEMS = [
-  { name: '헤어드림 POS', category: '미용실', icon: '✂️', desc: '예약 + 매출 + 고객CRM + 디자이너 정산', time: '~3분', features: ['예약관리', '매출통계', '알림톡'] },
-  { name: '펫메이트', category: 'O2O 매칭', icon: '🐾', desc: '반려동물 돌봄 매칭 + 실시간 상태 추적', time: '~3분', features: ['매칭시스템', '실시간추적', '리뷰'] },
-  { name: '코드잇 LMS', category: '에듀테크', icon: '🎓', desc: '온라인 강의 + 수강생 관리 + 퀴즈/시험', time: '~3분', features: ['강의관리', '진도추적', '수료증'] },
+  { name: '헤어드림 POS', category: '미용실', icon: '✂️', desc: '예약 + 매출 + 고객CRM + 디자이너 정산', time: '~3분', features: ['예약관리', '매출통계', '알림톡'], badge: '지역' },
+  { name: '펫메이트', category: 'O2O 매칭', icon: '🐾', desc: '반려동물 돌봄 매칭 + 실시간 상태 추적', time: '~3분', features: ['매칭시스템', '실시간추적', '리뷰'], badge: '테크' },
+  { name: '백설공주 사과농장', category: '지역특산품', icon: '🍎', desc: '산지직송 농산물몰 + 정기배송 + 체험예약', time: '~3분', features: ['산지직송', '정기배송', '체험예약'], badge: '지역' },
+  { name: '취미모아', category: '소셜/매칭', icon: '💕', desc: '취미 기반 동호회 매칭 + 모임 관리', time: '~3분', features: ['프로필매칭', '그룹채팅', '모임일정'], badge: '테크' },
 ];
 
 // ── 가격 패키지 ──
@@ -34,25 +36,25 @@ export default function LandingPage() {
             정부지원사업 창업자를 위한 AI MVP 빌더
           </div>
           <h1 className="mb-6 text-4xl md:text-[60px] font-extrabold leading-[1.1] tracking-tight">
-            <span className="text-[#3182f6]">30만원</span>으로<br />
-            작동하는 MVP를 만드세요
+            아이디어만 있으면 됩니다.<br />
+            <span className="text-[#3182f6]">나머지는 AI가 만들어 드립니다.</span>
           </h1>
           <p className="mx-auto mb-10 max-w-2xl text-lg md:text-xl text-[#8b95a1] leading-relaxed">
-            외주 3,000만원 &rarr; Foundry 30만원. AI가 풀스택 앱을 자동 생성합니다.<br className="hidden md:block" />
-            기획서 100장보다, <b className="text-[#f2f4f6]">작동하는 MVP 1개</b>가 가장 완벽한 기획서입니다.
+            개발자 없이, 질문에 답하기만 하면 작동하는 앱이 완성됩니다.<br className="hidden md:block" />
+            외주 3,000만원 &rarr; <b className="text-[#f2f4f6]">Foundry 30만원</b>. 기획서 100장보다 작동하는 앱 1개.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <a
               href="/start"
               className="rounded-2xl bg-[#3182f6] px-10 py-4 text-lg font-bold text-white hover:bg-[#1b64da] transition-colors shadow-lg shadow-[#3182f6]/25"
             >
-              지금 무료로 시작하기 &rarr;
+              지금 무료로 체험하기 &rarr;
             </a>
             <a
               href="/portfolio"
               className="rounded-2xl border border-[#2c2c35] px-8 py-4 text-lg font-semibold text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#2c2c35] transition-colors"
             >
-              만든 앱 구경하기
+              이런 앱을 만들 수 있어요
             </a>
           </div>
           <p className="mt-5 text-sm text-[#6b7684]">회원가입 시 500 크레딧 무료 제공 &middot; 카드 등록 불필요</p>
@@ -114,7 +116,7 @@ export default function LandingPage() {
 
           <div className="grid gap-0 md:grid-cols-4">
             {[
-              { step: '1', title: '업종 선택', desc: '미용실, 쇼핑몰, O2O 등 7개 업종 또는 자유 입력', color: '#3182f6' },
+              { step: '1', title: '업종 선택', desc: '미용실, 쇼핑몰, 매칭앱 등 10개 업종 또는 자유 입력', color: '#3182f6' },
               { step: '2', title: '질문 답변', desc: '6가지 질문에 답하면 AI가 최적 기능을 자동 구성', color: '#30d158' },
               { step: '3', title: 'AI 생성', desc: '프론트+백엔드+DB를 3분 안에 자동 생성', color: '#a855f7' },
               { step: '4', title: '배포/다운로드', desc: '서브도메인으로 즉시 배포 또는 ZIP 다운로드', color: '#f59e0b' },
@@ -144,25 +146,23 @@ export default function LandingPage() {
             <p className="text-[#8b95a1] text-lg">실제 Foundry로 생성한 앱 예시</p>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {PORTFOLIO_ITEMS.map(item => (
               <div key={item.name} className="rounded-2xl border border-[#2c2c35] bg-[#17171c] overflow-hidden hover:border-[#3182f6]/30 transition-colors">
-                <div className="bg-gradient-to-br from-[#3182f6]/10 to-[#a855f7]/10 p-8 text-center">
-                  <div className="text-5xl mb-3">{item.icon}</div>
-                  <h3 className="text-lg font-bold">{item.name}</h3>
-                  <span className="mt-1 inline-block rounded-full bg-[#2c2c35] px-3 py-0.5 text-xs text-[#8b95a1]">{item.category}</span>
+                <div className="bg-gradient-to-br from-[#3182f6]/10 to-[#a855f7]/10 p-6 text-center relative">
+                  <span className={`absolute top-3 right-3 rounded-full px-2 py-0.5 text-[10px] font-bold ${item.badge === '지역' ? 'bg-[#30d158]/10 text-[#30d158]' : 'bg-[#a855f7]/10 text-[#a855f7]'}`}>{item.badge}</span>
+                  <div className="text-4xl mb-2">{item.icon}</div>
+                  <h3 className="text-base font-bold">{item.name}</h3>
+                  <span className="mt-1 inline-block rounded-full bg-[#2c2c35] px-2.5 py-0.5 text-[10px] text-[#8b95a1]">{item.category}</span>
                 </div>
-                <div className="p-6">
-                  <p className="mb-4 text-sm text-[#8b95a1] leading-relaxed">{item.desc}</p>
-                  <div className="flex flex-wrap gap-1.5 mb-4">
+                <div className="p-5">
+                  <p className="mb-3 text-xs text-[#8b95a1] leading-relaxed">{item.desc}</p>
+                  <div className="flex flex-wrap gap-1 mb-3">
                     {item.features.map(f => (
-                      <span key={f} className="rounded-lg bg-[#3182f6]/10 px-2.5 py-1 text-xs font-medium text-[#3182f6]">{f}</span>
+                      <span key={f} className="rounded-md bg-[#3182f6]/10 px-2 py-0.5 text-[10px] font-medium text-[#3182f6]">{f}</span>
                     ))}
                   </div>
-                  <div className="flex items-center justify-between text-xs text-[#6b7684]">
-                    <span>생성 시간: {item.time}</span>
-                    <a href="/start" className="font-bold text-[#3182f6] hover:underline">이 앱 만들기 &rarr;</a>
-                  </div>
+                  <a href="/start" className="block text-center text-xs font-bold text-[#3182f6] hover:underline">이 앱 만들기 &rarr;</a>
                 </div>
               </div>
             ))}
@@ -264,21 +264,22 @@ export default function LandingPage() {
       <section className="px-5 py-24 md:py-32">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="mb-5 text-3xl md:text-[44px] font-bold leading-tight tracking-tight">
-            지금 바로 MVP를 만들어보세요
+            아이디어가 있다면, 앱은 이미 완성된 거예요
           </h2>
           <p className="mb-10 text-lg text-[#8b95a1]">
-            회원가입 시 500 크레딧 무료. 카드 등록 없이 바로 시작.
+            회원가입 시 500 크레딧 무료. 카드 등록 없이, 질문에 답하기만 하면 앱이 완성됩니다.
           </p>
           <a
             href="/start"
             className="inline-block rounded-2xl bg-[#3182f6] px-12 py-5 text-xl font-bold text-white hover:bg-[#1b64da] transition-colors shadow-lg shadow-[#3182f6]/25"
           >
-            지금 무료로 시작하기 &rarr;
+            지금 무료로 체험하기 &rarr;
           </a>
         </div>
       </section>
 
       <Footer />
+      <ChatWidget />
     </div>
   );
 }
