@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, Suspense } from 'react';
+import { useState, useRef, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { authFetch, getUser } from '@/lib/api';
 import { QUESTIONNAIRES, THEME_MAP, getFeatLabel } from './constants';
@@ -11,6 +11,7 @@ import type { AppModelTier } from './components/ModelSelector';
 import VersionHistory from './components/VersionHistory';
 import WelcomeBack from './components/WelcomeBack';
 import CodeHealthPanel from './components/CodeHealthPanel';
+import LivePreview from './components/LivePreview';
 
 type Message = {
   id: string;
@@ -928,13 +929,32 @@ function BuilderContent() {
   const currentChips = buildPhase === 'questionnaire' ? lastAssistantMsg?.chips || [] : [];
   const currentQ = buildPhase === 'questionnaire' ? questions[questionIndex] : null;
 
+  // 생성된 코드 파일 추출 (LivePreview용)
+  const generatedFiles = useMemo(() => {
+    if (!project?.generatedCode || !Array.isArray(project.generatedCode)) return [];
+    return project.generatedCode as { path: string; content: string }[];
+  }, [project?.generatedCode]);
+
+  // 실시간 미리보기에서 페이지 네비게이션 수신
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === 'navigate') {
+        // LivePreview 내부에서 처리됨
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  const showLivePreview = buildPhase === 'done' && generatedFiles.length > 0;
+
   return (
     <div className="flex h-screen bg-[#17171c] text-[#f2f4f6]">
-      {/* 왼쪽: 실시간 미리보기 */}
-      <div className="hidden w-[45%] flex-col border-r border-[#2c2c35] lg:flex">
+      {/* 왼쪽: 실시간 미리보기 (done 시 넓게, 그 외 45%) */}
+      <div className={`hidden flex-col border-r border-[#2c2c35] lg:flex ${showLivePreview ? 'w-[55%]' : 'w-[45%]'} transition-all duration-300`}>
         <div className="flex items-center justify-between border-b border-[#2c2c35] px-5 py-3.5">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-[#8b95a1]">미리보기</span>
+            <span className="text-sm font-medium text-[#8b95a1]">{showLivePreview ? '실시간 미리보기' : '미리보기'}</span>
             {/* PC/모바일 전환 탭 */}
             <div className="flex rounded-lg bg-[#2c2c35] p-0.5">
               <button
@@ -965,9 +985,12 @@ function BuilderContent() {
             )}
           </div>
         </div>
-        <div className="flex-1 overflow-auto bg-[#1b1b21] p-5">
-          {previewTemplate ? (
-            <div className="flex flex-col items-center gap-3">
+        <div className="flex-1 overflow-auto bg-[#1b1b21]">
+          {showLivePreview ? (
+            /* 생성 완료 → 실제 코드 미리보기 */
+            <LivePreview files={generatedFiles} previewMode={previewMode} />
+          ) : previewTemplate ? (
+            <div className="flex flex-col items-center gap-3 p-5">
               {/* 인터랙티브 안내 배너 */}
               {(projectFeatures.length > 0 || Object.keys(answers).length >= 3) && (
                 <div className="flex items-center gap-2 rounded-xl bg-[#3182f6]/10 border border-[#3182f6]/20 px-4 py-2.5 text-sm">

@@ -158,6 +158,9 @@ export default nextConfig;
     if (!deps.next) deps.next = '^16.0.0';
     if (!deps.react) deps.react = '^19.0.0';
     if (!deps['react-dom']) deps['react-dom'] = '^19.0.0';
+    // Tailwind CSS 4.0 빌드 보장
+    if (!deps.tailwindcss) deps.tailwindcss = '^4.0.0';
+    if (!deps['@tailwindcss/postcss']) deps['@tailwindcss/postcss'] = '^4.0.0';
     // Supabase SDK (생성된 코드가 사용하는 경우)
     const allContent = this.getAllFileContent(outputDir);
     if (allContent.includes('@supabase/supabase-js') && !deps['@supabase/supabase-js']) {
@@ -369,6 +372,13 @@ export default nextConfig;
         // src/app 디렉토리도 처리
         const srcAppDir = path.join(outputDir, 'src', 'app');
         if (fs.existsSync(srcAppDir)) removeDynamicRoutes(srcAppDir);
+      }
+
+      // Tailwind CSS 빌드 보장: postcss.config.mjs 없으면 생성
+      const postcssPath = path.join(outputDir, 'postcss.config.mjs');
+      if (!fs.existsSync(postcssPath)) {
+        fs.writeFileSync(postcssPath, `const config = {\n  plugins: {\n    "@tailwindcss/postcss": {},\n  },\n};\n\nexport default config;\n`, 'utf-8');
+        appendLog('postcss.config.mjs 자동 생성 (Tailwind 빌드 보장)');
       }
 
       // middleware.ts 제거 (Next.js 16에서 deprecated → proxy 전환 필요하지만 static export에선 불필요)

@@ -38,8 +38,7 @@ const MODEL_OPTIONS: ModelOption[] = [
     baseCost: 150,
     speed: '보통',
     quality: '우수',
-    available: false, // TODO: Sonnet API 키 확보 후 true
-    fallbackNote: '현재 Flash로 자동 전환 (비용도 Flash 기준)',
+    available: true,
   },
   {
     tier: 'pro',
@@ -50,8 +49,7 @@ const MODEL_OPTIONS: ModelOption[] = [
     baseCost: 500,
     speed: '느림',
     quality: '최고',
-    available: false, // TODO: Opus API 키 확보 후 true
-    fallbackNote: '현재 Flash로 자동 전환 (비용도 Flash 기준)',
+    available: true,
   },
 ];
 
