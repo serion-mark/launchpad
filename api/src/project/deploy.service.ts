@@ -380,14 +380,27 @@ export default nextConfig;
    * F6: AI 빌드 에러 자동 수정
    * 빌드 에러 로그를 분석하여 문제 파일을 AI로 수정
    */
+  private previousErrors: string[] = [];
+
   private async aiBuildFix(projectId: string, userId: string, outputDir: string, errorLog: string): Promise<number> {
-    // 에러 로그에서 파일 경로 추출
-    const errorFileRegex = /(?:\.\/|src\/|pages\/)([^\s:]+\.(?:tsx?|jsx?))/g;
+    // 에러 로그에서 파일 경로 추출 (app/, components/, lib/, src/, pages/ 등 모든 경로)
+    const errorFileRegex = /(?:\.\/|src\/|pages\/|app\/|components\/|lib\/)([^\s:]+\.(?:tsx?|jsx?))/g;
     const errorFiles = new Set<string>();
     let match;
     while ((match = errorFileRegex.exec(errorLog)) !== null) {
       errorFiles.add(match[1]);
     }
+
+    // 추가: 파일명:라인 패턴도 잡기 (예: "sales/page.tsx:69:58")
+    const fileLineRegex = /([a-zA-Z0-9_\-/]+\.(?:tsx?|jsx?)):\d+:\d+/g;
+    while ((match = fileLineRegex.exec(errorLog)) !== null) {
+      errorFiles.add(match[1]);
+    }
+
+    // BUG-2: 동일 에러 반복 감지
+    const errorSignature = [...errorFiles].sort().join('|') + '::' + errorLog.slice(0, 200);
+    const isRepeatError = this.previousErrors.includes(errorSignature);
+    this.previousErrors.push(errorSignature);
 
     // 프로젝트의 generatedCode 로드
     const project = await this.prisma.project.findUnique({
@@ -397,10 +410,17 @@ export default nextConfig;
     if (!project?.generatedCode) return 0;
 
     const files = project.generatedCode as { path: string; content: string }[];
-    // 에러 관련 파일 또는 에러 파일이 추출 안 되면 전체 TSX 파일 중 앞 5개
+
+    // 에러 파일 매칭: 정규식 추출 결과 또는 에러 로그 내 파일명 직접 검색
     let targetFiles = files.filter(f => [...errorFiles].some(ef => f.path.includes(ef)));
-    if (targetFiles.length === 0) {
-      targetFiles = files.filter(f => f.path.match(/\.(tsx?)$/)).slice(0, 5);
+
+    // 동일 에러 반복이거나 매칭 실패 시 → 에러 로그에 언급된 파일명을 generatedCode에서 직접 검색
+    if (targetFiles.length === 0 || isRepeatError) {
+      const allTsx = files.filter(f => f.path.match(/\.(tsx?)$/));
+      // 에러 로그에서 파일명 힌트 추출 (경로 없이 파일명만)
+      const fileNameHints = errorLog.match(/[a-zA-Z0-9_\-]+\.tsx?/g) || [];
+      const hintMatched = allTsx.filter(f => fileNameHints.some(h => f.path.endsWith(h)));
+      targetFiles = hintMatched.length > 0 ? hintMatched : allTsx.slice(0, 5);
     }
 
     if (targetFiles.length === 0) return 0;

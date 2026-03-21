@@ -1346,8 +1346,18 @@ ${existingFiles.slice(0, 15).map(f => `[FILE: ${f.path}]\n${f.content}`).join('\
       /=>\s*$/, // 화살표 함수 미완성
       /\?\s*$/, // 삼항 연산자 미완성
     ];
+    if (incompletePatterns.some(p => p.test(lastLine))) return true;
 
-    return incompletePatterns.some(p => p.test(lastLine));
+    // 페이지/컴포넌트 파일이 export default 없이 끝나면 잘림 가능성 높음
+    const hasDefaultExport = /export\s+default\s/.test(trimmed) || /export\s+\{[^}]*default/.test(trimmed);
+    const isPageOrComponent = trimmed.includes('return') && (trimmed.includes('function') || trimmed.includes('=>'));
+    if (isPageOrComponent && !hasDefaultExport) return true;
+
+    // 줄 수 대비 중괄호 불균형 (짧은 파일인데 열린 게 더 많으면)
+    const lines = trimmed.split('\n');
+    if (lines.length < 100 && opens > closes) return true;
+
+    return false;
   }
 
   /** F4: 잘린 코드 이어서 생성 (최대 2회 continuation) */
