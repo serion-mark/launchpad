@@ -140,12 +140,14 @@ cd "/Users/mark/Desktop/정부지원사업 MVP 빌더(가칭)/launchpad"
 
 Phase 6 착수해줘. memory/MEMORY.md + memory/DIRECTION_2026-03-21.md 참고.
 - [완료] Phase 1~5: 플랫폼 + 코드생성 + 인프라 + 코드품질 + E2E 성공
-- [E2E 성공] https://e2e-sonnet-97dd.foundry.ai.kr
+- [E2E 성공] https://e2e-sonnet-97dd.foundry.ai.kr (CSS 미적용 → Tailwind 빌드 보장 필요)
 - [현재] Phase 6: 코드 품질 근본 개선 + UX 핵심 기능
   1. AI 코드 생성 지침서 → 프롬프트 주입 (빌드 에러 90% 예방)
-  2. 실시간 미리보기 (iframe, 빌드 없이 코드 렌더링) — Lovable 핵심 기능
-  3. Sonnet 폴백 문제 해결
-  4. 동적 라우트 → 클라이언트 라우팅 전환
+  2. Tailwind CSS 빌드 보장 (postcss.config + tailwind.config 자동 생성)
+  3. 빌더 UI 리뉴얼 — "개발자 MVP" → Lovable 수준 "디자이너 제품" UX
+  4. 실시간 미리보기 (iframe, 빌드 없이 코드 렌더링) — Lovable 핵심 기능
+  5. Sonnet 폴백 문제 해결
+  6. 동적 라우트 → 클라이언트 라우팅 전환
 - [서버] SSH: ssh -i ~/.ssh/serion-key.pem -p 3181 root@175.45.200.162
 - [모델] Haiku(flash) + Sonnet 4.5(smart/pro), Anthropic ~$10 잔액
 - [방향성] memory/DIRECTION_2026-03-21.md

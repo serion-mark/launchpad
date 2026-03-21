@@ -91,8 +91,10 @@
 
 ### 🔴 즉시 (Phase 6 — 이번 주)
 1. **AI 코드 생성 지침서 프롬프트 주입** — 빌드 에러 90% 예방
-2. **Sonnet 폴백 문제 해결** — smart 요청 시 제대로 Sonnet 사용
-3. **실시간 미리보기 (iframe)** — 빌드 없이 코드 즉시 렌더링 (Lovable 핵심 기능)
+2. **Tailwind CSS 빌드 보장** — postcss.config + tailwind.config 자동 생성 (현재 CSS 미적용 상태!)
+3. **빌더 UI 리뉴얼** — 현재 "개발자 MVP" → Lovable 수준 "디자이너 제품" UX로 업그레이드
+4. **실시간 미리보기 (iframe)** — 빌드 없이 코드 즉시 렌더링 (Lovable 핵심 기능)
+5. **Sonnet 폴백 문제 해결** — smart 요청 시 제대로 Sonnet 사용
 
 ### 🟡 단기 (Phase 7 — 다음 주)
 4. **동적 라우트 해결** — 현재는 삭제하지만, 클라이언트 라우팅으로 전환
