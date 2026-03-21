@@ -1386,7 +1386,7 @@ ${existingFiles.slice(0, 15).map(f => `[FILE: ${f.path}]\n${f.content}`).join('\
 ${lastLines}`,
       }, {
         role: 'assistant',
-        content: lastLines.split('\n').slice(-3).join('\n'),
+        content: lastLines.split('\n').slice(-3).join('\n').trimEnd() || '// continue',
       }]);
 
       // 이어붙이기 (중복 줄 제거)
