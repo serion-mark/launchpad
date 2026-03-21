@@ -1328,8 +1328,8 @@ ${existingFiles.slice(0, 15).map(f => `[FILE: ${f.path}]\n${f.content}`).join('\
   // ── F4: 코드 잘림 감지 + 이어서 생성 ──────────────────
   // ══════════════════════════════════════════════════════
 
-  /** 코드가 중간에 잘렸는지 감지 */
-  private isCodeTruncated(content: string): boolean {
+  /** 코드가 중간에 잘렸는지 감지 (deploy.service에서도 호출) */
+  isCodeTruncated(content: string): boolean {
     const trimmed = content.trim();
     if (!trimmed) return false;
 
@@ -1360,8 +1360,8 @@ ${existingFiles.slice(0, 15).map(f => `[FILE: ${f.path}]\n${f.content}`).join('\
     return false;
   }
 
-  /** F4: 잘린 코드 이어서 생성 (최대 2회 continuation) */
-  private async continueGeneration(
+  /** F4: 잘린 코드 이어서 생성 (최대 2회 continuation, deploy.service에서도 호출) */
+  async continueGeneration(
     tier: AppModelTier,
     systemPrompt: string,
     truncatedContent: string,

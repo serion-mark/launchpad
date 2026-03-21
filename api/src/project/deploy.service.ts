@@ -425,8 +425,36 @@ export default nextConfig;
 
     if (targetFiles.length === 0) return 0;
 
-    // AI에게 수정 요청
     const tier = (project.modelUsed as any) || 'flash';
+
+    // F4+F6 연계: 잘린 파일 감지 → 먼저 이어서 생성으로 완성한 후 빌드 수정
+    for (let i = 0; i < targetFiles.length; i++) {
+      if (targetFiles[i].path.match(/\.(tsx?|jsx?)$/) && this.aiService.isCodeTruncated(targetFiles[i].content)) {
+        this.logger.warn(`[F6+F4] 잘린 파일 감지: ${targetFiles[i].path} → 이어서 생성 시도`);
+        const completed = await this.aiService.continueGeneration(
+          tier as any,
+          '당신은 Next.js 16 + Supabase 풀스택 전문가입니다. TypeScript + Tailwind CSS를 사용합니다.',
+          targetFiles[i].content,
+          targetFiles[i].path,
+        );
+        targetFiles[i] = { ...targetFiles[i], content: completed };
+
+        // 완성된 코드를 파일시스템 + DB에 즉시 반영
+        const filePath = path.join(outputDir, targetFiles[i].path);
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        fs.writeFileSync(filePath, completed, 'utf-8');
+
+        const idx = files.findIndex(f => f.path === targetFiles[i].path);
+        if (idx >= 0) files[idx] = targetFiles[i];
+
+        await this.prisma.project.update({
+          where: { id: projectId },
+          data: { generatedCode: files as any },
+        });
+      }
+    }
+
+    // AI에게 수정 요청
     const modifyResult = await this.aiService.fixBuildErrors(tier, targetFiles, errorLog);
 
     if (!modifyResult || modifyResult.length === 0) return 0;
