@@ -119,7 +119,7 @@ export class DeployService {
       if (!content.includes('ignoreBuildErrors')) {
         content = content.replace(
           /(output:\s*'export',?)/,
-          `$1\n  typescript: { ignoreBuildErrors: true },\n  eslint: { ignoreDuringBuilds: true },`,
+          `$1\n  typescript: { ignoreBuildErrors: true },`,
         );
       }
       fs.writeFileSync(configPath, content, 'utf-8');
@@ -346,6 +346,31 @@ export default nextConfig;
         } catch { /* 개별 파일 실패 무시 */ }
       }
 
+      // 동적 라우트 디렉토리 제거 (static export에서 generateStaticParams 없으면 빌드 실패)
+      // [id], [slug] 등 → 클라이언트 앱에서는 목록 페이지로 충분
+      const appDir = path.join(outputDir, 'app');
+      if (fs.existsSync(appDir)) {
+        const removeDynamicRoutes = (dir: string) => {
+          if (!fs.existsSync(dir)) return;
+          const entries = fs.readdirSync(dir, { withFileTypes: true });
+          for (const entry of entries) {
+            if (entry.isDirectory()) {
+              const fullPath = path.join(dir, entry.name);
+              if (entry.name.startsWith('[')) {
+                fs.rmSync(fullPath, { recursive: true, force: true });
+                appendLog(`동적 라우트 제거: ${entry.name}/ (static export 호환)`);
+              } else {
+                removeDynamicRoutes(fullPath);
+              }
+            }
+          }
+        };
+        removeDynamicRoutes(appDir);
+        // src/app 디렉토리도 처리
+        const srcAppDir = path.join(outputDir, 'src', 'app');
+        if (fs.existsSync(srcAppDir)) removeDynamicRoutes(srcAppDir);
+      }
+
       // middleware.ts 제거 (Next.js 16에서 deprecated → proxy 전환 필요하지만 static export에선 불필요)
       const middlewarePaths = ['middleware.ts', 'middleware.js', 'src/middleware.ts', 'src/middleware.js'];
       for (const mw of middlewarePaths) {
@@ -366,6 +391,8 @@ export default nextConfig;
       let buildSuccess = false;
 
       for (let attempt = 0; attempt <= MAX_BUILD_FIX_ATTEMPTS; attempt++) {
+        // 매 시도 전 next.config 보장 (F6 AI 수정이 config를 덮어쓸 수 있음)
+        this.ensureNextConfig(outputDir);
         appendLog(attempt === 0 ? 'next build 시작...' : `next build 재시도 (${attempt}/${MAX_BUILD_FIX_ATTEMPTS})...`);
         try {
           execSync('npx next build 2>&1', {
