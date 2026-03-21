@@ -315,27 +315,33 @@ export default nextConfig;
         } catch { /* 개별 파일 실패 무시 */ }
       }
 
-      // 동적 라우트 페이지에 generateStaticParams 보장 (static export 필수)
-      // + 서버 전용 import(cookies, headers) 제거 → 클라이언트 전용으로 전환
-      const allPageFiles = this.findFilesRecursive(outputDir, /page\.(tsx?|jsx?)$/);
-      for (const pageFile of allPageFiles) {
-        // [id], [slug] 등 동적 라우트인 경우만
-        if (!pageFile.includes('[')) continue;
+      // 모든 페이지에서 서버 전용 기능 제거 (static export 호환)
+      const allTsxFiles = this.findFilesRecursive(outputDir, /\.(tsx?|jsx?)$/);
+      for (const file of allTsxFiles) {
         try {
-          let content = fs.readFileSync(pageFile, 'utf-8');
-          // generateStaticParams 없으면 추가 (빈 배열 반환 → 빌드 시 생성 안 함, 런타임에 클라이언트 렌더링)
-          if (!content.includes('generateStaticParams')) {
-            content = `export function generateStaticParams() { return [] }\n\n${content}`;
-            fs.writeFileSync(pageFile, content, 'utf-8');
-            appendLog(`generateStaticParams 추가: ${path.basename(path.dirname(pageFile))}/page`);
-          }
-          // 서버 전용 import 제거 (cookies, headers → static export 불가)
-          if (content.includes("from 'next/headers'") || content.includes('from "next/headers"')) {
+          let content = fs.readFileSync(file, 'utf-8');
+          let modified = false;
+
+          // next/headers import 제거 (cookies, headers → static export 불가)
+          if (content.includes("next/headers")) {
             content = content.replace(/import\s*\{[^}]*\}\s*from\s*['"]next\/headers['"]\s*;?\n?/g, '');
-            // createClient를 서버용에서 클라이언트용으로 변경
-            content = content.replace(/@\/utils\/supabase\/server/g, '@/utils/supabase/client');
-            fs.writeFileSync(pageFile, content, 'utf-8');
-            appendLog(`서버 import→클라이언트 전환: ${path.basename(path.dirname(pageFile))}/page`);
+            modified = true;
+          }
+          // supabase/server → supabase/client 전환
+          if (content.includes('supabase/server')) {
+            content = content.replace(/['"]@\/utils\/supabase\/server['"]/g, "'@/utils/supabase/client'");
+            content = content.replace(/['"]\.\.?\/utils\/supabase\/server['"]/g, "'@/utils/supabase/client'");
+            modified = true;
+          }
+          // 'use client' 없는 페이지에 추가 (static export에서 모든 페이지는 클라이언트)
+          if (file.includes('/app/') && file.endsWith('page.tsx') && !content.includes("'use client'") && !content.includes('"use client"')) {
+            content = `'use client'\n\n${content}`;
+            modified = true;
+          }
+
+          if (modified) {
+            fs.writeFileSync(file, content, 'utf-8');
+            appendLog(`서버→클라이언트 전환: ${path.relative(outputDir, file)}`);
           }
         } catch { /* 개별 파일 실패 무시 */ }
       }
