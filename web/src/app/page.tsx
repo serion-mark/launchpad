@@ -3,13 +3,19 @@
 import LandingNav from './components/LandingNav';
 import Footer from './components/Footer';
 import ChatWidget from './components/ChatWidget';
+import AppMockup from './components/AppMockup';
+
+type MockupType = 'pos' | 'matching' | 'lms' | 'shop' | 'facility' | 'farm' | 'expert' | 'health' | 'social' | 'smartfarm';
 
 // ── 포트폴리오 예시 데이터 (대표 4개) ──
-const PORTFOLIO_ITEMS = [
-  { name: '헤어드림 POS', category: '미용실', icon: '✂️', desc: '예약 + 매출 + 고객CRM + 디자이너 정산', time: '~3분', features: ['예약관리', '매출통계', '알림톡'], badge: '지역' },
-  { name: '펫메이트', category: 'O2O 매칭', icon: '🐾', desc: '반려동물 돌봄 매칭 + 실시간 상태 추적', time: '~3분', features: ['매칭시스템', '실시간추적', '리뷰'], badge: '테크' },
-  { name: '백설공주 사과농장', category: '지역특산품', icon: '🍎', desc: '산지직송 농산물몰 + 정기배송 + 체험예약', time: '~3분', features: ['산지직송', '정기배송', '체험예약'], badge: '지역' },
-  { name: '취미모아', category: '소셜/매칭', icon: '💕', desc: '취미 기반 동호회 매칭 + 모임 관리', time: '~3분', features: ['프로필매칭', '그룹채팅', '모임일정'], badge: '테크' },
+const PORTFOLIO_ITEMS: {
+  name: string; category: string; icon: string; desc: string; time: string;
+  features: string[]; badge: string; mockup: MockupType; screenshot?: string; liveUrl?: string;
+}[] = [
+  { name: '헤어드림 POS', category: '미용실', icon: '✂️', desc: '예약 + 매출 + 고객CRM + 디자이너 정산', time: '~3분', features: ['예약관리', '매출통계', '알림톡'], badge: '지역', mockup: 'pos' },
+  { name: '펫메이트', category: 'O2O 매칭', icon: '🐾', desc: '반려동물 돌봄 매칭 + 실시간 상태 추적', time: '~3분', features: ['매칭시스템', '실시간추적', '리뷰'], badge: '테크', mockup: 'matching', screenshot: '/screenshots/petmate.png', liveUrl: 'https://foundry.ai.kr/petmate/dashboard' },
+  { name: '백설공주 사과농장', category: '지역특산품', icon: '🍎', desc: '산지직송 농산물몰 + 정기배송 + 체험예약', time: '~3분', features: ['산지직송', '정기배송', '체험예약'], badge: '지역', mockup: 'farm' },
+  { name: '취미모아', category: '소셜/매칭', icon: '💕', desc: '취미 기반 동호회 매칭 + 모임 관리', time: '~3분', features: ['프로필매칭', '그룹채팅', '모임일정'], badge: '테크', mockup: 'social' },
 ];
 
 // ── 가격 패키지 ──
@@ -149,11 +155,24 @@ export default function LandingPage() {
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {PORTFOLIO_ITEMS.map(item => (
               <div key={item.name} className="rounded-2xl border border-[#2c2c35] bg-[#17171c] overflow-hidden hover:border-[#3182f6]/30 transition-colors">
-                <div className="bg-gradient-to-br from-[#3182f6]/10 to-[#a855f7]/10 p-6 text-center relative">
-                  <span className={`absolute top-3 right-3 rounded-full px-2 py-0.5 text-[10px] font-bold ${item.badge === '지역' ? 'bg-[#30d158]/10 text-[#30d158]' : 'bg-[#a855f7]/10 text-[#a855f7]'}`}>{item.badge}</span>
-                  <div className="text-4xl mb-2">{item.icon}</div>
-                  <h3 className="text-base font-bold">{item.name}</h3>
-                  <span className="mt-1 inline-block rounded-full bg-[#2c2c35] px-2.5 py-0.5 text-[10px] text-[#8b95a1]">{item.category}</span>
+                <div className="bg-gradient-to-br from-[#3182f6]/10 to-[#a855f7]/10 p-4 relative">
+                  <span className={`absolute top-3 right-3 z-10 rounded-full px-2 py-0.5 text-[10px] font-bold ${item.badge === '지역' ? 'bg-[#30d158]/10 text-[#30d158]' : 'bg-[#a855f7]/10 text-[#a855f7]'}`}>{item.badge}</span>
+                  {item.screenshot ? (
+                    <div className="relative">
+                      <img src={item.screenshot} alt={item.name} className="w-full rounded-lg border border-[#2c2c35]/50" />
+                      {item.liveUrl && (
+                        <a href={item.liveUrl} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-2 rounded-full bg-[#30d158] px-2 py-0.5 text-[9px] font-bold text-white hover:bg-[#28b84c] transition-colors">
+                          LIVE
+                        </a>
+                      )}
+                    </div>
+                  ) : (
+                    <AppMockup type={item.mockup} />
+                  )}
+                  <div className="mt-2 text-center">
+                    <h3 className="text-base font-bold">{item.name}</h3>
+                    <span className="mt-1 inline-block rounded-full bg-[#2c2c35] px-2.5 py-0.5 text-[10px] text-[#8b95a1]">{item.category}</span>
+                  </div>
                 </div>
                 <div className="p-5">
                   <p className="mb-3 text-xs text-[#8b95a1] leading-relaxed">{item.desc}</p>
