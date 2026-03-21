@@ -55,6 +55,14 @@ export const QUESTIONNAIRES: Record<string, Question[]> = {
     { id: 'features', question: '필요한 기능은?', chips: ['시설 예약 (회의실/주차)', '관리비 청구/수납', '전화 민원 자동 기록', '알림톡 (공지/민원)', '만족도 조사', '민원 현황 대시보드'], multi: true },
     { id: 'pain', question: '가장 해결하고 싶은 문제는?', chips: ['전화 민원이 너무 많아요', '민원 처리 추적이 안 돼요', '공지 전달이 어려워요', '관리비 수납이 번거로워요'], multi: true },
   ],
+  'custom': [
+    { id: 'biz_name', question: '앱 이름을 정해주세요!', chips: ['마이앱', '○○ 관리', '○○ 도우미'] },
+    { id: 'app_description', question: '어떤 앱을 만들고 싶으세요? 자유롭게 설명해주세요!', chips: ['포모도로 타이머', '가계부/지출관리', '할일 관리(투두)', '독서 기록', '커뮤니티/게시판', '블로그/포트폴리오'] },
+    { id: 'target_user', question: '누가 사용하는 앱인가요?', chips: ['나 혼자 (개인용)', '우리 팀/회사', '일반 사용자 (다수)', '관리자 + 사용자'] },
+    { id: 'data_storage', question: '데이터를 어떻게 저장할까요?', chips: ['브라우저에만 (새로고침해도 유지)', '서버에 저장 (로그인+DB)', 'AI가 알아서 판단해줘'] },
+    { id: 'features', question: '필요한 기능을 골라주세요!', chips: ['대시보드/통계', '로그인/회원가입', '검색/필터', '차트/그래프', '알림', '파일 업로드', 'CRUD (생성/수정/삭제)'], multi: true },
+    { id: 'reference', question: '참고할 서비스가 있으면 알려주세요! (없으면 넘어가도 OK)', chips: ['없음, AI가 알아서', '노션 같은 메모앱', '배달의민족 같은 앱', '인스타그램 같은 피드'] },
+  ],
 };
 
 // ── 테마 색상 맵 ──────────────────────────────────────
@@ -112,5 +120,8 @@ export function getFeatLabel(templateId: string, industry: string): Record<strin
     'complaint': '📞 민원', 'tenant': '🏠 입주민', 'notice': '📢 공지',
     'maintenance': '🔧 보수', 'facility-booking': '🏢 시설예약',
     'billing': '💰 관리비', 'phone-log': '📞 전화기록', 'satisfaction': '😊 만족도',
+    // 범용
+    'custom-app': '🚀 홈', 'auth': '🔑 인증', 'crud': '📋 데이터',
+    'search': '🔍 검색', 'chart': '📈 차트', 'file-upload': '📎 파일',
   };
 }

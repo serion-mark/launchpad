@@ -948,153 +948,22 @@ function BuilderContent() {
 
   const showLivePreview = buildPhase === 'done' && generatedFiles.length > 0;
 
+  // 레이아웃: done 시 Lovable처럼 미리보기 중심 (왼쪽 채팅 좁게 + 오른쪽 미리보기 넓게)
+  const isPreviewFocused = showLivePreview || buildPhase === 'generating';
+
   return (
-    <div className="flex h-screen bg-[#17171c] text-[#f2f4f6]">
-      {/* 왼쪽: 실시간 미리보기 (done 시 넓게, 그 외 45%) */}
-      <div className={`hidden flex-col border-r border-[#2c2c35] lg:flex ${showLivePreview ? 'w-[55%]' : 'w-[45%]'} transition-all duration-300`}>
-        <div className="flex items-center justify-between border-b border-[#2c2c35] px-5 py-3.5">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-[#8b95a1]">{showLivePreview ? '실시간 미리보기' : '미리보기'}</span>
-            {/* PC/모바일 전환 탭 */}
-            <div className="flex rounded-lg bg-[#2c2c35] p-0.5">
-              <button
-                onClick={() => setPreviewMode('mobile')}
-                className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${previewMode === 'mobile' ? 'bg-[#3182f6] text-white' : 'text-[#8b95a1] hover:text-[#f2f4f6]'}`}
-              >📱 모바일</button>
-              <button
-                onClick={() => setPreviewMode('desktop')}
-                className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${previewMode === 'desktop' ? 'bg-[#3182f6] text-white' : 'text-[#8b95a1] hover:text-[#f2f4f6]'}`}
-              >🖥 PC</button>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {saving && <span className="text-xs text-[#6b7684]">저장 중...</span>}
-            {buildPhase === 'questionnaire' && (
-              <span className="rounded-lg bg-[#a855f7]/15 px-2.5 py-1 text-xs font-medium text-[#a855f7]">
-                질문 {questionIndex + 1}/{questions.length}
-              </span>
-            )}
-            {previewTemplate && buildPhase !== 'questionnaire' && (
-              <span className={`rounded-lg px-2.5 py-1 text-xs font-medium ${
-                buildPhase === 'done' ? 'bg-[#30d158]/15 text-[#30d158]'
-                  : buildPhase === 'generating' ? 'bg-[#ffd60a]/15 text-[#ffd60a]'
-                  : 'bg-[#3182f6]/15 text-[#3182f6]'
-              }`}>
-                {buildPhase === 'done' ? '생성 완료' : buildPhase === 'generating' ? (generateStep ? `생성 중 — ${generateStep}` : '생성 중...') : '설계 중'}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex-1 overflow-auto bg-[#1b1b21]">
-          {showLivePreview ? (
-            /* 생성 완료 → 실제 코드 미리보기 */
-            <LivePreview files={generatedFiles} previewMode={previewMode} />
-          ) : previewTemplate ? (
-            <div className="flex flex-col items-center gap-3 p-5">
-              {/* 인터랙티브 안내 배너 */}
-              {(projectFeatures.length > 0 || Object.keys(answers).length >= 3) && (
-                <div className="flex items-center gap-2 rounded-xl bg-[#3182f6]/10 border border-[#3182f6]/20 px-4 py-2.5 text-sm">
-                  <span className="text-lg">👆</span>
-                  <span className="text-[#3182f6] font-medium">메뉴를 클릭하면 각 화면을 미리 체험할 수 있어요!</span>
-                  <span className="text-[#6b7684] text-xs">무료</span>
-                </div>
-              )}
-              <div
-                className={`overflow-hidden border border-[#2c2c35] bg-white shadow-2xl transition-all duration-300 ${
-                  previewMode === 'mobile' ? 'w-[375px] rounded-[2.5rem]' : 'w-full max-w-[800px] rounded-xl'
-                }`}
-                style={{ height: previewMode === 'mobile' ? '700px' : '600px' }}
-              >
-                {/* 모바일 노치 */}
-                {previewMode === 'mobile' && (
-                  <div className="flex h-[44px] items-center justify-center bg-[#f8fafc] border-b border-[#e2e8f0]">
-                    <div className="h-[5px] w-[120px] rounded-full bg-[#1b1b21]" />
-                  </div>
-                )}
-                <iframe
-                  ref={iframeRef}
-                  srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}div{transition:background .15s}</style></head><body>${previewHtml}</body></html>`}
-                  className="w-full border-0"
-                  style={{ height: previewMode === 'mobile' ? '656px' : '600px' }}
-                  title="Live Preview"
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="flex h-full items-center justify-center text-center text-[#6b7684]">
-              <div>
-                <div className="mb-4 text-6xl">📱</div>
-                <p className="text-lg font-medium">앱을 설명하면</p>
-                <p className="text-sm">여기서 실시간으로 미리볼 수 있습니다</p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Sprint 3: 버전 히스토리 (done 상태에서만) */}
-        {buildPhase === 'done' && projectId && (
-          <div className="px-4 pb-4 space-y-3">
-            <VersionHistory
-              projectId={projectId}
-              onRollback={(ver) => {
-                setMessages(prev => [...prev, {
-                  id: Date.now().toString(), role: 'system' as const,
-                  content: `↩ v${ver}으로 롤백되었습니다. 미리보기가 업데이트됩니다.`,
-                  timestamp: new Date().toISOString(), type: 'status' as const,
-                }]);
-                authFetch(`/projects/${projectId}`).then(r => r.ok ? r.json() : null).then(d => {
-                  if (d) setProject(d);
-                });
-              }}
-            />
-            {/* Sprint 4+5: 코드 헬스체크 + AI 정리 */}
-            <CodeHealthPanel
-              projectId={projectId}
-              modelTier={selectedModelTier}
-              onCleanupComplete={(cleanupResult) => {
-                // 크레딧 잔액 새로고침
-                authFetch('/credits/balance').then(r => r.ok ? r.json() : null).then(d => {
-                  if (d) setCreditBalance(d.balance);
-                }).catch(() => {});
-                // 프로젝트 데이터 새로고침
-                authFetch(`/projects/${projectId}`).then(r => r.ok ? r.json() : null).then(d => {
-                  if (d) setProject(d);
-                });
-                // 결과 메시지
-                let msg = `🧹 **코드 정리 완료!**\n\n`;
-                msg += `정리된 파일: ${cleanupResult.cleanedFiles.length}개\n`;
-                if (cleanupResult.totalCredits > 0) msg += `사용 크레딧: ${cleanupResult.totalCredits} cr\n`;
-                if (cleanupResult.improvements.length > 0) {
-                  msg += `\n**개선 사항:**\n`;
-                  msg += cleanupResult.improvements.map(s => `• ${s}`).join('\n');
-                }
-                setMessages(prev => [...prev, {
-                  id: Date.now().toString(), role: 'assistant' as const,
-                  content: msg, timestamp: new Date().toISOString(), type: 'text' as const,
-                }]);
-              }}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* 오른쪽: 채팅 */}
-      <div className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-[#2c2c35] px-5 py-3.5">
-          <div className="flex items-center gap-3">
-            <a href="/dashboard"><img src="/logo.svg" alt="Foundry" className="h-6" /></a>
+    <div className="flex h-screen bg-[#0f0f14] text-[#f2f4f6]">
+      {/* ── 왼쪽: 채팅 패널 ──────────────────────── */}
+      <div className={`flex flex-col transition-all duration-500 ease-in-out ${isPreviewFocused ? 'w-[380px] min-w-[380px]' : 'flex-1'}`}>
+        {/* 헤더 */}
+        <header className="flex items-center justify-between border-b border-[#1e1e28] bg-[#13131a] px-4 py-3">
+          <div className="flex items-center gap-2.5">
+            <a href="/dashboard"><img src="/logo.svg" alt="Foundry" className="h-5 opacity-80 hover:opacity-100 transition-opacity" /></a>
             {project && (
-              <span className="rounded-lg bg-[#2c2c35] px-2.5 py-1 text-xs text-[#8b95a1]">{project.name}</span>
-            )}
-            {buildPhase !== 'questionnaire' && (
-              <div className="flex rounded-xl bg-[#2c2c35] p-0.5">
-                <button onClick={() => setMode('build')} className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors ${mode === 'build' ? 'bg-[#3182f6] text-white' : 'text-[#8b95a1]'}`}>빌드</button>
-                <button onClick={() => setMode('discuss')} className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors ${mode === 'discuss' ? 'bg-[#a855f7] text-white' : 'text-[#8b95a1]'}`}>토론</button>
-              </div>
+              <span className="max-w-[120px] truncate rounded-md bg-[#1e1e28] px-2 py-1 text-[11px] text-[#8b95a1]">{project.name}</span>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            {/* AI 모델 선택 */}
+          <div className="flex items-center gap-1.5">
             {buildPhase !== 'questionnaire' && buildPhase !== 'idle' && (
               <ModelSelector
                 selectedTier={selectedModelTier}
@@ -1103,36 +972,59 @@ function BuilderContent() {
                 compact
               />
             )}
-            {/* 저장 버튼 */}
-            <button onClick={handleManualSave} className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${saving ? 'bg-[#30d158]/20 text-[#30d158]' : 'bg-[#2c2c35] text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#3a3a45]'}`}>
-              {saving ? '💾 저장 중...' : lastSaved ? `💾 ${lastSaved}` : '💾 저장'}
-            </button>
-            {/* 토큰 사용량 */}
-            {tokenUsed > 0 && (
-              <span className="rounded-lg bg-[#2c2c35] px-2.5 py-1.5 text-[10px] text-[#8b95a1]" title="이번 세션에서 사용한 토큰">🔥 ~{tokenUsed.toLocaleString()}토큰</span>
-            )}
-            {/* 크레딧 잔액 */}
             {creditBalance !== null && (
-              <a href="/credits" className="flex items-center gap-1.5 rounded-lg bg-[#2c2c35] px-3 py-1.5 text-xs font-medium text-[#ffd60a] hover:bg-[#3a3a45] transition-colors">
+              <a href="/credits" className="flex items-center gap-1 rounded-md bg-[#1e1e28] px-2 py-1 text-[11px] font-medium text-[#ffd60a] hover:bg-[#282835] transition-colors">
                 <span>⚡</span><span>{creditBalance.toLocaleString()}</span>
               </a>
             )}
-            {buildPhase === 'designing' && (
-              <button onClick={handleGenerate} className="rounded-xl bg-[#30d158] px-5 py-2 text-sm font-bold text-white hover:bg-[#28b84c] transition-colors animate-pulse">앱 생성하기</button>
-            )}
-            {buildPhase === 'done' && (
-              <>
-                <button onClick={() => setShowCostModal('deploy')} className="rounded-xl bg-[#3182f6] px-4 py-2 text-sm font-bold text-white hover:bg-[#1b64da] transition-colors">배포하기</button>
-                <button onClick={() => setShowCostModal('download')} className="rounded-xl bg-[#a855f7] px-4 py-2 text-sm font-bold text-white hover:bg-[#9333ea] transition-colors">다운로드</button>
-              </>
-            )}
-            <a href="/dashboard" className="rounded-xl bg-[#2c2c35] px-4 py-2 text-sm font-medium text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">프로젝트 목록</a>
+            <button onClick={handleManualSave} className="rounded-md bg-[#1e1e28] px-2 py-1 text-[11px] text-[#6b7684] hover:text-[#f2f4f6] transition-colors">
+              {saving ? '저장중' : lastSaved ? `${lastSaved}` : '저장'}
+            </button>
           </div>
         </header>
 
+        {/* 상태 바 */}
+        <div className="flex items-center justify-between border-b border-[#1e1e28] bg-[#13131a]/80 px-4 py-2">
+          <div className="flex items-center gap-2">
+            {buildPhase === 'questionnaire' && (
+              <div className="flex items-center gap-2">
+                <div className="flex gap-0.5">
+                  {questions.map((_, i) => (
+                    <div key={i} className={`h-1 w-4 rounded-full transition-colors ${i <= questionIndex ? 'bg-[#a855f7]' : 'bg-[#2c2c35]'}`} />
+                  ))}
+                </div>
+                <span className="text-[10px] text-[#a855f7] font-medium">{questionIndex + 1}/{questions.length}</span>
+              </div>
+            )}
+            {buildPhase === 'designing' && (
+              <span className="flex items-center gap-1.5 text-[11px] text-[#3182f6]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#3182f6] animate-pulse" />설계 중
+              </span>
+            )}
+            {buildPhase === 'done' && (
+              <span className="flex items-center gap-1.5 text-[11px] text-[#30d158]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#30d158]" />생성 완료
+              </span>
+            )}
+            {buildPhase === 'generating' && (
+              <span className="flex items-center gap-1.5 text-[11px] text-[#ffd60a]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#ffd60a] animate-pulse" />생성 중{generateStep ? ` — ${generateStep}` : ''}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5">
+            {buildPhase !== 'questionnaire' && (
+              <div className="flex rounded-md bg-[#1e1e28] p-0.5">
+                <button onClick={() => setMode('build')} className={`rounded px-2.5 py-1 text-[10px] font-semibold transition-colors ${mode === 'build' ? 'bg-[#3182f6] text-white' : 'text-[#6b7684]'}`}>빌드</button>
+                <button onClick={() => setMode('discuss')} className={`rounded px-2.5 py-1 text-[10px] font-semibold transition-colors ${mode === 'discuss' ? 'bg-[#a855f7] text-white' : 'text-[#6b7684]'}`}>토론</button>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* 메시지 영역 */}
-        <div className="flex-1 overflow-y-auto px-5 py-5">
-          <div className="mx-auto max-w-2xl space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          <div className="space-y-3 max-w-none">
             {/* Sprint 3: 이어서 하기 카드 */}
             {showWelcomeBack && project && (
               <WelcomeBack
@@ -1164,10 +1056,11 @@ function BuilderContent() {
 
             {messages.map(msg => (
               <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div className={`max-w-[85%] rounded-2xl px-5 py-3.5 text-sm leading-relaxed ${
+                {msg.role === 'assistant' && <div className="mr-2 mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#3182f6] to-[#a855f7] text-[10px]">F</div>}
+                <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-[13px] leading-relaxed ${
                   msg.role === 'user' ? 'bg-[#3182f6] text-white'
-                    : msg.type === 'status' ? 'bg-[#2c2c35] text-[#8b95a1] text-xs py-2.5'
-                    : 'bg-[#1b1b21] border border-[#2c2c35] text-[#f2f4f6]'
+                    : msg.type === 'status' ? 'bg-[#1e1e28] text-[#6b7684] text-xs py-2'
+                    : 'bg-[#1a1a24] border border-[#1e1e28] text-[#e5e7eb]'
                 }`}>
                   {msg.content.split('\n').map((line, i) => {
                     if (line.startsWith('**') && line.endsWith('**')) return <div key={i} className="font-bold mt-2 mb-1">{line.replace(/\*\*/g, '')}</div>;
@@ -1272,32 +1165,198 @@ function BuilderContent() {
           </div>
         </div>
 
+        {/* 액션 버튼 (생성/배포/다운로드) */}
+        {(buildPhase === 'designing' || buildPhase === 'done') && (
+          <div className="border-t border-[#1e1e28] bg-[#13131a] px-4 py-2.5">
+            <div className="flex gap-2">
+              {buildPhase === 'designing' && (
+                <button onClick={handleGenerate} className="flex-1 rounded-xl bg-gradient-to-r from-[#30d158] to-[#28c840] px-4 py-2.5 text-sm font-bold text-white hover:shadow-lg hover:shadow-[#30d158]/20 transition-all">
+                  앱 생성하기
+                </button>
+              )}
+              {buildPhase === 'done' && (
+                <>
+                  <button onClick={() => setShowCostModal('deploy')} className="flex-1 rounded-xl bg-gradient-to-r from-[#3182f6] to-[#2563eb] px-3 py-2.5 text-sm font-bold text-white hover:shadow-lg hover:shadow-[#3182f6]/20 transition-all">배포</button>
+                  <button onClick={() => setShowCostModal('download')} className="flex-1 rounded-xl bg-gradient-to-r from-[#a855f7] to-[#9333ea] px-3 py-2.5 text-sm font-bold text-white hover:shadow-lg hover:shadow-[#a855f7]/20 transition-all">다운로드</button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* 입력 */}
-        <div className="border-t border-[#2c2c35] px-5 py-4">
-          <div className="mx-auto flex max-w-2xl gap-2.5">
+        <div className="border-t border-[#1e1e28] bg-[#13131a] px-4 py-3">
+          <div className="flex gap-2">
             <input
               ref={inputRef}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && sendMessage()}
-              placeholder={buildPhase === 'questionnaire' ? '직접 입력하거나 위 보기를 클릭하세요...' : mode === 'build' ? '추가 기능이나 수정사항을 말씀해주세요...' : '아이디어를 자유롭게 이야기해보세요...'}
-              className="flex-1 rounded-xl border border-[#2c2c35] bg-[#2c2c35] px-5 py-3.5 text-sm text-[#f2f4f6] placeholder-[#6b7684] outline-none focus:border-[#3182f6] transition-colors"
+              placeholder={buildPhase === 'questionnaire' ? '직접 입력하거나 보기를 클릭...' : buildPhase === 'done' ? '"버튼 색 바꿔줘", "로그인 추가해줘"...' : '수정사항을 말씀해주세요...'}
+              className="flex-1 rounded-xl border border-[#1e1e28] bg-[#1a1a24] px-4 py-3 text-sm text-[#f2f4f6] placeholder-[#4e5968] outline-none focus:border-[#3182f6]/50 transition-colors"
               disabled={isTyping}
             />
             <button
               onClick={sendMessage}
               disabled={!input.trim() || isTyping}
-              className="rounded-xl bg-[#3182f6] px-6 py-3.5 text-sm font-semibold text-white hover:bg-[#1b64da] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              className="rounded-xl bg-[#3182f6] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1b64da] transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
             >
-              전송
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
             </button>
           </div>
-          <p className="mx-auto mt-2.5 max-w-2xl text-center text-xs text-[#6b7684]">
-            {buildPhase === 'questionnaire' ? `질문 ${questionIndex + 1}/${questions.length} — 보기를 클릭하거나 직접 입력하세요`
-              : tokenUsed > 0 ? `채팅할 때마다 크레딧이 소모됩니다 · 이번 세션: ~${tokenUsed.toLocaleString()}토큰 사용`
-              : 'AI가 앱을 생성합니다. 생성된 앱은 수정/배포할 수 있습니다.'}
-          </p>
         </div>
+      </div>
+
+      {/* ── 오른쪽: 미리보기 패널 ──────────────────── */}
+      <div className={`hidden lg:flex flex-col border-l border-[#1e1e28] bg-[#0c0c12] transition-all duration-500 ease-in-out ${isPreviewFocused ? 'flex-1' : 'w-[45%]'}`}>
+        {/* 미리보기 헤더 */}
+        <div className="flex items-center justify-between border-b border-[#1e1e28] bg-[#13131a] px-4 py-2.5">
+          <div className="flex items-center gap-2.5">
+            <span className="text-[11px] font-medium text-[#6b7684]">{showLivePreview ? '실시간 미리보기' : '미리보기'}</span>
+            <div className="flex rounded-md bg-[#1e1e28] p-0.5">
+              <button
+                onClick={() => setPreviewMode('mobile')}
+                className={`rounded px-2.5 py-1 text-[10px] font-medium transition-colors ${previewMode === 'mobile' ? 'bg-[#3182f6] text-white' : 'text-[#6b7684] hover:text-[#f2f4f6]'}`}
+              >📱</button>
+              <button
+                onClick={() => setPreviewMode('desktop')}
+                className={`rounded px-2.5 py-1 text-[10px] font-medium transition-colors ${previewMode === 'desktop' ? 'bg-[#3182f6] text-white' : 'text-[#6b7684] hover:text-[#f2f4f6]'}`}
+              >🖥</button>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {buildPhase === 'done' && project && (
+              <a href={`https://${(project.name || 'app').toLowerCase().replace(/\s+/g, '-')}.foundry.ai.kr`} target="_blank" rel="noopener noreferrer" className="rounded-md bg-[#1e1e28] px-2.5 py-1 text-[10px] text-[#8b95a1] hover:text-[#f2f4f6] transition-colors">
+                외부에서 보기 ↗
+              </a>
+            )}
+          </div>
+        </div>
+
+        {/* 미리보기 영역 */}
+        <div className="flex-1 overflow-auto">
+          {/* 생성 중 → 프로그레스 UI */}
+          {buildPhase === 'generating' && (
+            <div className="flex h-full flex-col items-center justify-center px-8">
+              <div className="w-full max-w-md">
+                <div className="mb-8 text-center">
+                  <div className="mb-4 inline-flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-[#3182f6] to-[#a855f7] text-4xl shadow-lg shadow-[#3182f6]/20">
+                    {generateStep === 'architecture' ? '📐' : generateStep === 'schema' ? '🗄️' : generateStep === 'supabase' ? '☁️' : generateStep === 'frontend' ? '🎨' : generateStep === 'quality' ? '🔍' : generateStep === 'complete' ? '✅' : '⚙️'}
+                  </div>
+                  <h3 className="mt-4 text-lg font-bold text-[#f2f4f6]">AI가 앱을 생성하고 있습니다</h3>
+                  <p className="mt-1 text-sm text-[#6b7684]">{selectedModelTier.toUpperCase()} 모델 사용 중</p>
+                </div>
+                {/* 단계별 프로그레스 */}
+                <div className="space-y-3">
+                  {['architecture', 'schema', 'supabase', 'frontend', 'config', 'quality'].map((step, i) => {
+                    const labels: Record<string, string> = { architecture: '아키텍처 설계', schema: 'DB 스키마 생성', supabase: 'Supabase 설정', frontend: '프론트엔드 생성', config: '설정 파일', quality: '품질 검증' };
+                    const icons: Record<string, string> = { architecture: '📐', schema: '🗄️', supabase: '☁️', frontend: '🎨', config: '📦', quality: '🔍' };
+                    const stepOrder = ['architecture', 'schema', 'supabase', 'frontend', 'config', 'quality'];
+                    const currentIdx = stepOrder.indexOf(generateStep);
+                    const isDone = i < currentIdx;
+                    const isActive = i === currentIdx;
+                    return (
+                      <div key={step} className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-all ${isActive ? 'bg-[#1e1e28] ring-1 ring-[#3182f6]/30' : isDone ? 'bg-[#1e1e28]/50' : 'opacity-40'}`}>
+                        <span className="text-lg">{isDone ? '✅' : icons[step]}</span>
+                        <span className={`text-sm ${isActive ? 'text-[#f2f4f6] font-medium' : isDone ? 'text-[#8b95a1]' : 'text-[#4e5968]'}`}>{labels[step]}</span>
+                        {isActive && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#3182f6] animate-pulse" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 생성 완료 → 실제 코드 미리보기 */}
+          {showLivePreview && (
+            <LivePreview files={generatedFiles} previewMode={previewMode} />
+          )}
+
+          {/* 설계 중 → 인터랙티브 미리보기 */}
+          {!showLivePreview && buildPhase !== 'generating' && previewTemplate && (
+            <div className="flex flex-col items-center gap-3 p-5">
+              {(projectFeatures.length > 0 || Object.keys(answers).length >= 3) && (
+                <div className="flex items-center gap-2 rounded-xl bg-[#3182f6]/8 border border-[#3182f6]/15 px-3 py-2 text-xs">
+                  <span>👆</span>
+                  <span className="text-[#3182f6]">메뉴를 클릭해 각 화면을 체험하세요</span>
+                </div>
+              )}
+              <div
+                className={`overflow-hidden border border-[#1e1e28] bg-white shadow-2xl transition-all duration-300 ${
+                  previewMode === 'mobile' ? 'w-[375px] rounded-[2.5rem]' : 'w-full max-w-[800px] rounded-xl'
+                }`}
+                style={{ height: previewMode === 'mobile' ? '700px' : '600px' }}
+              >
+                {previewMode === 'mobile' && (
+                  <div className="flex h-[44px] items-center justify-center bg-[#f8fafc] border-b border-[#e2e8f0]">
+                    <div className="h-[5px] w-[120px] rounded-full bg-[#1b1b21]" />
+                  </div>
+                )}
+                <iframe
+                  ref={iframeRef}
+                  srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}div{transition:background .15s}</style></head><body>${previewHtml}</body></html>`}
+                  className="w-full border-0"
+                  style={{ height: previewMode === 'mobile' ? '656px' : '600px' }}
+                  title="Live Preview"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 빈 상태 */}
+          {!showLivePreview && buildPhase !== 'generating' && !previewTemplate && (
+            <div className="flex h-full items-center justify-center text-center text-[#4e5968]">
+              <div>
+                <div className="mb-4 text-5xl opacity-60">📱</div>
+                <p className="text-sm font-medium">앱을 설명하면</p>
+                <p className="text-xs mt-1">여기서 실시간으로 미리볼 수 있습니다</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* 하단: 버전 히스토리 + 코드 헬스 (done 상태에서만) */}
+        {buildPhase === 'done' && projectId && (
+          <div className="border-t border-[#1e1e28] bg-[#13131a] px-4 py-3 space-y-2">
+            <VersionHistory
+              projectId={projectId}
+              onRollback={(ver) => {
+                setMessages(prev => [...prev, {
+                  id: Date.now().toString(), role: 'system' as const,
+                  content: `↩ v${ver}으로 롤백되었습니다. 미리보기가 업데이트됩니다.`,
+                  timestamp: new Date().toISOString(), type: 'status' as const,
+                }]);
+                authFetch(`/projects/${projectId}`).then(r => r.ok ? r.json() : null).then(d => {
+                  if (d) setProject(d);
+                });
+              }}
+            />
+            <CodeHealthPanel
+              projectId={projectId}
+              modelTier={selectedModelTier}
+              onCleanupComplete={(cleanupResult) => {
+                authFetch('/credits/balance').then(r => r.ok ? r.json() : null).then(d => {
+                  if (d) setCreditBalance(d.balance);
+                }).catch(() => {});
+                authFetch(`/projects/${projectId}`).then(r => r.ok ? r.json() : null).then(d => {
+                  if (d) setProject(d);
+                });
+                let msg = `🧹 **코드 정리 완료!**\n\n`;
+                msg += `정리된 파일: ${cleanupResult.cleanedFiles.length}개\n`;
+                if (cleanupResult.totalCredits > 0) msg += `사용 크레딧: ${cleanupResult.totalCredits} cr\n`;
+                if (cleanupResult.improvements.length > 0) {
+                  msg += `\n**개선 사항:**\n`;
+                  msg += cleanupResult.improvements.map(s => `• ${s}`).join('\n');
+                }
+                setMessages(prev => [...prev, {
+                  id: Date.now().toString(), role: 'assistant' as const,
+                  content: msg, timestamp: new Date().toISOString(), type: 'text' as const,
+                }]);
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {/* 저장 완료 토스트 */}

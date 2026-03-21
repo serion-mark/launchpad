@@ -126,6 +126,24 @@ const TEMPLATES = [
     ],
     baseCredits: 2000,
   },
+  {
+    id: 'custom',
+    name: '자유롭게 만들기',
+    icon: '🚀',
+    category: '범용/자유',
+    description: '업종 제한 없이 원하는 앱을 자유롭게 설명하세요. AI가 아키텍처를 자동 설계합니다.',
+    features: [
+      { id: 'custom-app', name: '맞춤 앱 생성', required: true, credits: 0 },
+      { id: 'dashboard', name: '대시보드', required: false, credits: 300 },
+      { id: 'auth', name: '로그인/회원가입', required: false, credits: 200 },
+      { id: 'crud', name: '데이터 관리 (CRUD)', required: false, credits: 200 },
+      { id: 'notification', name: '알림 기능', required: false, credits: 300 },
+      { id: 'search', name: '검색/필터', required: false, credits: 200 },
+      { id: 'chart', name: '차트/통계', required: false, credits: 300 },
+      { id: 'file-upload', name: '파일 업로드', required: false, credits: 300 },
+    ],
+    baseCredits: 1500,
+  },
 ];
 
 // ── 업종별 맞춤 질문지 ─────────────────────────────────
@@ -307,6 +325,27 @@ const TEMPLATE_QUESTIONS: Record<string, Question[]> = {
       { label: '만족도 조사', value: 'satisfaction', featureMap: ['satisfaction'] },
     ]},
   ],
+  'custom': [
+    { id: 'app-type', question: '어떤 앱을 만들고 싶으세요?', type: 'radio', options: [
+      { label: '개인용 도구 (타이머, 가계부, 메모 등)', value: 'personal-tool' },
+      { label: '비즈니스/관리 (대시보드, CRM, 재고 등)', value: 'business', featureMap: ['dashboard', 'auth', 'crud'] },
+      { label: '커뮤니티/소셜 (게시판, 피드, 채팅 등)', value: 'community', featureMap: ['auth', 'crud'] },
+      { label: '콘텐츠/미디어 (블로그, 갤러리, 포트폴리오)', value: 'content', featureMap: ['crud'] },
+      { label: '기타 (직접 설명할게요)', value: 'other' },
+    ]},
+    { id: 'data-need', question: '데이터 저장이 필요한가요?', type: 'radio', options: [
+      { label: '아니요, 브라우저에만 저장 (새로고침하면 사라져도 OK)', value: 'local' },
+      { label: '네, 서버에 저장 (로그인+데이터베이스 필요)', value: 'server', featureMap: ['auth', 'crud'] },
+      { label: '잘 모르겠어요 (AI가 판단)', value: 'auto' },
+    ]},
+    { id: 'extras', question: '필요한 기능을 골라주세요 (복수 선택)', type: 'checkbox', options: [
+      { label: '대시보드/통계', value: 'dashboard', featureMap: ['dashboard'] },
+      { label: '로그인/회원가입', value: 'auth', featureMap: ['auth'] },
+      { label: '검색/필터', value: 'search', featureMap: ['search'] },
+      { label: '차트/그래프', value: 'chart', featureMap: ['chart'] },
+      { label: '알림 기능', value: 'notification', featureMap: ['notification'] },
+    ]},
+  ],
 };
 
 // ── 스텝 정의 ──────────────────────────────────────────
@@ -433,6 +472,26 @@ function generatePreviewHtml(templateId: string, name: string, features: Set<str
         <div style="font-size:12px;padding:8px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span>🔧 301동 502호 · 화장실 누수</span><span style="background:#fef9c3;color:#ca8a04;padding:2px 8px;border-radius:10px;font-size:10px">처리중</span></div>
         <div style="font-size:12px;padding:8px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span>🔊 105동 1203호 · 층간소음</span><span style="background:#fee2e2;color:#ef4444;padding:2px 8px;border-radius:10px;font-size:10px">접수</span></div>
         <div style="font-size:12px;padding:8px 0;display:flex;justify-content:space-between"><span>🅿️ 지하2층 B-15 · 주차 문의</span><span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:10px">완료</span></div>
+      </div></div>
+    </div>`;
+  }
+
+  // custom (자유롭게 만들기)
+  if (templateId === 'custom') {
+    return `<div style="font-family:system-ui;min-height:100vh;background:${c.bg}">
+      <div style="background:linear-gradient(135deg,${c.accent},#a855f7);color:white;padding:20px">
+        <div style="font-size:18px;font-weight:800">🚀 ${appName}</div>
+        <div style="font-size:11px;opacity:.8;margin-top:4px">AI가 설계한 맞춤 앱</div>
+      </div>
+      <div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div style="background:${c.card};padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:11px;color:#64748b">활성 사용자</div><div style="font-size:20px;font-weight:700;color:${c.accent}">128명</div></div>
+        <div style="background:${c.card};padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:11px;color:#64748b">오늘 활동</div><div style="font-size:20px;font-weight:700">47건</div></div>
+      </div>
+      <div style="padding:0 16px"><div style="background:${c.card};padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
+        <div style="font-size:13px;font-weight:600;margin-bottom:10px">최근 활동</div>
+        <div style="font-size:12px;padding:8px 0;border-bottom:1px solid #f1f5f9">🟢 새 항목이 추가되었습니다</div>
+        <div style="font-size:12px;padding:8px 0;border-bottom:1px solid #f1f5f9">📊 대시보드가 업데이트되었습니다</div>
+        <div style="font-size:12px;padding:8px 0">🔔 새 알림이 있습니다</div>
       </div></div>
     </div>`;
   }
@@ -664,8 +723,8 @@ export default function Home() {
             </div>
 
             <div className="mt-10 text-center text-[#6b7684]">
-              <p className="text-sm">더 많은 템플릿이 준비 중입니다</p>
-              <p className="text-xs mt-1.5">카페/요식업 | 피트니스/헬스 | 병원/클리닉 | 부동산 | 숙박 | 펫서비스</p>
+              <p className="text-sm">업종이 없나요? <span className="text-[#3182f6] font-medium">"자유롭게 만들기"</span>를 선택하세요!</p>
+              <p className="text-xs mt-1.5">포모도로 타이머 | 가계부 | 블로그 | 커뮤니티 | 대시보드 | 게임 — 뭐든 가능합니다</p>
             </div>
           </div>
         )}
