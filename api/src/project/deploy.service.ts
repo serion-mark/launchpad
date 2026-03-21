@@ -315,6 +315,31 @@ export default nextConfig;
         } catch { /* 개별 파일 실패 무시 */ }
       }
 
+      // 동적 라우트 페이지에 generateStaticParams 보장 (static export 필수)
+      // + 서버 전용 import(cookies, headers) 제거 → 클라이언트 전용으로 전환
+      const allPageFiles = this.findFilesRecursive(outputDir, /page\.(tsx?|jsx?)$/);
+      for (const pageFile of allPageFiles) {
+        // [id], [slug] 등 동적 라우트인 경우만
+        if (!pageFile.includes('[')) continue;
+        try {
+          let content = fs.readFileSync(pageFile, 'utf-8');
+          // generateStaticParams 없으면 추가 (빈 배열 반환 → 빌드 시 생성 안 함, 런타임에 클라이언트 렌더링)
+          if (!content.includes('generateStaticParams')) {
+            content = `export function generateStaticParams() { return [] }\n\n${content}`;
+            fs.writeFileSync(pageFile, content, 'utf-8');
+            appendLog(`generateStaticParams 추가: ${path.basename(path.dirname(pageFile))}/page`);
+          }
+          // 서버 전용 import 제거 (cookies, headers → static export 불가)
+          if (content.includes("from 'next/headers'") || content.includes('from "next/headers"')) {
+            content = content.replace(/import\s*\{[^}]*\}\s*from\s*['"]next\/headers['"]\s*;?\n?/g, '');
+            // createClient를 서버용에서 클라이언트용으로 변경
+            content = content.replace(/@\/utils\/supabase\/server/g, '@/utils/supabase/client');
+            fs.writeFileSync(pageFile, content, 'utf-8');
+            appendLog(`서버 import→클라이언트 전환: ${path.basename(path.dirname(pageFile))}/page`);
+          }
+        } catch { /* 개별 파일 실패 무시 */ }
+      }
+
       // middleware.ts 제거 (Next.js 16에서 deprecated → proxy 전환 필요하지만 static export에선 불필요)
       const middlewarePaths = ['middleware.ts', 'middleware.js', 'src/middleware.ts', 'src/middleware.js'];
       for (const mw of middlewarePaths) {
