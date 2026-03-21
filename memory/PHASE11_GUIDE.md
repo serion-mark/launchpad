@@ -170,33 +170,103 @@ GenSpark 스타일의 멀티 AI 브레인스토밍 기능.
 🔴 비평가 (Gemini): 리스크+반론 관점, 약점 집중 공격
 ```
 
-### 핑퐁 로직 (핵심 구현)
+### 핑퐁 로직 — 순차 누적형 (핵심 구현)
+
+> 병렬(3개 동시)이 아닌 **순차 누적형** 채택 — 대표 실사용 검증.
+> 이유: 뒤로 갈수록 앞의 분석을 기반으로 새 관점만 추가 → 분석이 점점 깊어짐.
+> 병렬은 같은 깊이에서 시작하므로 관점이 겹칠 수 있음.
+
+```
+핵심 로직 (순차 누적):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Phase 1: 브리핑 생성 (Haiku — 저렴)
+   [원본 파일/주제] → 핵심 요약 + 분석 포인트 추출
+   = AI들이 읽을 "브리핑 문서"
+
+Phase 2: 순차 누적 분석 (메인)
+   GPT:    [브리핑]만 읽고 → 1차 분석
+   Gemini: [브리핑] + [GPT 분석] 읽고 → 공감/반박/추가 제안
+   Claude: [브리핑] + [GPT] + [Gemini] 전부 읽고 → 종합 평가
+
+Phase 3: 쟁점 핑퐁 (프리미엄만)
+   의견 갈린 부분만 추출 → 2~3회 추가 토론
+
+Phase 4: 종합 보고서 (Haiku — 저렴)
+   전체 내용 → 깔끔한 보고서
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
 ```typescript
 // api/src/ai/meeting.service.ts (새 파일)
 @Injectable()
 export class MeetingService {
-  async runMeeting(topic: string, tier: 'standard' | 'premium'): AsyncGenerator<MeetingEvent> {
+  async *runMeeting(
+    topic: string,
+    file: string | null,  // 원본 파일 (사업계획서 등)
+    tier: 'standard' | 'premium'
+  ): AsyncGenerator<MeetingEvent> {
     const models = tier === 'standard'
       ? { claude: 'sonnet', gpt: '4o', gemini: 'pro' }
       : { claude: 'opus', gpt: 'o3', gemini: 'ultra' };
 
-    // Round 1: 각자 분석 (병렬 호출)
-    const [claudeResp, gptResp, geminiResp] = await Promise.all([
-      this.callClaude(topic, '전략가 관점으로 분석', models.claude),
-      this.callGPT(topic, '시장 분석가 관점으로 분석', models.gpt),
-      this.callGemini(topic, '비평가 관점으로 약점 집중', models.gemini),
-    ]);
-    yield { round: 1, type: 'individual', responses: [claudeResp, gptResp, geminiResp] };
+    // Phase 1: 브리핑 생성 (Haiku — 저렴)
+    const briefing = await this.callClaude(
+      `다음 주제/파일의 핵심을 요약하고 분석 포인트를 추출하세요:\n\n주제: ${topic}\n${file || ''}`,
+      'briefing', 'haiku'
+    );
+    yield { phase: 'briefing', content: briefing };
 
-    // Round 2: AI끼리 토론 (순차 — 이전 답변을 컨텍스트로)
-    const debate1 = await this.callClaude(
-      `다른 AI들의 의견: \n분석가: ${gptResp}\n비평가: ${geminiResp}\n\n반박하거나 보완하세요.`,
-      '전략가', models.claude
+    // Phase 2-1: GPT가 먼저 (브리핑만 읽고 분석)
+    const gptAnalysis = await this.callGPT(
+      `[분석 브리핑]\n${briefing}\n\n시장 분석가로서 분석하세요: 시장성, 경쟁력, 수익 모델, 데이터 근거`,
+      '시장 분석가', models.gpt
     );
-    const debate2 = await this.callGPT(
-      `전략가 반박: ${debate1}\n비평가 의견: ${geminiResp}\n\n추가 분석하세요.`,
-      '분석가', models.gpt
+    yield { phase: 'analysis', ai: 'GPT', content: gptAnalysis };
+
+    // Phase 2-2: Gemini (브리핑 + GPT 분석 둘 다 읽고)
+    const geminiAnalysis = await this.callGemini(
+      `[분석 브리핑]\n${briefing}\n\n[GPT 시장 분석가의 분석]\n${gptAnalysis}\n\n데이터 분석가로서: GPT 분석에 공감하는 부분과 반박할 부분을 구분하고, GPT가 놓친 관점을 추가 제안하세요.`,
+      '데이터 분석가', models.gemini
     );
+    yield { phase: 'analysis', ai: 'Gemini', content: geminiAnalysis };
+
+    // Phase 2-3: Claude (브리핑 + GPT + Gemini 전부 읽고 종합)
+    const claudeAnalysis = await this.callClaude(
+      `[분석 브리핑]\n${briefing}\n\n[GPT 시장 분석가]\n${gptAnalysis}\n\n[Gemini 데이터 분석가]\n${geminiAnalysis}\n\n전략 종합가로서: 두 AI의 분석을 종합 평가하세요. 동의/반박 구분, 빠진 관점 추가, 최종 실행 제안.`,
+      '전략 종합가', models.claude
+    );
+    yield { phase: 'analysis', ai: 'Claude', content: claudeAnalysis };
+
+    // Phase 3: 쟁점 핑퐁 (프리미엄만)
+    if (tier === 'premium') {
+      const disputes = await this.callClaude(
+        `다음 3개 분석에서 의견이 갈리는 핵심 쟁점을 1~3개 추출하세요:\n\nGPT: ${gptAnalysis}\nGemini: ${geminiAnalysis}\nClaude: ${claudeAnalysis}\n\nJSON 배열로 반환: ["쟁점1", "쟁점2"]`,
+        'dispute-finder', 'haiku'
+      );
+
+      const disputeList = JSON.parse(disputes);
+      for (const dispute of disputeList) {
+        const gptRebuttal = await this.callGPT(
+          `쟁점: "${dispute}"\n\nGemini는 이렇게 말했고: ${geminiAnalysis}\nClaude는 이렇게 말했습니다: ${claudeAnalysis}\n\n당신의 추가 반론 또는 수정된 의견을 제시하세요.`,
+          '시장 분석가', models.gpt
+        );
+        const geminiRebuttal = await this.callGemini(
+          `쟁점: "${dispute}"\nGPT 추가 반론: ${gptRebuttal}\n\n데이터로 검증하고 최종 의견을 제시하세요.`,
+          '데이터 분석가', models.gemini
+        );
+        yield { phase: 'debate', dispute, responses: [gptRebuttal, geminiRebuttal] };
+      }
+    }
+
+    // Phase 4: 종합 보고서 (Haiku — 저렴하게 요약)
+    const report = await this.callClaude(
+      `다음 AI 회의 전체 내용을 종합 보고서로 정리하세요:\n\n주제: ${topic}\nGPT 분석: ${gptAnalysis}\nGemini 분석: ${geminiAnalysis}\nClaude 분석: ${claudeAnalysis}\n${tier === 'premium' ? '추가 토론 내용 포함' : ''}\n\n형식: 요약(3줄) → 주요 발견 → 리스크 → 액션아이템`,
+      'report', 'haiku'
+    );
+    yield { phase: 'report', content: report };
+  }
+}
+```
     yield { round: 2, type: 'debate', responses: [debate1, debate2] };
 
     // Round 3: 종합 보고서 (Haiku — 저렴하게 요약)
