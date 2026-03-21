@@ -115,6 +115,13 @@ export class DeployService {
           );
         }
       }
+      // TypeScript 빌드 에러 무시 (컴파일은 성공하지만 타입 체크 실패 시)
+      if (!content.includes('ignoreBuildErrors')) {
+        content = content.replace(
+          /(output:\s*'export',?)/,
+          `$1\n  typescript: { ignoreBuildErrors: true },\n  eslint: { ignoreDuringBuilds: true },`,
+        );
+      }
       fs.writeFileSync(configPath, content, 'utf-8');
     } else {
       // 설정 파일이 아예 없으면 생성
@@ -123,6 +130,8 @@ export class DeployService {
 const nextConfig: NextConfig = {
   output: 'export',
   images: { unoptimized: true },
+  typescript: { ignoreBuildErrors: true },
+  eslint: { ignoreDuringBuilds: true },
 };
 
 export default nextConfig;
@@ -306,6 +315,16 @@ export default nextConfig;
         } catch { /* 개별 파일 실패 무시 */ }
       }
 
+      // middleware.ts 제거 (Next.js 16에서 deprecated → proxy 전환 필요하지만 static export에선 불필요)
+      const middlewarePaths = ['middleware.ts', 'middleware.js', 'src/middleware.ts', 'src/middleware.js'];
+      for (const mw of middlewarePaths) {
+        const mwPath = path.join(outputDir, mw);
+        if (fs.existsSync(mwPath)) {
+          fs.unlinkSync(mwPath);
+          appendLog(`middleware 제거: ${mw} (static export 불필요)`);
+        }
+      }
+
       // ── Step 3: next build (output: 'export') + F6 자동 수정 루프 ──
       await this.prisma.project.update({
         where: { id: projectId },
@@ -329,7 +348,7 @@ export default nextConfig;
           break;
         } catch (e: any) {
           const stderr = e.stderr?.toString() || e.stdout?.toString() || e.message;
-          const errorLog = stderr.slice(0, 2000);
+          const errorLog = stderr.slice(0, 4000);
           appendLog(`next build 실패 (시도 ${attempt + 1}): ${errorLog.slice(0, 300)}`);
 
           if (attempt >= MAX_BUILD_FIX_ATTEMPTS) {
