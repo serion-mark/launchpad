@@ -35,9 +35,9 @@ export default function LandingPage() {
           <div className="mb-6 inline-block rounded-full bg-[#3182f6]/10 px-4 py-1.5 text-sm font-medium text-[#3182f6]">
             정부지원사업 창업자를 위한 AI MVP 빌더
           </div>
-          <h1 className="mb-6 text-4xl md:text-[60px] font-extrabold leading-[1.1] tracking-tight">
+          <h1 className="mb-6 text-[28px] sm:text-4xl md:text-[60px] font-extrabold leading-[1.15] tracking-tight">
             아이디어만 있으면 됩니다.<br />
-            <span className="text-[#3182f6]">나머지는 AI가 만들어 드립니다.</span>
+            <span className="text-[#3182f6]">나머지는 AI가<br className="sm:hidden" /> 만들어 드립니다.</span>
           </h1>
           <p className="mx-auto mb-10 max-w-2xl text-lg md:text-xl text-[#8b95a1] leading-relaxed">
             개발자 없이, 질문에 답하기만 하면 작동하는 앱이 완성됩니다.<br className="hidden md:block" />
