@@ -49,6 +49,13 @@ model Project {
   healthScore        Int?               // 0~100 코드 건강도
   totalModifications Int     @default(0)
   modelUsed          String?            // 마지막 사용 모델 tier (flash/smart/pro)
+  // ── Supabase 자동 프로비저닝 ──
+  supabaseProjectRef String?            // Supabase project reference (e.g., "abcdefghijkl")
+  supabaseUrl        String?            // https://xxx.supabase.co
+  supabaseAnonKey    String?            // 공개 anon key
+  supabaseServiceKey String?            // service_role key (서버용)
+  supabaseDbPass     String?            // DB 비밀번호 (생성 시 저장)
+  supabaseStatus     String?            // creating | active | failed
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

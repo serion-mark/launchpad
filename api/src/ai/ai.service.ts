@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
 import { CreditService, type ModelTier as CreditModelTier } from '../credit/credit.service';
+import { SupabaseService } from '../supabase/supabase.service';
 import { PrismaService } from '../prisma.service';
 
 // ── 모델 티어 (레거시 호환) ─────────────────────────────
@@ -201,6 +202,7 @@ export class AiService {
 
   constructor(
     private creditService: CreditService,
+    private supabaseService: SupabaseService,
     private prisma: PrismaService,
   ) {
     this.anthropic = new Anthropic({
@@ -586,6 +588,33 @@ ${JSON.stringify(dbTables, null, 2)}
       allFiles.push({ path: 'supabase/migrations/001_initial.sql', content: schemaContent });
       steps[1] = { step: 'schema', status: 'completed', fileCount: 1 };
 
+      // ── Step 2.5: Supabase 자동 프로비저닝 ─────────
+      let supabaseUrl = '';
+      let supabaseAnonKey = '';
+
+      if (this.supabaseService.isEnabled()) {
+        this.logger.log(`[${params.projectId}] Step 2.5: Supabase 프로비저닝`);
+        steps.push({ step: 'supabase', status: 'in_progress', fileCount: 0 });
+
+        const provResult = await this.supabaseService.provisionForProject(
+          params.projectId,
+          architecture.appName || params.answers['biz_name'] as string || 'MyApp',
+          schemaContent,
+        );
+
+        if (provResult.success) {
+          supabaseUrl = provResult.supabaseUrl!;
+          supabaseAnonKey = provResult.supabaseAnonKey!;
+          steps[steps.length - 1] = { step: 'supabase', status: 'completed', fileCount: 0 };
+          this.logger.log(`[${params.projectId}] ✅ Supabase 프로비저닝 완료: ${supabaseUrl}`);
+        } else {
+          steps[steps.length - 1] = { step: 'supabase', status: 'skipped', fileCount: 0 };
+          this.logger.warn(`[${params.projectId}] ⚠️ Supabase 프로비저닝 실패 (코드 생성은 계속): ${provResult.error}`);
+        }
+      } else {
+        this.logger.log(`[${params.projectId}] Supabase 프로비저닝 건너뜀 (미설정)`);
+      }
+
       // ── Step 3: 프론트엔드 페이지 생성 (Supabase 연동) ──
       this.logger.log(`[${params.projectId}] Step 3: 프론트엔드 페이지 생성 (Supabase)`);
       steps.push({ step: 'frontend', status: 'in_progress', fileCount: 0 });
@@ -649,7 +678,7 @@ const supabase = createClient()
       this.logger.log(`[${params.projectId}] Step 4: 설정 파일 생성`);
       steps.push({ step: 'config', status: 'in_progress', fileCount: 0 });
 
-      const configFiles = this.generateConfigFiles(architecture, params.template);
+      const configFiles = this.generateConfigFiles(architecture, params.template, supabaseUrl, supabaseAnonKey);
       allFiles.push(...configFiles);
       steps[3] = { step: 'config', status: 'completed', fileCount: configFiles.length };
 
@@ -1561,7 +1590,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   }
 
   /** 설정 파일 생성 (Supabase 기반) */
-  private generateConfigFiles(architecture: any, template: string): { path: string; content: string }[] {
+  private generateConfigFiles(architecture: any, template: string, supabaseUrl?: string, supabaseAnonKey?: string): { path: string; content: string }[] {
     const appName = (architecture.appName || template || 'my-app').toLowerCase().replace(/[^a-z0-9가-힣]/g, '-');
     const dbTables = architecture.dbTables || architecture.dbModels || [];
 
@@ -1612,7 +1641,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       },
       {
         path: '.env.local',
-        content: `# Supabase 설정 — Supabase 대시보드 > Settings > API에서 복사
+        content: supabaseUrl && supabaseAnonKey
+          ? `# Supabase 설정 (Foundry가 자동으로 생성했습니다)
+NEXT_PUBLIC_SUPABASE_URL=${supabaseUrl}
+NEXT_PUBLIC_SUPABASE_ANON_KEY=${supabaseAnonKey}`
+          : `# Supabase 설정 — Supabase 대시보드 > Settings > API에서 복사
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here`,
       },
