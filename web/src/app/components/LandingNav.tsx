@@ -5,6 +5,7 @@ import { getUser, logout } from '@/lib/api';
 
 const NAV_LINKS = [
   { href: '/#features', label: '기능' },
+  { href: '/meeting', label: 'AI 회의실' },
   { href: '/portfolio', label: '포트폴리오' },
   { href: '/pricing', label: '가격표' },
   { href: '/guide', label: '사용법' },

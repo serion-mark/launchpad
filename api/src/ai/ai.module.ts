@@ -3,6 +3,9 @@ import { AiController } from './ai.controller';
 import { AiService } from './ai.service';
 import { AgentService } from './agent.service';
 import { MemoryService } from './memory.service';
+import { MeetingService } from './meeting.service';
+import { SmartAnalysisService } from './smart-analysis.service';
+import { ImageService } from './image.service';
 import { CreditModule } from '../credit/credit.module';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { PrismaService } from '../prisma.service';
@@ -10,7 +13,7 @@ import { PrismaService } from '../prisma.service';
 @Module({
   imports: [CreditModule, SupabaseModule],
   controllers: [AiController],
-  providers: [AiService, AgentService, MemoryService, PrismaService],
-  exports: [AiService, AgentService, MemoryService],
+  providers: [AiService, AgentService, MemoryService, MeetingService, SmartAnalysisService, ImageService, PrismaService],
+  exports: [AiService, AgentService, MemoryService, MeetingService, SmartAnalysisService, ImageService],
 })
 export class AiModule {}

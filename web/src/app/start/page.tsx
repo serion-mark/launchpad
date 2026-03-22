@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { authFetch, getUser } from '@/lib/api';
+import { authFetch, getUser, getToken, API_BASE } from '@/lib/api';
 
 // ── 템플릿 데이터 ──────────────────────────────────────
 const TEMPLATES = [
@@ -713,6 +713,72 @@ function StartPage() {
   // 자연어 자유 입력
   const [freeInput, setFreeInput] = useState('');
   const [previewMode, setPreviewMode] = useState<'mobile' | 'desktop'>('mobile');
+  // AI 대화 채팅 상태
+  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'assistant'; content: string }[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [appSpec, setAppSpec] = useState<Record<string, string> | null>(null);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const sendChatMessage = async () => {
+    const msg = chatInput.trim();
+    if (!msg || chatLoading) return;
+
+    const newMessages = [...chatMessages, { role: 'user' as const, content: msg }];
+    setChatMessages(newMessages);
+    setChatInput('');
+    setChatLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/ai/start-chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: msg,
+          chatHistory: chatMessages,
+        }),
+      });
+
+      if (!res.ok) throw new Error('AI 응답 실패');
+      const data = await res.json();
+
+      setChatMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
+
+      if (data.isReady && data.appSpec) {
+        setAppSpec(data.appSpec);
+      }
+    } catch {
+      setChatMessages(prev => [...prev, { role: 'assistant', content: '죄송합니다, 일시적인 오류가 발생했습니다. 다시 시도해주세요.' }]);
+    } finally {
+      setChatLoading(false);
+      setTimeout(() => chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+    }
+  };
+
+  const handleAppSpecGenerate = () => {
+    if (!appSpec) return;
+    const customTemplate = TEMPLATES.find(t => t.id === 'custom');
+    if (!customTemplate) return;
+    setSelectedTemplate(customTemplate);
+    const requiredIds = new Set(customTemplate.features.filter(f => f.required).map(f => f.id));
+    setSelectedFeatures(requiredIds);
+    setProjectName(appSpec['앱 이름'] || '새 프로젝트');
+    setAnswers({
+      biz_name: appSpec['앱 이름'] || '',
+      biz_desc: appSpec['상세'] || '',
+    });
+    setCustomRequirements(
+      `업종: ${appSpec['업종'] || ''}\n핵심 기능: ${appSpec['핵심 기능'] || ''}\n타겟: ${appSpec['타겟'] || ''}\n\n대화 컨텍스트:\n${chatMessages.map(m => `${m.role === 'user' ? '사용자' : 'AI'}: ${m.content}`).join('\n')}`
+    );
+    setStep('questionnaire');
+  };
+
+  // 스마트 분석 상태
+  const [smartAnalysis, setSmartAnalysis] = useState<{
+    running: boolean;
+    phase: string;
+    results: { market?: string; benchmark?: string; optimization?: string };
+  }>({ running: false, phase: '', results: {} });
 
   const handleSelectTemplate = (template: typeof TEMPLATES[0]) => {
     setSelectedTemplate(template);
@@ -872,40 +938,154 @@ function StartPage() {
               </p>
             </div>
 
-            {/* 자연어 자유 입력 */}
+            {/* AI 대화형 앱 기획 */}
             <div className="mx-auto mb-10 max-w-2xl">
-              <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6 transition-all focus-within:border-[#3182f6]/50 focus-within:shadow-lg focus-within:shadow-[#3182f6]/5">
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    value={freeInput}
-                    onChange={e => setFreeInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleFreeInputSubmit()}
-                    placeholder="반려동물 돌봄 매칭 앱 - 예약, 리뷰, 채팅 (펫시터 전용)"
-                    className="flex-1 bg-transparent text-[15px] text-[#f2f4f6] placeholder-[#4e5968] focus:outline-none"
-                  />
-                  <button
-                    onClick={handleFreeInputSubmit}
-                    disabled={!freeInput.trim()}
-                    className="shrink-0 rounded-xl bg-gradient-to-r from-[#3182f6] to-[#a855f7] px-5 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg hover:shadow-[#3182f6]/20 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    시작하기
-                  </button>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {['미용실 예약 앱', '학원 관리 시스템', '배달 주문 앱', '커뮤니티 게시판'].map(example => (
+              <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] overflow-hidden transition-all focus-within:border-[#3182f6]/50 focus-within:shadow-lg focus-within:shadow-[#3182f6]/5">
+
+                {/* 채팅 메시지 영역 */}
+                {chatMessages.length > 0 && (
+                  <div className="max-h-[320px] overflow-y-auto p-4 space-y-3">
+                    {chatMessages.map((msg, i) => (
+                      <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                          msg.role === 'user'
+                            ? 'bg-[#3182f6] text-white rounded-br-md'
+                            : 'bg-[#2c2c35] text-[#e5e7eb] rounded-bl-md'
+                        }`}>
+                          {msg.role === 'assistant' && (
+                            <span className="text-[10px] text-[#6b7684] block mb-1">🤖 Foundry AI</span>
+                          )}
+                          <span className="whitespace-pre-wrap">{msg.content}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {chatLoading && (
+                      <div className="flex justify-start">
+                        <div className="bg-[#2c2c35] rounded-2xl rounded-bl-md px-4 py-3">
+                          <div className="flex gap-1.5">
+                            <div className="w-2 h-2 rounded-full bg-[#6b7684] animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <div className="w-2 h-2 rounded-full bg-[#6b7684] animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <div className="w-2 h-2 rounded-full bg-[#6b7684] animate-bounce" style={{ animationDelay: '300ms' }} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    <div ref={chatEndRef} />
+                  </div>
+                )}
+
+                {/* 앱 생성 버튼 (AI가 충분한 정보 파악 후) */}
+                {appSpec && (
+                  <div className="mx-4 mb-3 rounded-xl border border-emerald-700/40 bg-emerald-900/15 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-lg">✅</span>
+                      <span className="font-bold text-sm text-emerald-400">앱 기획 완료!</span>
+                    </div>
+                    <div className="text-xs text-[#8b95a1] space-y-1 mb-3">
+                      {Object.entries(appSpec).map(([k, v]) => (
+                        <div key={k}><span className="text-[#6b7684]">{k}:</span> {v}</div>
+                      ))}
+                    </div>
                     <button
-                      key={example}
-                      onClick={() => { setFreeInput(example); }}
-                      className="rounded-lg bg-[#2c2c35] px-3 py-1.5 text-xs text-[#8b95a1] hover:bg-[#3a3a45] hover:text-[#f2f4f6] transition-colors"
+                      onClick={handleAppSpecGenerate}
+                      className="w-full rounded-xl bg-gradient-to-r from-[#3182f6] to-[#6366f1] py-3 text-sm font-bold text-white hover:brightness-110 transition-all"
                     >
-                      {example}
+                      🚀 이 기획으로 앱 만들기
                     </button>
-                  ))}
+                  </div>
+                )}
+
+                {/* 입력창 */}
+                <div className="p-4 pt-3">
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      value={chatMessages.length > 0 ? chatInput : freeInput}
+                      onChange={e => chatMessages.length > 0 ? setChatInput(e.target.value) : setFreeInput(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key !== 'Enter') return;
+                        if (chatMessages.length > 0) sendChatMessage();
+                        else if (freeInput.trim()) {
+                          // 첫 입력은 채팅 모드로 전환
+                          setChatInput('');
+                          sendChatMessage();
+                          // freeInput 값을 chatInput으로 전달
+                          const msg = freeInput.trim();
+                          setFreeInput('');
+                          setChatMessages([{ role: 'user', content: msg }]);
+                          setChatLoading(true);
+                          fetch(`${API_BASE}/ai/start-chat`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ message: msg, chatHistory: [] }),
+                          })
+                            .then(r => r.ok ? r.json() : Promise.reject())
+                            .then(data => {
+                              setChatMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
+                              if (data.isReady && data.appSpec) setAppSpec(data.appSpec);
+                            })
+                            .catch(() => {
+                              setChatMessages(prev => [...prev, { role: 'assistant', content: '죄송합니다, 일시적인 오류입니다. 다시 시도해주세요.' }]);
+                            })
+                            .finally(() => setChatLoading(false));
+                        }
+                      }}
+                      placeholder={chatMessages.length > 0 ? '답변을 입력하세요...' : '만들고 싶은 앱을 설명해주세요 (예: 반려동물 돌봄 매칭 앱)'}
+                      className="flex-1 bg-transparent text-[15px] text-[#f2f4f6] placeholder-[#4e5968] focus:outline-none"
+                    />
+                    <button
+                      onClick={() => {
+                        if (chatMessages.length > 0) {
+                          sendChatMessage();
+                        } else if (freeInput.trim()) {
+                          // 첫 입력 → 채팅 모드 진입
+                          const msg = freeInput.trim();
+                          setFreeInput('');
+                          setChatMessages([{ role: 'user', content: msg }]);
+                          setChatLoading(true);
+                          fetch(`${API_BASE}/ai/start-chat`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ message: msg, chatHistory: [] }),
+                          })
+                            .then(r => r.ok ? r.json() : Promise.reject())
+                            .then(data => {
+                              setChatMessages(prev => [...prev, { role: 'assistant', content: data.content }]);
+                              if (data.isReady && data.appSpec) setAppSpec(data.appSpec);
+                            })
+                            .catch(() => {
+                              setChatMessages(prev => [...prev, { role: 'assistant', content: '죄송합니다, 일시적인 오류입니다. 다시 시도해주세요.' }]);
+                            })
+                            .finally(() => setChatLoading(false));
+                        }
+                      }}
+                      disabled={chatMessages.length > 0 ? (!chatInput.trim() || chatLoading) : !freeInput.trim()}
+                      className="shrink-0 rounded-xl bg-gradient-to-r from-[#3182f6] to-[#a855f7] px-5 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg hover:shadow-[#3182f6]/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {chatMessages.length > 0 ? '전송' : '대화 시작'}
+                    </button>
+                  </div>
+
+                  {/* 예시 칩 (대화 시작 전에만) */}
+                  {chatMessages.length === 0 && (
+                    <>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {['미용실 예약 앱', '학원 관리 시스템', '배달 주문 앱', '커뮤니티 게시판'].map(example => (
+                          <button
+                            key={example}
+                            onClick={() => setFreeInput(example)}
+                            className="rounded-lg bg-[#2c2c35] px-3 py-1.5 text-xs text-[#8b95a1] hover:bg-[#3a3a45] hover:text-[#f2f4f6] transition-colors"
+                          >
+                            {example}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="mt-2.5 text-[11px] text-[#4e5968]">
+                        AI와 대화하며 앱을 기획하거나, 아래 템플릿을 바로 선택하세요
+                      </p>
+                    </>
+                  )}
                 </div>
-                <p className="mt-2.5 text-[11px] text-[#4e5968]">
-                  TIP: 기능을 구분해서 쓰면 품질이 3배 올라갑니다 — 예: "앱 이름 - 기능1, 기능2 (타겟 사용자)"
-                </p>
               </div>
             </div>
 
@@ -1338,6 +1518,86 @@ function StartPage() {
                   <span className="text-[#3182f6]">{credits.total.toLocaleString()}</span>
                 </div>
 
+                {/* 스마트 분석 옵션 */}
+                {!smartAnalysis.running && !smartAnalysis.results.optimization && (
+                  <div className="mb-5 rounded-xl border border-[#6366f1]/30 bg-[#6366f1]/5 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-lg">🧠</span>
+                      <span className="font-bold text-sm text-[#a5b4fc]">AI 스마트 분석</span>
+                      <span className="text-xs text-[#6b7684] bg-[#2c2c35] px-2 py-0.5 rounded-full">추천</span>
+                    </div>
+                    <p className="text-xs text-[#8b95a1] mb-3">
+                      앱 생성 전에 AI 3개가 시장조사 → 벤치마크 → 설계최적화를 자동 수행합니다. 결과가 3배 좋아집니다.
+                    </p>
+                    <button
+                      onClick={async () => {
+                        setSmartAnalysis({ running: true, phase: '시장 조사 중...', results: {} });
+                        try {
+                          const token = getToken();
+                          const res = await fetch(`${API_BASE}/ai/smart-analysis-sse`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                            body: JSON.stringify({
+                              template: selectedTemplate!.id,
+                              answers,
+                              features: Array.from(selectedFeatures),
+                              tier: 'standard',
+                            }),
+                          });
+                          if (!res.ok || !res.body) throw new Error('분석 실패');
+                          const reader = res.body.getReader();
+                          const decoder = new TextDecoder();
+                          let buf = '';
+                          const results: Record<string, string> = {};
+                          while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            buf += decoder.decode(value, { stream: true });
+                            const lines = buf.split('\n');
+                            buf = lines.pop() || '';
+                            for (const l of lines) {
+                              if (!l.startsWith('data: ')) continue;
+                              try {
+                                const ev = JSON.parse(l.slice(6));
+                                if (ev.phase === 'market') { results.market = ev.content; setSmartAnalysis(s => ({ ...s, phase: 'UI/UX 벤치마크 중...' })); }
+                                else if (ev.phase === 'benchmark') { results.benchmark = ev.content; setSmartAnalysis(s => ({ ...s, phase: '설계 최적화 중...' })); }
+                                else if (ev.phase === 'optimization') { results.optimization = ev.content; }
+                              } catch {}
+                            }
+                          }
+                          setSmartAnalysis({ running: false, phase: '', results });
+                        } catch {
+                          setSmartAnalysis({ running: false, phase: '', results: {} });
+                        }
+                      }}
+                      className="w-full rounded-lg bg-gradient-to-r from-[#6366f1] to-[#3182f6] py-2.5 text-sm font-bold text-white hover:brightness-110 transition-all"
+                    >
+                      🧠 스마트 분석 후 생성 (200 cr)
+                    </button>
+                  </div>
+                )}
+
+                {/* 스마트 분석 진행 중 */}
+                {smartAnalysis.running && (
+                  <div className="mb-5 rounded-xl border border-[#6366f1]/30 bg-[#6366f1]/5 p-4 text-center">
+                    <div className="animate-pulse text-[#a5b4fc] font-medium text-sm">{smartAnalysis.phase}</div>
+                    <div className="mt-2 h-1.5 rounded-full bg-[#2c2c35] overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-[#6366f1] to-[#3182f6] rounded-full animate-pulse" style={{ width: '60%' }} />
+                    </div>
+                  </div>
+                )}
+
+                {/* 스마트 분석 완료 결과 요약 */}
+                {smartAnalysis.results.optimization && (
+                  <div className="mb-5 rounded-xl border border-emerald-700/30 bg-emerald-900/10 p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span>✅</span>
+                      <span className="font-bold text-sm text-emerald-400">스마트 분석 완료</span>
+                    </div>
+                    <p className="text-xs text-[#8b95a1]">시장조사 + 벤치마크 + 설계최적화가 앱 생성에 자동 반영됩니다.</p>
+                  </div>
+                )}
+
                 <div className="flex gap-3">
                   <button
                     onClick={() => setStep('select-theme')}
@@ -1347,9 +1607,10 @@ function StartPage() {
                   </button>
                   <button
                     onClick={handleGenerate}
-                    className="flex-1 rounded-xl bg-[#3182f6] py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-[#1b64da]"
+                    disabled={smartAnalysis.running}
+                    className="flex-1 rounded-xl bg-[#3182f6] py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-[#1b64da] disabled:opacity-50"
                   >
-                    AI 생성 시작
+                    {smartAnalysis.results.optimization ? '🚀 분석 반영하여 생성' : '⚡ 바로 생성'}
                   </button>
                 </div>
               </div>

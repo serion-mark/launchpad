@@ -6,8 +6,8 @@ import { authFetch, getUser } from '@/lib/api';
 import { QUESTIONNAIRES, THEME_MAP, getFeatLabel } from './constants';
 import type { Question } from './constants';
 import { getDemoData } from './demo-data';
-import ModelSelector from './components/ModelSelector';
-import type { AppModelTier } from './components/ModelSelector';
+// ModelSelector 제거 — Phase 11: Smart(Sonnet) 고정
+type AppModelTier = 'flash' | 'smart' | 'pro';
 import VersionHistory from './components/VersionHistory';
 import WelcomeBack from './components/WelcomeBack';
 import CodeHealthPanel from './components/CodeHealthPanel';
@@ -399,6 +399,39 @@ function BuilderContent() {
     setInput('');
     setIsTyping(true);
 
+    // ── Phase 11: 이미지 생성 키워드 감지 ────
+    const imageKeywords = ['로고', '이미지', '아이콘', '배너', '그림', '일러스트', '사진'];
+    const isImageRequest = imageKeywords.some(kw => userMsg.content.includes(kw)) &&
+      ['만들어', '생성', '그려', '디자인'].some(kw => userMsg.content.includes(kw));
+
+    if (isImageRequest) {
+      try {
+        const imgRes = await authFetch('/ai/generate-image', {
+          method: 'POST',
+          body: JSON.stringify({ prompt: userMsg.content, projectId }),
+        });
+        const imgData = await imgRes.json();
+        const imgMsg: Message = {
+          id: `img-${Date.now()}`, role: 'assistant',
+          content: imgData.imageUrl
+            ? `🎨 **이미지 생성 완료!**\n\n![생성된 이미지](${imgData.imageUrl})\n\n[다시 생성하려면 "다시 만들어줘"라고 입력하세요]`
+            : `이미지 생성에 실패했습니다: ${imgData.message || '알 수 없는 오류'}`,
+          timestamp: new Date().toISOString(), type: 'text',
+        };
+        setMessages(prev => [...prev, imgMsg]);
+        setIsTyping(false);
+        return;
+      } catch (e: any) {
+        const errMsg: Message = {
+          id: `img-err-${Date.now()}`, role: 'assistant',
+          content: `이미지 생성 오류: ${e.message}`, timestamp: new Date().toISOString(), type: 'text',
+        };
+        setMessages(prev => [...prev, errMsg]);
+        setIsTyping(false);
+        return;
+      }
+    }
+
     // ── Sprint 3: done 상태에서는 코드 수정 API 호출 ────
     if (buildPhase === 'done' && projectId) {
       const modifyResult = await callModifyFiles({
@@ -487,6 +520,9 @@ function BuilderContent() {
   // ── 앱 생성 (F7: SSE 스트리밍 파이프라인) ────────────
   const [generateProgress, setGenerateProgress] = useState<string[]>([]);
   const [generateStep, setGenerateStep] = useState<string>('');
+  const [genFileCount, setGenFileCount] = useState(0);
+  const [genTotalFiles, setGenTotalFiles] = useState(0);
+  const [genStartTime, setGenStartTime] = useState(0);
   // 실시간 미리보기: SSE에서 생성된 파일을 즉시 LivePreview에 전달
   const [streamingFiles, setStreamingFiles] = useState<{ path: string; content: string }[]>([]);
 
@@ -495,6 +531,9 @@ function BuilderContent() {
     setBuildPhase('generating');
     setGenerateProgress([]);
     setGenerateStep('');
+    setGenFileCount(0);
+    setGenTotalFiles(0);
+    setGenStartTime(Date.now());
     setStreamingFiles([]);
 
     const statusMsgId = Date.now().toString();
@@ -587,6 +626,8 @@ function BuilderContent() {
               const msg = data.detail ? `${label}: ${data.detail}` : `${label} (${data.progress})`;
               setGenerateProgress(prev => [...prev, msg]);
               setGenerateStep(data.step);
+              if (data.fileCount) setGenFileCount(data.fileCount);
+              if (data.totalFiles) setGenTotalFiles(data.totalFiles);
 
               // 실시간 미리보기: SSE에서 생성된 파일을 LivePreview에 즉시 반영
               if (data.generatedFiles && Array.isArray(data.generatedFiles)) {
@@ -783,7 +824,7 @@ function BuilderContent() {
   const isEdu = isEdutech || industry.includes('학원') || industry.includes('교육');
 
   // 모델 선택 상태
-  const [selectedModelTier, setSelectedModelTier] = useState<AppModelTier>('flash');
+  const selectedModelTier: AppModelTier = 'smart'; // Phase 11: Smart 고정
 
   // ── 메뉴별 화면 콘텐츠 생성 ──────────────────────────
   const generatePageContent = (menuId: string, accent: string): string => {
@@ -1014,14 +1055,7 @@ function BuilderContent() {
             )}
           </div>
           <div className="flex items-center gap-1.5">
-            {buildPhase !== 'questionnaire' && buildPhase !== 'idle' && (
-              <ModelSelector
-                selectedTier={selectedModelTier}
-                onSelect={setSelectedModelTier}
-                creditBalance={creditBalance}
-                compact
-              />
-            )}
+            {/* Phase 11: 모델선택 제거, Smart 고정 */}
             {creditBalance !== null && (
               <a href="/credits" className="flex items-center gap-1 rounded-md bg-[#1e1e28] px-2 py-1 text-[11px] font-medium text-[#ffd60a] hover:bg-[#282835] transition-colors">
                 <span>⚡</span><span>{creditBalance.toLocaleString()}</span>
@@ -1360,8 +1394,33 @@ function BuilderContent() {
                     {generateStep === 'architecture' ? '📐' : generateStep === 'schema' ? '🗄️' : generateStep === 'supabase' ? '☁️' : generateStep === 'frontend' ? '🎨' : generateStep === 'quality' ? '🔍' : generateStep === 'complete' ? '✅' : '⚙️'}
                   </div>
                   <h3 className="mt-4 text-lg font-bold text-[#f2f4f6]">AI가 앱을 생성하고 있습니다</h3>
-                  <p className="mt-1 text-sm text-[#6b7684]">{selectedModelTier.toUpperCase()} 모델 사용 중</p>
+                  <p className="mt-1 text-sm text-[#6b7684]">AI가 코드를 생성하고 있습니다</p>
                 </div>
+                {/* 퍼센트 프로그레스 바 */}
+                {(() => {
+                  const stepOrder = ['architecture', 'schema', 'supabase', 'frontend', 'config', 'quality'];
+                  const currentIdx = stepOrder.indexOf(generateStep);
+                  const pct = currentIdx >= 0 ? Math.round(((currentIdx + 1) / stepOrder.length) * 100) : 0;
+                  const elapsed = genStartTime ? Math.round((Date.now() - genStartTime) / 1000) : 0;
+                  const perStep = currentIdx > 0 ? elapsed / (currentIdx + 1) : 15;
+                  const remaining = Math.max(0, Math.round(perStep * (stepOrder.length - currentIdx - 1)));
+                  return (
+                    <div className="mb-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-[#f2f4f6]">{pct}%</span>
+                        <span className="text-xs text-[#6b7684]">
+                          {remaining > 60 ? `약 ${Math.ceil(remaining / 60)}분 남음` : remaining > 0 ? `약 ${remaining}초 남음` : '거의 완료...'}
+                        </span>
+                      </div>
+                      <div className="h-2 rounded-full bg-[#2c2c35] overflow-hidden">
+                        <div className="h-full rounded-full bg-gradient-to-r from-[#3182f6] to-[#a855f7] transition-all duration-700 ease-out" style={{ width: `${pct}%` }} />
+                      </div>
+                      {genFileCount > 0 && (
+                        <p className="mt-2 text-xs text-[#6b7684] text-center">{genFileCount}개 파일 생성됨{genTotalFiles > 0 ? ` / 예상 ${genTotalFiles}개` : ''}</p>
+                      )}
+                    </div>
+                  );
+                })()}
                 {/* 단계별 프로그레스 */}
                 <div className="space-y-3">
                   {['architecture', 'schema', 'supabase', 'frontend', 'config', 'quality'].map((step, i) => {
@@ -1390,7 +1449,7 @@ function BuilderContent() {
               <LivePreview files={streamingFiles} previewMode={previewMode} visualEditMode={false} />
               {/* 미니 프로그레스 오버레이 */}
               <div className="absolute bottom-4 left-4 right-4 rounded-xl border border-[#2c2c35] bg-[#13131a]/90 backdrop-blur-sm px-4 py-3 shadow-lg">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 mb-2">
                   <div className="h-2 w-2 rounded-full bg-[#3182f6] animate-pulse" />
                   <span className="text-xs text-[#8b95a1]">
                     {generateStep === 'frontend' ? `페이지 생성 중... (${streamingFiles.filter(f => f.path.includes('page.tsx')).length}개 완료)` :
@@ -1400,6 +1459,16 @@ function BuilderContent() {
                   </span>
                   <span className="ml-auto text-xs font-medium text-[#3182f6]">{streamingFiles.length}개 파일</span>
                 </div>
+                {(() => {
+                  const stepOrder = ['architecture', 'schema', 'supabase', 'frontend', 'config', 'quality'];
+                  const currentIdx = stepOrder.indexOf(generateStep);
+                  const pct = currentIdx >= 0 ? Math.round(((currentIdx + 1) / stepOrder.length) * 100) : 0;
+                  return (
+                    <div className="h-1.5 rounded-full bg-[#2c2c35] overflow-hidden">
+                      <div className="h-full rounded-full bg-gradient-to-r from-[#3182f6] to-[#a855f7] transition-all duration-700" style={{ width: `${pct}%` }} />
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}

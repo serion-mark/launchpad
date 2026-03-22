@@ -10,6 +10,8 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // ── 모델 정의 ──────────────────────────────────────────
 export type ModelTier = 'fast' | 'standard' | 'premium';
@@ -81,14 +83,77 @@ const CREDIT_COST: Record<TaskType, number> = {
     document: 30,
 };
 
+// ── AI 회의실 모델 매핑 ─────────────────────────────────
+export const MEETING_MODELS = {
+    standard: {
+        claude: 'claude-sonnet-4-5-20250514',
+        gpt: 'gpt-4o',
+        gemini: 'gemini-2.0-flash',
+    },
+    premium: {
+        claude: 'claude-sonnet-4-5-20250514',  // Opus 크레딧 부족 시 Sonnet 사용
+        gpt: 'gpt-4o',
+        gemini: 'gemini-2.0-flash',
+    },
+} as const;
+
 // ── LLM 라우터 ─────────────────────────────────────────
 export class LLMRouter {
     private anthropic: Anthropic;
+    private openai: OpenAI | null = null;
+    private googleAI: GoogleGenerativeAI | null = null;
 
     constructor() {
         this.anthropic = new Anthropic({
             apiKey: process.env.ANTHROPIC_API_KEY,
         });
+
+        if (process.env.OPENAI_API_KEY) {
+            this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+        }
+
+        if (process.env.GEMINI_API_KEY) {
+            this.googleAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        }
+    }
+
+    // ── 범용 프로바이더별 호출 메서드 (AI 회의실/스마트 분석용) ──
+
+    async callAnthropic(system: string, user: string, model = 'claude-sonnet-4-5-20250514', maxTokens = 4096): Promise<string> {
+        const response = await this.anthropic.messages.create({
+            model,
+            max_tokens: maxTokens,
+            system,
+            messages: [{ role: 'user', content: user }],
+        });
+        return response.content
+            .filter((b) => b.type === 'text')
+            .map((b) => (b as Anthropic.TextBlock).text)
+            .join('\n');
+    }
+
+    async callOpenAI(system: string, user: string, model = 'gpt-4o', maxTokens = 4096): Promise<string> {
+        if (!this.openai) throw new Error('OPENAI_API_KEY가 설정되지 않았습니다');
+        const response = await this.openai.chat.completions.create({
+            model,
+            max_tokens: maxTokens,
+            messages: [
+                { role: 'system', content: system },
+                { role: 'user', content: user },
+            ],
+        });
+        return response.choices[0]?.message?.content || '';
+    }
+
+    async callGoogle(system: string, user: string, model = 'gemini-2.0-flash', maxTokens = 4096): Promise<string> {
+        if (!this.googleAI) throw new Error('GEMINI_API_KEY가 설정되지 않았습니다');
+        const genModel = this.googleAI.getGenerativeModel({
+            model,
+            generationConfig: { maxOutputTokens: maxTokens },
+            systemInstruction: system,
+        });
+        const result = await genModel.generateContent(user);
+        return result.response.text();
     }
 
     /**

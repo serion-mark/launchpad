@@ -88,4 +88,20 @@ export class ProjectController {
   pushToGitHub(@Req() req: any, @Param('id') id: string) {
     return this.githubService.pushToGitHub(id, req.user.userId);
   }
+
+  // ── Phase 11: 호스팅 플랜 변경 ───────────────────────
+  @Patch(':id/hosting')
+  updateHosting(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { plan: 'free' | 'basic' | 'pro' },
+  ) {
+    return this.projectService.updateHostingPlan(id, req.user.userId, body.plan);
+  }
+
+  // ── 호스팅 현황 조회 ──
+  @Get(':id/hosting')
+  getHosting(@Req() req: any, @Param('id') id: string) {
+    return this.projectService.getHostingInfo(id, req.user.userId);
+  }
 }

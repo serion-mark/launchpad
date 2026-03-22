@@ -138,4 +138,57 @@ export class ProjectService {
       restoredFrom: targetVersion,
     };
   }
+
+  // ── Phase 11: 호스팅 과금 ─────────────────────────
+
+  static readonly HOSTING_PLANS = {
+    free: { price: 0, visitorLimit: 1000, label: '무료', features: ['foundry.ai.kr 서브도메인', '월 1,000명 방문자'] },
+    basic: { price: 9900, visitorLimit: -1, label: 'Basic ₩9,900/월', features: ['무제한 방문자', '빠른 응답 속도'] },
+    pro: { price: 29900, visitorLimit: -1, label: 'Pro ₩29,900/월', features: ['무제한 방문자', '커스텀 도메인 안내', '우선 지원'] },
+  } as const;
+
+  async updateHostingPlan(id: string, userId: string, plan: 'free' | 'basic' | 'pro') {
+    const project = await this.prisma.project.findUnique({ where: { id } });
+    if (!project) throw new NotFoundException('프로젝트를 찾을 수 없습니다');
+    if (project.userId !== userId) throw new ForbiddenException();
+
+    const expiresAt = plan !== 'free'
+      ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30일
+      : null;
+
+    const updated = await this.prisma.project.update({
+      where: { id },
+      data: { hostingPlan: plan, hostingExpiresAt: expiresAt },
+    });
+
+    return {
+      plan: updated.hostingPlan,
+      expiresAt: updated.hostingExpiresAt,
+      ...ProjectService.HOSTING_PLANS[plan],
+    };
+  }
+
+  async getHostingInfo(id: string, userId: string) {
+    const project = await this.prisma.project.findUnique({
+      where: { id },
+      select: { userId: true, hostingPlan: true, hostingExpiresAt: true, monthlyVisitors: true, visitorResetAt: true, deployedUrl: true, subdomain: true },
+    });
+    if (!project) throw new NotFoundException('프로젝트를 찾을 수 없습니다');
+    if (project.userId !== userId) throw new ForbiddenException();
+
+    const plan = (project.hostingPlan || 'free') as 'free' | 'basic' | 'pro';
+    const planInfo = ProjectService.HOSTING_PLANS[plan];
+    const isOverLimit = plan === 'free' && project.monthlyVisitors > planInfo.visitorLimit;
+
+    return {
+      plan,
+      ...planInfo,
+      monthlyVisitors: project.monthlyVisitors,
+      isOverLimit,
+      expiresAt: project.hostingExpiresAt,
+      deployedUrl: project.deployedUrl,
+      subdomain: project.subdomain,
+      plans: ProjectService.HOSTING_PLANS,
+    };
+  }
 }

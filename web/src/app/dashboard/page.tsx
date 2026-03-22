@@ -13,6 +13,8 @@ type Project = {
   subdomain: string | null;
   deployedUrl: string | null;
   buildStatus: string | null;
+  hostingPlan: string;
+  monthlyVisitors: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -108,6 +110,9 @@ export default function DashboardPage() {
             <img src="/logo.svg" alt="Foundry" className="h-7 md:h-8" />
           </a>
           <div className="flex items-center gap-3">
+            <a href="/meeting" className="rounded-xl bg-[#2c2c35] px-4 py-2 text-sm font-medium text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">
+              🧠 AI 회의실
+            </a>
             <a href="/credits" className="rounded-xl bg-[#2c2c35] px-4 py-2 text-sm font-medium text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">
               요금제
             </a>
@@ -249,10 +254,27 @@ export default function DashboardPage() {
                       href={project.deployedUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="mb-4 block truncate text-xs text-[#3182f6] hover:underline"
+                      className="mb-3 block truncate text-xs text-[#3182f6] hover:underline"
                     >
                       {project.deployedUrl}
                     </a>
+                  )}
+
+                  {/* 호스팅 + 방문자 */}
+                  {project.deployedUrl && project.buildStatus === 'done' && (
+                    <div className="mb-4 flex items-center justify-between rounded-lg bg-[#2c2c35]/50 px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-[#6b7684]">📊 이번 달</span>
+                        <span className="text-xs font-medium text-[#f2f4f6]">{(project.monthlyVisitors || 0).toLocaleString()}명</span>
+                      </div>
+                      <span className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${
+                        project.hostingPlan === 'pro' ? 'bg-[#a855f7]/20 text-[#a855f7]' :
+                        project.hostingPlan === 'basic' ? 'bg-[#3182f6]/20 text-[#3182f6]' :
+                        'bg-[#2c2c35] text-[#6b7684]'
+                      }`}>
+                        {project.hostingPlan === 'pro' ? 'PRO' : project.hostingPlan === 'basic' ? 'BASIC' : 'FREE'}
+                      </span>
+                    </div>
                   )}
 
                   <div className="flex gap-2.5">

@@ -71,6 +71,11 @@ model Project {
   buildFinishedAt    DateTime?
   // ── GitHub 연동 ──
   githubRepoUrl      String?            // https://github.com/user/repo
+  // ── 호스팅 과금 (MRR) ──
+  hostingPlan        String   @default("free")  // free | basic | pro
+  hostingExpiresAt   DateTime?
+  monthlyVisitors    Int      @default(0)       // 이번 달 방문자 수
+  visitorResetAt     DateTime?                  // 방문자 카운트 리셋 시점
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

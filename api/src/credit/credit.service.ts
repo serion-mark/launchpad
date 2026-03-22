@@ -18,6 +18,12 @@ export const CREDIT_COSTS = {
   code_download: 5000,       // 코드 다운로드
   server_deploy: 8000,       // 서버 배포
   free_trial: 0,             // 맛보기 설계안 (무료 1회)
+  // Phase 11: AI 회의실 + 스마트 분석 + 이미지 생성
+  meeting_standard: 300,     // AI 회의실 스탠다드
+  meeting_premium: 1500,     // AI 회의실 프리미엄
+  smart_analysis_standard: 200,  // 스마트 분석 스탠다드
+  smart_analysis_premium: 1000,  // 스마트 분석 프리미엄
+  image_generate: 200,       // AI 이미지 생성
 } as const;
 
 export type CreditAction = keyof typeof CREDIT_COSTS;
