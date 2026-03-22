@@ -196,4 +196,32 @@ export class MeetingService {
       yield { phase: 'error', message: error.message || 'AI 회의 중 오류가 발생했습니다' };
     }
   }
+
+  /**
+   * 회의 완료 후 추가 채팅 — 회의 결과 기반 후속 질문
+   */
+  async followUpChat(params: {
+    question: string;
+    context: string;
+    history?: { role: string; content: string }[];
+  }): Promise<string> {
+    const { question, context, history = [] } = params;
+
+    const historyText = history.length > 0
+      ? history.map(h => `${h.role}: ${h.content}`).join('\n\n')
+      : '';
+
+    const result = await this.llmRouter.callAnthropic(
+      `당신은 AI 회의 어시스턴트입니다. 아래 회의 결과를 기반으로 사용자의 후속 질문에 답변하세요.
+구체적이고 실용적인 답변을 한국어로 작성하세요. 마크다운 형식 사용 가능합니다.
+
+[회의 결과 요약]
+${context.slice(0, 6000)}`,
+      `${historyText ? `[이전 대화]\n${historyText}\n\n` : ''}[사용자 질문]\n${question}`,
+      'claude-haiku-4-5-20251001',
+      2048,
+    );
+
+    return result;
+  }
 }

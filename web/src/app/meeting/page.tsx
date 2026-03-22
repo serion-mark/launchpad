@@ -55,6 +55,9 @@ export default function MeetingPage() {
   const [currentAI, setCurrentAI] = useState('');
   const [preQuestions, setPreQuestions] = useState('');
   const [preAnswers, setPreAnswers] = useState('');
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState<{ role: string; content: string }[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const isRunning = phase !== 'idle' && phase !== 'done' && phase !== 'error' && phase !== 'pre_question';
@@ -269,6 +272,43 @@ export default function MeetingPage() {
       sessionStorage.setItem('meeting_context', report.content);
     }
     window.location.href = '/start';
+  };
+
+  // ── 추가 채팅 ───────────────────────────────────────
+
+  const sendChat = async () => {
+    if (!chatInput.trim() || chatLoading) return;
+    const token = getToken();
+    if (!token) { alert('로그인이 필요합니다'); return; }
+
+    const question = chatInput.trim();
+    setChatInput('');
+    setChatMessages(prev => [...prev, { role: '나', content: question }]);
+    setChatLoading(true);
+    scrollToBottom();
+
+    try {
+      // 회의 결과 전체를 컨텍스트로 전달
+      const context = messages.map(m => {
+        if (m.phase === 'briefing') return `[브리핑]\n${m.content}`;
+        if (m.phase === 'analysis') return `[${m.ai} 분석]\n${m.content}`;
+        if (m.phase === 'report') return `[종합 보고서]\n${m.content}`;
+        return '';
+      }).filter(Boolean).join('\n\n');
+
+      const res = await fetch(`${API_BASE}/ai/meeting-chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ question, context, history: chatMessages.slice(-6) }),
+      });
+      if (!res.ok) throw new Error('답변 생성 실패');
+      const data = await res.json();
+      setChatMessages(prev => [...prev, { role: 'AI', content: data.reply }]);
+    } catch {
+      setChatMessages(prev => [...prev, { role: 'AI', content: '답변 생성에 실패했습니다. 다시 시도해주세요.' }]);
+    }
+    setChatLoading(false);
+    scrollToBottom();
   };
 
   // ── 렌더링 ────────────────────────────────────────────
@@ -568,26 +608,82 @@ export default function MeetingPage() {
 
             {/* 완료 후 액션 버튼 */}
             {phase === 'done' && (
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={copyReport}
-                  className="flex-1 rounded-xl border border-[#2c2c35] py-3 text-sm font-semibold text-[#8b95a1] hover:bg-[#2c2c35] hover:text-white transition-colors"
-                >
-                  📥 보고서 복사
-                </button>
-                <button
-                  onClick={goToStart}
-                  className="flex-1 rounded-xl bg-gradient-to-r from-[#3182f6] to-[#6366f1] py-3 text-sm font-bold text-white hover:brightness-110 transition-all"
-                >
-                  🚀 이걸로 앱 만들기
-                </button>
-                <button
-                  onClick={() => { setPhase('idle'); setMessages([]); }}
-                  className="flex-1 rounded-xl border border-[#2c2c35] py-3 text-sm font-semibold text-[#8b95a1] hover:bg-[#2c2c35] hover:text-white transition-colors"
-                >
-                  🔄 새 회의
-                </button>
-              </div>
+              <>
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={copyReport}
+                    className="flex-1 rounded-xl border border-[#2c2c35] py-3 text-sm font-semibold text-[#8b95a1] hover:bg-[#2c2c35] hover:text-white transition-colors"
+                  >
+                    📥 보고서 복사
+                  </button>
+                  <button
+                    onClick={goToStart}
+                    className="flex-1 rounded-xl bg-gradient-to-r from-[#3182f6] to-[#6366f1] py-3 text-sm font-bold text-white hover:brightness-110 transition-all"
+                  >
+                    🚀 이걸로 앱 만들기
+                  </button>
+                  <button
+                    onClick={() => { setPhase('idle'); setMessages([]); setChatMessages([]); }}
+                    className="flex-1 rounded-xl border border-[#2c2c35] py-3 text-sm font-semibold text-[#8b95a1] hover:bg-[#2c2c35] hover:text-white transition-colors"
+                  >
+                    🔄 새 회의
+                  </button>
+                </div>
+
+                {/* 추가 채팅 영역 */}
+                <div className="mt-6 rounded-xl border border-[#2c2c35] bg-[#1b1b21] p-5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-lg">💬</span>
+                    <span className="font-bold text-[#f2f4f6]">추가 질문</span>
+                    <span className="text-xs text-[#6b7684]">회의 결과를 바탕으로 후속 질문을 할 수 있습니다</span>
+                  </div>
+
+                  {/* 대화 목록 */}
+                  {chatMessages.length > 0 && (
+                    <div className="space-y-3 mb-4 max-h-[40vh] overflow-y-auto">
+                      {chatMessages.map((msg, i) => (
+                        <div key={i} className={`rounded-lg p-3 text-sm ${
+                          msg.role === '나'
+                            ? 'bg-[#3182f6]/10 border border-[#3182f6]/30 ml-8'
+                            : 'bg-[#2c2c35] mr-8'
+                        }`}>
+                          <span className={`text-xs font-bold mb-1 block ${
+                            msg.role === '나' ? 'text-[#3182f6]' : 'text-[#ffd60a]'
+                          }`}>
+                            {msg.role === '나' ? '나' : '🤖 AI 어시스턴트'}
+                          </span>
+                          <div className="text-[#d1d5db] whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+                        </div>
+                      ))}
+                      {chatLoading && (
+                        <div className="flex items-center gap-2 text-sm text-[#8b95a1] p-3">
+                          <div className="h-2 w-2 rounded-full bg-[#3182f6] animate-pulse" />
+                          답변 생성 중...
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 입력창 */}
+                  <div className="flex gap-2">
+                    <input
+                      value={chatInput}
+                      onChange={e => setChatInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
+                      placeholder="예: 진입장벽을 극복할 구체적인 전략은?"
+                      className="flex-1 rounded-lg border border-[#2c2c35] bg-[#17171c] px-4 py-2.5 text-sm placeholder-[#6b7684] outline-none focus:border-[#3182f6] transition-colors"
+                      disabled={chatLoading}
+                    />
+                    <button
+                      onClick={sendChat}
+                      disabled={!chatInput.trim() || chatLoading}
+                      className="rounded-lg bg-[#3182f6] px-4 py-2.5 text-sm font-bold text-white hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                    >
+                      전송
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
 
             {phase === 'error' && (

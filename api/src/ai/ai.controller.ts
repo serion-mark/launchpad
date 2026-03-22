@@ -257,6 +257,15 @@ export class AiController {
     }
   }
 
+  // ── AI 회의실 추가 채팅 ─────────────────────────────
+  @Post('meeting-chat')
+  async meetingChat(
+    @Body() body: { question: string; context: string; history?: { role: string; content: string }[] },
+  ) {
+    const reply = await this.meetingService.followUpChat(body);
+    return { reply };
+  }
+
   // ── AI 회의실 사전 질문 ─────────────────────────────
   @Post('meeting-pre-question')
   async meetingPreQuestion(
