@@ -464,12 +464,15 @@ function BuilderContent() {
   // ── 앱 생성 (F7: SSE 스트리밍 파이프라인) ────────────
   const [generateProgress, setGenerateProgress] = useState<string[]>([]);
   const [generateStep, setGenerateStep] = useState<string>('');
+  // 실시간 미리보기: SSE에서 생성된 파일을 즉시 LivePreview에 전달
+  const [streamingFiles, setStreamingFiles] = useState<{ path: string; content: string }[]>([]);
 
   const handleGenerate = async () => {
     if (!projectId) return;
     setBuildPhase('generating');
     setGenerateProgress([]);
     setGenerateStep('');
+    setStreamingFiles([]);
 
     const statusMsgId = Date.now().toString();
     setMessages(prev => [...prev, {
@@ -561,6 +564,22 @@ function BuilderContent() {
               const msg = data.detail ? `${label}: ${data.detail}` : `${label} (${data.progress})`;
               setGenerateProgress(prev => [...prev, msg]);
               setGenerateStep(data.step);
+
+              // 실시간 미리보기: SSE에서 생성된 파일을 LivePreview에 즉시 반영
+              if (data.generatedFiles && Array.isArray(data.generatedFiles)) {
+                setStreamingFiles(prev => {
+                  const updated = [...prev];
+                  for (const newFile of data.generatedFiles) {
+                    const idx = updated.findIndex(f => f.path === newFile.path);
+                    if (idx >= 0) {
+                      updated[idx] = newFile;
+                    } else {
+                      updated.push(newFile);
+                    }
+                  }
+                  return updated;
+                });
+              }
 
               // 상태 메시지 업데이트
               const fileInfo = data.fileCount ? ` — ${data.fileCount}개 파일` : '';
@@ -930,10 +949,14 @@ function BuilderContent() {
   const currentQ = buildPhase === 'questionnaire' ? questions[questionIndex] : null;
 
   // 생성된 코드 파일 추출 (LivePreview용)
+  // generating 중에는 streamingFiles, 완료 후에는 project.generatedCode 사용
   const generatedFiles = useMemo(() => {
+    if (buildPhase === 'generating' && streamingFiles.length > 0) {
+      return streamingFiles;
+    }
     if (!project?.generatedCode || !Array.isArray(project.generatedCode)) return [];
     return project.generatedCode as { path: string; content: string }[];
-  }, [project?.generatedCode]);
+  }, [project?.generatedCode, streamingFiles, buildPhase]);
 
   // 실시간 미리보기에서 페이지 네비게이션 수신
   useEffect(() => {
@@ -946,7 +969,8 @@ function BuilderContent() {
     return () => window.removeEventListener('message', handler);
   }, []);
 
-  const showLivePreview = buildPhase === 'done' && generatedFiles.length > 0;
+  // generating 중 streamingFiles가 있으면 미리보기 표시
+  const showLivePreview = (buildPhase === 'done' && generatedFiles.length > 0) || (buildPhase === 'generating' && streamingFiles.length > 0);
 
   // 레이아웃: done 시 Lovable처럼 미리보기 중심 (왼쪽 채팅 좁게 + 오른쪽 미리보기 넓게)
   const isPreviewFocused = showLivePreview || buildPhase === 'generating';
@@ -1235,8 +1259,8 @@ function BuilderContent() {
 
         {/* 미리보기 영역 */}
         <div className="flex-1 overflow-auto">
-          {/* 생성 중 → 프로그레스 UI */}
-          {buildPhase === 'generating' && (
+          {/* 생성 중 → streamingFiles가 있으면 LivePreview + 오버레이 프로그레스, 없으면 풀 프로그레스 */}
+          {buildPhase === 'generating' && streamingFiles.length === 0 && (
             <div className="flex h-full flex-col items-center justify-center px-8">
               <div className="w-full max-w-md">
                 <div className="mb-8 text-center">
@@ -1268,8 +1292,28 @@ function BuilderContent() {
             </div>
           )}
 
+          {/* 생성 중 + streamingFiles 있음 → 실시간 LivePreview + 미니 프로그레스 오버레이 */}
+          {buildPhase === 'generating' && streamingFiles.length > 0 && (
+            <div className="relative h-full">
+              <LivePreview files={streamingFiles} previewMode={previewMode} />
+              {/* 미니 프로그레스 오버레이 */}
+              <div className="absolute bottom-4 left-4 right-4 rounded-xl border border-[#2c2c35] bg-[#13131a]/90 backdrop-blur-sm px-4 py-3 shadow-lg">
+                <div className="flex items-center gap-3">
+                  <div className="h-2 w-2 rounded-full bg-[#3182f6] animate-pulse" />
+                  <span className="text-xs text-[#8b95a1]">
+                    {generateStep === 'frontend' ? `페이지 생성 중... (${streamingFiles.filter(f => f.path.includes('page.tsx')).length}개 완료)` :
+                     generateStep === 'quality' ? '코드 품질 검증 중...' :
+                     generateStep === 'config' ? '설정 파일 생성 중...' :
+                     'AI가 코드를 생성하고 있습니다...'}
+                  </span>
+                  <span className="ml-auto text-xs font-medium text-[#3182f6]">{streamingFiles.length}개 파일</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 생성 완료 → 실제 코드 미리보기 */}
-          {showLivePreview && (
+          {showLivePreview && buildPhase !== 'generating' && (
             <LivePreview files={generatedFiles} previewMode={previewMode} />
           )}
 

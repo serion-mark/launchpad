@@ -13,6 +13,7 @@ export type GenerationProgress = {
   detail?: string;      // 파일명 등 상세 정보
   fileCount?: number;   // 현재까지 생성된 파일 수
   totalFiles?: number;  // 예상 전체 파일 수
+  generatedFiles?: { path: string; content: string }[]; // 실시간 미리보기용 생성 파일
 };
 
 // ── 모델 티어 (레거시 호환) ─────────────────────────────
@@ -188,8 +189,29 @@ Foundry는 Static Export 전용 Next.js 앱을 생성합니다.
 📋 Foundry 코드 생성 규칙서 (반드시 준수!)
 ═══════════════════════════════════════════
 
+📦 사용 가능한 npm 패키지 (이것만 import 가능!):
+- react, react-dom (이미 설치됨)
+- next (next/navigation, next/link, next/image, next/font만 허용)
+- @supabase/supabase-js (이미 설치됨)
+- recharts (차트 — import { LineChart, BarChart, ... } from 'recharts')
+- date-fns (날짜 — import { format, parseISO } from 'date-fns')
+- zustand (상태관리 — import { create } from 'zustand')
+- react-hook-form (폼 — import { useForm } from 'react-hook-form')
+- zod (유효성검증 — import { z } from 'zod')
+- lucide-react (아이콘 — import { Search, Menu, X, ... } from 'lucide-react')
+- tailwind-merge, clsx (스타일링)
+
+🔴 절대 사용 금지 패키지 (import하면 빌드 100% 실패!):
+- @heroicons/react (설치 안 됨! → lucide-react로 대체)
+- framer-motion (설치 안 됨!)
+- react-icons (설치 안 됨! → lucide-react로 대체)
+- @radix-ui/* (설치 안 됨!)
+- prisma, @prisma/client (클라이언트 앱에서 사용 불가)
+- 위 목록에 없는 모든 외부 패키지
+
 🔴 금지 사항 (이것을 쓰면 빌드가 100% 실패합니다):
 - next/headers import 금지 (cookies(), headers() 사용 불가)
+- next/server import 금지 (NextResponse, NextRequest 사용 불가)
 - @/utils/supabase/server import 금지 → 반드시 @/utils/supabase/client 사용
 - middleware.ts 생성 금지 (static export에서 작동하지 않음)
 - [id], [slug] 등 동적 라우트 폴더 생성 금지 (static export 불가)
@@ -199,8 +221,8 @@ Foundry는 Static Export 전용 Next.js 앱을 생성합니다.
 - Server Components 사용 금지 (async function Page() 금지)
   → 모든 페이지는 'use client' + export default function Page()
 - fetch('/api/...') 사용 금지 → Supabase 클라이언트만 사용
-- @heroicons/react, react-icons 등 미설치 패키지 import 금지
-- next/headers, next/server에서 import 금지 (NextResponse, NextRequest 등)
+- getServerSideProps, getStaticProps 사용 금지 (App Router에서 불가)
+- useRouter from 'next/router' 금지 → 반드시 'next/navigation'에서 import
 
 🟢 필수 사항:
 - 모든 page.tsx 파일 첫 줄에 'use client' 필수!
@@ -215,6 +237,21 @@ Foundry는 Static Export 전용 Next.js 앱을 생성합니다.
 - 로딩/에러 상태 처리 포함
 - lucide-react 아이콘 사용 가능 (설치됨)
 - 테이블/컬럼명은 snake_case (PostgreSQL 규칙)
+
+🎨 테마 CSS 변수 규칙 (반드시 준수!):
+- globals.css의 :root에 아래 CSS 변수를 정의하고 모든 컴포넌트에서 사용:
+  --color-primary: 주요 액션 색상 (버튼, 링크)
+  --color-primary-hover: 주요 색상 hover
+  --color-secondary: 보조 색상
+  --color-background: 페이지 배경
+  --color-surface: 카드/컨테이너 배경
+  --color-text-primary: 주요 텍스트
+  --color-text-secondary: 보조 텍스트
+  --color-border: 테두리
+  --color-accent: 강조 (배지, 알림)
+- Tailwind 사용법: bg-[var(--color-primary)], text-[var(--color-text-primary)], border-[var(--color-border)]
+- 하드코딩 색상(bg-blue-500 등) 대신 반드시 CSS 변수 사용!
+- 예외: Tailwind 유틸리티 클래스(bg-white, text-gray-50 등)는 중성색에 한해 허용
 
 🟢 Supabase 인증 패턴 (이것만 사용):
 - 인증 상태: const { data: { user } } = await supabase.auth.getUser()
@@ -946,7 +983,15 @@ const supabase = createClient()
           allFiles.push(...frontendFiles);
           frontendFileCount += frontendFiles.length;
         }
-        emitter?.emit('progress', { step: 'frontend', progress: '3/4', message: `페이지 생성 완료: ${page.name}`, detail: page.path, fileCount: allFiles.length } as GenerationProgress);
+        // SSE에 생성된 파일 내용 포함 (실시간 미리보기용)
+        const latestFiles = frontendFiles.length > 0 ? frontendFiles : [{ path: `src/app${page.path}/page.tsx`, content: frontendResult.content }];
+        emitter?.emit('progress', {
+          step: 'frontend', progress: '3/4',
+          message: `페이지 생성 완료: ${page.name}`,
+          detail: page.path,
+          fileCount: allFiles.length,
+          generatedFiles: latestFiles.map(f => ({ path: f.path, content: f.content })),
+        } as GenerationProgress);
       }
 
       // Supabase 유틸 + 인증 페이지 + 레이아웃
@@ -986,6 +1031,33 @@ const supabase = createClient()
       const validatedFiles = this.validateAndFixImports(allFiles);
       allFiles.length = 0;
       allFiles.push(...validatedFiles);
+
+      // F9: 빌드 전 코드 사전검증
+      emitter?.emit('progress', { step: 'quality', progress: '4/4', message: '빌드 사전검증 중... (패키지/문법/패턴 체크)', fileCount: allFiles.length } as GenerationProgress);
+      const validation = this.validateGeneratedCode(allFiles);
+      if (validation.errors.length > 0) {
+        this.logger.warn(`[F9] 사전검증 에러 ${validation.errors.length}건 감지 — AI 수정 시도`);
+        // 에러가 있는 파일에 대해 AI 수정 시도
+        const errorSummary = validation.errors.join('\n');
+        const errorFilePaths = [...new Set(validation.errors.map(e => e.split(':')[0]))];
+        const errorFiles = allFiles.filter(f => errorFilePaths.some(ep => f.path === ep));
+        if (errorFiles.length > 0) {
+          try {
+            const fixedFiles = await this.fixBuildErrors(
+              tier,
+              errorFiles,
+              `사전검증 에러:\n${errorSummary}`,
+            );
+            for (const fixed of fixedFiles) {
+              const idx = allFiles.findIndex(f => f.path === fixed.path);
+              if (idx >= 0) allFiles[idx] = fixed;
+            }
+            this.logger.log(`[F9] AI 사전수정 완료: ${fixedFiles.length}개 파일`);
+          } catch (fixErr: any) {
+            this.logger.warn(`[F9] AI 사전수정 실패: ${fixErr.message}`);
+          }
+        }
+      }
 
       // ── 크레딧 차감 (모델 + 파일 수 기반) ─────────
       const fileCount = allFiles.length;
@@ -1473,6 +1545,8 @@ ${existingFiles.slice(0, 15).map(f => `[FILE: ${f.path}]\n${f.content}`).join('\
       'react', 'react-dom', 'next', 'next/navigation', 'next/link', 'next/image', 'next/font',
       '@supabase/supabase-js', '@supabase/ssr',
       'lucide-react', // 아이콘 패키지 (허용)
+      'recharts', 'date-fns', 'zustand', 'react-hook-form', 'zod',
+      'tailwind-merge', 'clsx',
     ]);
 
     // 내부 경로 패턴 (검증 불필요)
@@ -1485,13 +1559,23 @@ ${existingFiles.slice(0, 15).map(f => `[FILE: ${f.path}]\n${f.content}`).join('\
       'recharts': '^2.15.0',
       'zod': '^3.24.0',
       'clsx': '^2.1.0',
+      'zustand': '^5.0.0',
+      'react-hook-form': '^7.54.0',
+      'tailwind-merge': '^2.6.0',
     };
 
     // 금지 패키지 (import 발견 시 제거)
     const BANNED_PACKAGES = new Set([
-      '@heroicons/react', '@heroicons/react/24/outline', '@heroicons/react/24/solid',
-      'react-icons', 'react-icons/fi', 'react-icons/fa', 'react-icons/md',
-      '@radix-ui/react-icons',
+      '@heroicons/react', '@heroicons/react/24/outline', '@heroicons/react/24/solid', '@heroicons/react/20/solid',
+      'react-icons', 'react-icons/fi', 'react-icons/fa', 'react-icons/md', 'react-icons/hi', 'react-icons/ai',
+      '@radix-ui/react-icons', '@radix-ui',
+      'framer-motion', 'motion',
+      '@prisma/client', 'prisma',
+      'next/headers', 'next/server',
+      '@emotion/react', '@emotion/styled', 'styled-components',
+      'axios', // fetch 또는 supabase 사용
+      'mongoose', 'typeorm', 'sequelize',
+      'express', 'koa', 'fastify',
     ]);
 
     const detectedPackages = new Set<string>();
@@ -1529,10 +1613,9 @@ ${existingFiles.slice(0, 15).map(f => `[FILE: ${f.path}]\n${f.content}`).join('\
             continue;
           }
 
-          // 알 수 없는 패키지 → 일단 통과 (빌드 시 에러로 잡힘)
-          this.logger.warn(`[Import 경고] ${file.path}: 미확인 패키지 ${pkg}`);
-          fixedLines.push(line);
-          continue;
+          // 알 수 없는 패키지 → 제거 (빌드 실패 방지)
+          this.logger.warn(`[Import 제거] ${file.path}: 미허용 패키지 ${pkg} — 빌드 실패 방지를 위해 제거`);
+          continue; // 이 줄 스킵
         }
 
         fixedLines.push(line);
@@ -1559,6 +1642,108 @@ ${existingFiles.slice(0, 15).map(f => `[FILE: ${f.path}]\n${f.content}`).join('\
     }
 
     return fixedFiles;
+  }
+
+  // ══════════════════════════════════════════════════════
+  // ── F9: 빌드 전 코드 사전검증 ──────────────────────────
+  // ══════════════════════════════════════════════════════
+
+  /** 생성된 코드를 빌드 전에 검증하여 실패 요인을 사전 차단 */
+  validateGeneratedCode(files: { path: string; content: string }[]): {
+    errors: string[];
+    warnings: string[];
+    autoFixed: number;
+  } {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    let autoFixed = 0;
+
+    const bannedImports = [
+      '@heroicons', 'framer-motion', 'next/headers', 'next/server',
+      '@prisma/client', 'prisma', 'react-icons', '@radix-ui',
+      'styled-components', '@emotion', 'axios', 'express',
+    ];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!file.path.match(/\.(tsx?|jsx?|css)$/)) continue;
+
+      // 1. 마크다운 혼입 체크
+      if (file.content.includes('```')) {
+        errors.push(`${file.path}: 마크다운 코드블록(\`\`\`) 혼입`);
+      }
+      if (file.content.match(/^#{1,3}\s+\w/m) && !file.content.match(/^['"]use client['"]/)) {
+        warnings.push(`${file.path}: 마크다운 헤더(#) 혼입 가능성`);
+      }
+
+      // 2. 금지 패키지 import 체크
+      for (const banned of bannedImports) {
+        if (file.content.includes(`from '${banned}`) || file.content.includes(`from "${banned}`)) {
+          errors.push(`${file.path}: 금지 패키지 ${banned} import 감지`);
+        }
+      }
+
+      // 3. page.tsx에 'use client' 누락 체크
+      if (file.path.endsWith('page.tsx') && !file.content.includes("'use client'") && !file.content.includes('"use client"')) {
+        // 자동 수정
+        files[i] = { ...file, content: "'use client';\n\n" + file.content };
+        autoFixed++;
+        this.logger.log(`[F9 자동수정] ${file.path}: 'use client' 자동 추가`);
+      }
+
+      // 4. Server Component 패턴 체크 (async function Page)
+      if (file.path.endsWith('page.tsx') && file.content.match(/export\s+default\s+async\s+function/)) {
+        warnings.push(`${file.path}: async function Page 감지 (Server Component 패턴 — static export 불가)`);
+      }
+
+      // 5. 동적 라우트 경로 체크
+      if (file.path.match(/\[[\w]+\]/)) {
+        errors.push(`${file.path}: 동적 라우트 [param] 경로 감지 (static export 불가)`);
+      }
+
+      // 6. next/router import 체크 (→ next/navigation으로 교체)
+      if (file.content.includes("from 'next/router'") || file.content.includes('from "next/router"')) {
+        files[i] = {
+          ...file,
+          content: file.content
+            .replace(/from ['"]next\/router['"]/g, "from 'next/navigation'")
+            .replace(/\buseRouter\b/g, 'useRouter'),
+        };
+        autoFixed++;
+        this.logger.log(`[F9 자동수정] ${file.path}: next/router → next/navigation`);
+      }
+
+      // 7. getServerSideProps/getStaticProps 체크
+      if (file.content.match(/export\s+(async\s+)?function\s+getServer(Side)?Props/)) {
+        errors.push(`${file.path}: getServerSideProps 사용 (App Router에서 불가)`);
+      }
+      if (file.content.match(/export\s+(async\s+)?function\s+getStaticProps/)) {
+        errors.push(`${file.path}: getStaticProps 사용 (App Router에서 불가)`);
+      }
+
+      // 8. 존재하지 않는 lucide 아이콘 체크 (common false positives)
+      const lucideImportMatch = file.content.match(/from\s+['"]lucide-react['"]/);
+      if (lucideImportMatch) {
+        // 유효하지 않은 아이콘 이름 체크
+        const iconImports = file.content.match(/import\s+\{([^}]+)\}\s+from\s+['"]lucide-react['"]/);
+        if (iconImports) {
+          const iconNames = iconImports[1].split(',').map(s => s.trim()).filter(Boolean);
+          const invalidIcons = iconNames.filter(name =>
+            /^[a-z]/.test(name) || // lucide 아이콘은 PascalCase
+            name.includes('Icon') // lucide에서 Icon 접미사 불필요
+          );
+          if (invalidIcons.length > 0) {
+            warnings.push(`${file.path}: 의심스러운 lucide 아이콘: ${invalidIcons.join(', ')}`);
+          }
+        }
+      }
+    }
+
+    if (errors.length > 0 || autoFixed > 0) {
+      this.logger.log(`[F9 사전검증] 에러: ${errors.length}건, 경고: ${warnings.length}건, 자동수정: ${autoFixed}건`);
+    }
+
+    return { errors, warnings, autoFixed };
   }
 
   // ══════════════════════════════════════════════════════
@@ -1670,11 +1855,14 @@ ${lastLines}`,
 - 파일의 전체 코드를 출력 (부분 수정 아님)
 - 마크다운 코드 블록(\`\`\`) 절대 금지
 - 모든 page.tsx 첫 줄에 'use client' 필수
-- next/headers import 금지 → @/utils/supabase/client 사용
+- next/headers, next/server import 금지 → @/utils/supabase/client 사용
 - @/utils/supabase/server → @/utils/supabase/client로 교체
 - Server Components(async function Page) 금지 → 일반 function + useEffect/useState
-- 미설치 패키지 import 금지 (@heroicons, react-icons 등)
-- lucide-react 아이콘은 사용 가능
+- 허용 패키지만 사용: react, next, @supabase/supabase-js, lucide-react, recharts, date-fns, zustand, react-hook-form, zod, clsx
+- @heroicons/react, framer-motion, react-icons, @radix-ui/* 절대 금지 → lucide-react로 대체
+- useRouter from 'next/router' 금지 → 'next/navigation'에서 import
+- getServerSideProps/getStaticProps 금지 → useEffect + useState 패턴 사용
+- Image 컴포넌트 최적화 에러 시 → img 태그 사용 또는 next.config에 unoptimized:true
 
 빌드 에러 로그:
 ${errorLog.slice(0, 1500)}
@@ -2160,9 +2348,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         content: `@import "tailwindcss";
 
 :root {
-  --color-primary: #3182f6;
-  --color-background: #ffffff;
-  --color-foreground: #171717;
+  --color-primary: ${this.getThemeColor(theme, 'primary')};
+  --color-primary-hover: ${this.getThemeColor(theme, 'primaryHover')};
+  --color-secondary: ${this.getThemeColor(theme, 'secondary')};
+  --color-background: ${this.getThemeColor(theme, 'background')};
+  --color-surface: ${this.getThemeColor(theme, 'surface')};
+  --color-text-primary: ${this.getThemeColor(theme, 'textPrimary')};
+  --color-text-secondary: ${this.getThemeColor(theme, 'textSecondary')};
+  --color-border: ${this.getThemeColor(theme, 'border')};
+  --color-accent: ${this.getThemeColor(theme, 'accent')};
 }`,
       },
       // 사이드바 네비게이션 컴포넌트
@@ -2548,31 +2742,38 @@ npm run dev
     const msg = message.toLowerCase();
     const scored: { file: { path: string; content: string }; score: number }[] = [];
 
-    // 키워드 → 파일 경로/내용 매칭
+    // 키워드 → 파일 경로/내용 매칭 (확장)
     const keywords: Record<string, string[]> = {
-      '로그인|login|signIn': ['login'],
-      '회원가입|signup|signUp|가입': ['signup'],
-      '대시보드|dashboard|홈|메인': ['dashboard', 'page.tsx'],
-      '예약|reservation|booking': ['reservation', 'booking'],
-      '고객|customer|회원|사용자': ['customer', 'user', 'member'],
-      '매출|sales|결제|payment': ['sales', 'payment'],
-      '설정|setting|config': ['setting', 'config'],
-      '스태프|staff|디자이너|직원': ['staff', 'designer'],
-      '색|color|테마|theme|디자인': ['globals.css', 'layout', 'theme'],
-      '버튼|button': [],
-      '헤더|header|네비|nav|메뉴': ['layout', 'nav', 'header'],
+      '로그인|login|signIn|인증': ['login', 'auth'],
+      '회원가입|signup|signUp|가입|register': ['signup', 'register'],
+      '대시보드|dashboard|홈|메인|home': ['dashboard', 'page.tsx'],
+      '예약|reservation|booking|스케줄': ['reservation', 'booking', 'schedule'],
+      '고객|customer|회원|사용자|user|프로필|profile': ['customer', 'user', 'member', 'profile'],
+      '매출|sales|결제|payment|주문|order': ['sales', 'payment', 'order', 'checkout'],
+      '설정|setting|config|환경': ['setting', 'config'],
+      '스태프|staff|디자이너|직원|팀': ['staff', 'designer', 'team'],
+      '색|color|테마|theme|디자인|스타일': ['globals.css', 'layout', 'theme'],
+      '버튼|button|CTA': [],
+      '헤더|header|네비|nav|메뉴|사이드바|sidebar': ['layout', 'nav', 'header', 'sidebar'],
       '푸터|footer': ['layout', 'footer'],
-      '폼|form|입력|input': [],
-      '테이블|table|목록|list': [],
-      '모달|modal|팝업|popup': [],
-      '차트|chart|그래프|통계|analytics': ['analytics', 'chart', 'dashboard'],
+      '폼|form|입력|input|검색|search': ['form', 'search'],
+      '테이블|table|목록|list|리스트': ['list', 'table'],
+      '모달|modal|팝업|popup|다이얼로그': ['modal', 'dialog'],
+      '차트|chart|그래프|통계|analytics|분석': ['analytics', 'chart', 'dashboard', 'stats'],
+      '상품|product|카탈로그|catalog|아이템|item': ['product', 'catalog', 'item'],
+      '장바구니|cart|위시리스트|wishlist': ['cart', 'wishlist'],
+      '리뷰|review|평점|rating|후기': ['review', 'rating'],
+      '알림|notification|메시지|message': ['notification', 'message'],
+      '이미지|image|사진|photo|업로드|upload': ['upload', 'image', 'photo'],
+      '지도|map|위치|location': ['map', 'location'],
+      '새 페이지|페이지 추가|추가해|만들어': [], // 새 파일 생성 힌트
     };
 
     for (const file of files) {
       if (!file.path.match(/\.(tsx?|css)$/)) continue;
       let score = 0;
       const pathLower = file.path.toLowerCase();
-      const contentLower = file.content.toLowerCase();
+      const contentLower = file.content.toLowerCase().slice(0, 2000); // 성능: 앞부분만 체크
 
       // 1. 키워드 → 경로 매칭
       for (const [pattern, paths] of Object.entries(keywords)) {
@@ -2593,9 +2794,20 @@ npm run dev
 
       // 4. 레이아웃/스타일은 디자인 관련 요청에만
       if (file.path.includes('layout') || file.path.includes('globals.css')) {
-        if (/색|color|테마|theme|디자인|폰트|font|배경|background/i.test(msg)) {
+        if (/색|color|테마|theme|디자인|폰트|font|배경|background|스타일|style/i.test(msg)) {
           score += 8;
         }
+      }
+
+      // 5. 컴포넌트 파일은 UI 관련 요청에
+      if (file.path.includes('components/')) {
+        const componentName = fileName.toLowerCase();
+        if (msg.includes(componentName)) score += 12;
+      }
+
+      // 6. '전체', '모든', '모두' → 모든 page.tsx 포함
+      if (/전체|모든|모두|all/i.test(msg) && file.path.includes('page.tsx')) {
+        score += 5;
       }
 
       if (score > 0) scored.push({ file, score });
@@ -2606,6 +2818,15 @@ npm run dev
 
     // 매칭된 파일이 있으면 상위 파일 반환
     if (scored.length > 0) {
+      // globals.css + layout은 디자인 요청일 때 항상 포함
+      if (/색|color|테마|theme|디자인|폰트|font|배경|스타일/i.test(msg)) {
+        const cssFile = files.find(f => f.path.includes('globals.css'));
+        const layoutFile = files.find(f => f.path.includes('layout.tsx'));
+        const result = scored.map(s => s.file);
+        if (cssFile && !result.find(f => f.path === cssFile.path)) result.push(cssFile);
+        if (layoutFile && !result.find(f => f.path === layoutFile.path)) result.push(layoutFile);
+        return result;
+      }
       return scored.map(s => s.file);
     }
 
@@ -2614,6 +2835,49 @@ npm run dev
     const cssFiles = files.filter(f => f.path.includes('globals.css'));
     const layoutFiles = files.filter(f => f.path.includes('layout.tsx'));
     return [...pageFiles, ...cssFiles, ...layoutFiles].slice(0, 8);
+  }
+
+  /** 테마별 CSS 변수 색상 반환 */
+  private getThemeColor(theme: string, token: string): string {
+    const themes: Record<string, Record<string, string>> = {
+      'basic-light': {
+        primary: '#3182f6', primaryHover: '#1b64da', secondary: '#6366f1',
+        background: '#ffffff', surface: '#f8fafc', textPrimary: '#1e293b',
+        textSecondary: '#64748b', border: '#e2e8f0', accent: '#f59e0b',
+      },
+      'basic-dark': {
+        primary: '#3182f6', primaryHover: '#60a5fa', secondary: '#818cf8',
+        background: '#0f172a', surface: '#1e293b', textPrimary: '#f1f5f9',
+        textSecondary: '#94a3b8', border: '#334155', accent: '#fbbf24',
+      },
+      'warm-earth': {
+        primary: '#d97706', primaryHover: '#b45309', secondary: '#92400e',
+        background: '#fffbeb', surface: '#fef3c7', textPrimary: '#78350f',
+        textSecondary: '#a16207', border: '#fde68a', accent: '#dc2626',
+      },
+      'cool-ocean': {
+        primary: '#0891b2', primaryHover: '#0e7490', secondary: '#06b6d4',
+        background: '#ecfeff', surface: '#cffafe', textPrimary: '#164e63',
+        textSecondary: '#0e7490', border: '#a5f3fc', accent: '#8b5cf6',
+      },
+      'forest-green': {
+        primary: '#059669', primaryHover: '#047857', secondary: '#10b981',
+        background: '#f0fdf4', surface: '#dcfce7', textPrimary: '#14532d',
+        textSecondary: '#166534', border: '#bbf7d0', accent: '#ea580c',
+      },
+      'modern-purple': {
+        primary: '#7c3aed', primaryHover: '#6d28d9', secondary: '#a78bfa',
+        background: '#faf5ff', surface: '#f3e8ff', textPrimary: '#3b0764',
+        textSecondary: '#6b21a8', border: '#e9d5ff', accent: '#ec4899',
+      },
+      'minimal-mono': {
+        primary: '#171717', primaryHover: '#404040', secondary: '#525252',
+        background: '#fafafa', surface: '#f5f5f5', textPrimary: '#171717',
+        textSecondary: '#737373', border: '#e5e5e5', accent: '#3182f6',
+      },
+    };
+    const colors = themes[theme] || themes['basic-light'];
+    return colors[token] || '#3182f6';
   }
 
   private capitalize(str: string): string {

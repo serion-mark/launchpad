@@ -330,15 +330,58 @@ export default nextConfig;
             content = content.replace(/import\s*\{[^}]*\}\s*from\s*['"]next\/headers['"]\s*;?\n?/g, '');
             modified = true;
           }
+          // next/server import 제거 (NextResponse, NextRequest → static export 불가)
+          if (content.includes("next/server")) {
+            content = content.replace(/import\s*\{[^}]*\}\s*from\s*['"]next\/server['"]\s*;?\n?/g, '');
+            modified = true;
+          }
           // supabase/server → supabase/client 전환
           if (content.includes('supabase/server')) {
             content = content.replace(/['"]@\/utils\/supabase\/server['"]/g, "'@/utils/supabase/client'");
             content = content.replace(/['"]\.\.?\/utils\/supabase\/server['"]/g, "'@/utils/supabase/client'");
             modified = true;
           }
+          // next/router → next/navigation 전환
+          if (content.includes("next/router")) {
+            content = content.replace(/['"]next\/router['"]/g, "'next/navigation'");
+            modified = true;
+          }
+          // @heroicons → lucide-react 아이콘 import 제거
+          if (content.includes('@heroicons')) {
+            content = content.replace(/import\s*\{[^}]*\}\s*from\s*['"]@heroicons\/[^'"]*['"]\s*;?\n?/g, '');
+            modified = true;
+          }
+          // react-icons → import 제거
+          if (content.includes('react-icons')) {
+            content = content.replace(/import\s*\{[^}]*\}\s*from\s*['"]react-icons\/[^'"]*['"]\s*;?\n?/g, '');
+            modified = true;
+          }
+          // framer-motion → import 제거
+          if (content.includes('framer-motion')) {
+            content = content.replace(/import\s*\{[^}]*\}\s*from\s*['"]framer-motion['"]\s*;?\n?/g, '');
+            // motion.div → div 등으로 치환
+            content = content.replace(/motion\.\w+/g, 'div');
+            modified = true;
+          }
+          // async function Page → function Page (Server Component 패턴 제거)
+          if (file.endsWith('page.tsx') && content.match(/export\s+default\s+async\s+function/)) {
+            content = content.replace(/export\s+default\s+async\s+function/, 'export default function');
+            modified = true;
+          }
+          // getServerSideProps/getStaticProps 제거
+          if (content.match(/export\s+(async\s+)?function\s+get(ServerSide|Static)Props/)) {
+            content = content.replace(/export\s+(async\s+)?function\s+get(ServerSide|Static)Props[\s\S]*?^}/m, '');
+            modified = true;
+          }
+          // Image Optimization → next.config에서 처리하므로 여기서는 unoptimized prop 추가
+          if (content.includes("from 'next/image'") || content.includes('from "next/image"')) {
+            // <Image 태그에 unoptimized 추가
+            content = content.replace(/<Image\s/g, '<Image unoptimized ');
+            modified = true;
+          }
           // 'use client' 없는 페이지에 추가 (static export에서 모든 페이지는 클라이언트)
-          if (file.includes('/app/') && file.endsWith('page.tsx') && !content.includes("'use client'") && !content.includes('"use client"')) {
-            content = `'use client'\n\n${content}`;
+          if (file.includes('/app/') && (file.endsWith('page.tsx') || file.endsWith('layout.tsx')) && !content.includes("'use client'") && !content.includes('"use client"')) {
+            content = `'use client';\n\n${content}`;
             modified = true;
           }
 
@@ -421,6 +464,64 @@ export default nextConfig;
 
           if (attempt >= MAX_BUILD_FIX_ATTEMPTS) {
             throw new Error(`next build 실패 (${MAX_BUILD_FIX_ATTEMPTS}회 자동 수정 후에도 실패): ${errorLog.slice(0, 200)}`);
+          }
+
+          // 패턴 매칭 자동 수정 (AI 호출 전 빠르게 처리 가능한 것들)
+          let patternFixed = 0;
+          const allBuildFiles = this.findFilesRecursive(outputDir, /\.(tsx?|jsx?)$/);
+          for (const bf of allBuildFiles) {
+            try {
+              let c = fs.readFileSync(bf, 'utf-8');
+              let changed = false;
+
+              // Module not found: @heroicons → import 제거
+              if (errorLog.includes('@heroicons') && c.includes('@heroicons')) {
+                c = c.replace(/import\s*\{[^}]*\}\s*from\s*['"]@heroicons\/[^'"]*['"]\s*;?\n?/g, '');
+                changed = true;
+              }
+              // Module not found: react-icons → import 제거
+              if (errorLog.includes('react-icons') && c.includes('react-icons')) {
+                c = c.replace(/import\s*\{[^}]*\}\s*from\s*['"]react-icons\/[^'"]*['"]\s*;?\n?/g, '');
+                changed = true;
+              }
+              // Module not found: framer-motion → import 제거 + motion.div → div
+              if (errorLog.includes('framer-motion') && c.includes('framer-motion')) {
+                c = c.replace(/import\s*\{[^}]*\}\s*from\s*['"]framer-motion['"]\s*;?\n?/g, '');
+                c = c.replace(/<motion\.(\w+)/g, '<$1');
+                c = c.replace(/<\/motion\.(\w+)/g, '</$1');
+                changed = true;
+              }
+              // 'X' is not exported from 'lucide-react' → 해당 import만 제거
+              const notExportedMatch = errorLog.match(/'(\w+)' is not exported from 'lucide-react'/);
+              if (notExportedMatch && c.includes('lucide-react')) {
+                const badIcon = notExportedMatch[1];
+                c = c.replace(new RegExp(`\\b${badIcon}\\b,?\\s*`, 'g'), '');
+                c = c.replace(/import\s*\{\s*\}\s*from\s*['"]lucide-react['"]\s*;?\n?/g, '');
+                changed = true;
+              }
+              // Type error: 'X' is not assignable → any 단언 추가 (최후 수단)
+              // Module not found: Can't resolve 'X' → 해당 import 줄 제거
+              const cantResolveMatch = errorLog.match(/Can't resolve '([^']+)'/g);
+              if (cantResolveMatch) {
+                for (const m of cantResolveMatch) {
+                  const pkg = m.match(/Can't resolve '([^']+)'/)?.[1];
+                  if (pkg && !pkg.startsWith('.') && !pkg.startsWith('@/')) {
+                    const escPkg = pkg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    c = c.replace(new RegExp(`import\\s*\\{[^}]*\\}\\s*from\\s*['"]${escPkg}['"]\\s*;?\\n?`, 'g'), '');
+                    c = c.replace(new RegExp(`import\\s+\\w+\\s+from\\s*['"]${escPkg}['"]\\s*;?\\n?`, 'g'), '');
+                    changed = true;
+                  }
+                }
+              }
+
+              if (changed) {
+                fs.writeFileSync(bf, c, 'utf-8');
+                patternFixed++;
+              }
+            } catch { /* 무시 */ }
+          }
+          if (patternFixed > 0) {
+            appendLog(`[패턴수정] ${patternFixed}개 파일 자동 수정 완료`);
           }
 
           // F6: AI 자동 수정 시도

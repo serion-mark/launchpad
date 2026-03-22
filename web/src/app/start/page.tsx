@@ -710,6 +710,8 @@ function StartPage() {
   const [progress, setProgress] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [refImages, setRefImages] = useState<{ file: File; preview: string }[]>([]);
+  // 자연어 자유 입력
+  const [freeInput, setFreeInput] = useState('');
   const [previewMode, setPreviewMode] = useState<'mobile' | 'desktop'>('mobile');
 
   const handleSelectTemplate = (template: typeof TEMPLATES[0]) => {
@@ -717,6 +719,23 @@ function StartPage() {
     const requiredIds = new Set(template.features.filter(f => f.required).map(f => f.id));
     setSelectedFeatures(requiredIds);
     setAnswers({});
+    setStep('questionnaire');
+  };
+
+  // 자연어 자유 입력 → custom 템플릿 자동 선택 + 첫 답변 채움
+  const handleFreeInputSubmit = () => {
+    const input = freeInput.trim();
+    if (!input) return;
+    const customTemplate = TEMPLATES.find(t => t.id === 'custom');
+    if (!customTemplate) return;
+    setSelectedTemplate(customTemplate);
+    const requiredIds = new Set(customTemplate.features.filter(f => f.required).map(f => f.id));
+    setSelectedFeatures(requiredIds);
+    // 첫 답변(서비스 이름)과 상세 설명을 자동 채움
+    const nameMatch = input.match(/^(.+?)[\s\-—–([]/) || [null, input.slice(0, 20)];
+    setProjectName(nameMatch[1]?.trim() || input.slice(0, 20));
+    setAnswers({ biz_name: nameMatch[1]?.trim() || input.slice(0, 20), biz_desc: input });
+    setCustomRequirements(input);
     setStep('questionnaire');
   };
 
@@ -846,11 +865,55 @@ function StartPage() {
           <div>
             <div className="mb-10 md:mb-14 text-center">
               <h2 className="mb-3 text-3xl md:text-[40px] font-bold leading-tight tracking-tight">
-                어떤 서비스를 만드시나요?
+                어떤 앱을 만들까요?
               </h2>
               <p className="text-base md:text-lg text-[#8b95a1]">
-                업종을 선택하면 AI가 풀스택 MVP를 생성합니다
+                아이디어를 입력하거나, 템플릿을 선택하세요
               </p>
+            </div>
+
+            {/* 자연어 자유 입력 */}
+            <div className="mx-auto mb-10 max-w-2xl">
+              <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6 transition-all focus-within:border-[#3182f6]/50 focus-within:shadow-lg focus-within:shadow-[#3182f6]/5">
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    value={freeInput}
+                    onChange={e => setFreeInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleFreeInputSubmit()}
+                    placeholder="반려동물 돌봄 매칭 앱 - 예약, 리뷰, 채팅 (펫시터 전용)"
+                    className="flex-1 bg-transparent text-[15px] text-[#f2f4f6] placeholder-[#4e5968] focus:outline-none"
+                  />
+                  <button
+                    onClick={handleFreeInputSubmit}
+                    disabled={!freeInput.trim()}
+                    className="shrink-0 rounded-xl bg-gradient-to-r from-[#3182f6] to-[#a855f7] px-5 py-2.5 text-sm font-semibold text-white transition-all hover:shadow-lg hover:shadow-[#3182f6]/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    시작하기
+                  </button>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {['미용실 예약 앱', '학원 관리 시스템', '배달 주문 앱', '커뮤니티 게시판'].map(example => (
+                    <button
+                      key={example}
+                      onClick={() => { setFreeInput(example); }}
+                      className="rounded-lg bg-[#2c2c35] px-3 py-1.5 text-xs text-[#8b95a1] hover:bg-[#3a3a45] hover:text-[#f2f4f6] transition-colors"
+                    >
+                      {example}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2.5 text-[11px] text-[#4e5968]">
+                  TIP: 기능을 구분해서 쓰면 품질이 3배 올라갑니다 — 예: "앱 이름 - 기능1, 기능2 (타겟 사용자)"
+                </p>
+              </div>
+            </div>
+
+            {/* 구분선 */}
+            <div className="mx-auto mb-10 flex max-w-2xl items-center gap-4">
+              <div className="flex-1 border-t border-[#2c2c35]" />
+              <span className="text-sm text-[#4e5968]">또는 템플릿으로 시작하기</span>
+              <div className="flex-1 border-t border-[#2c2c35]" />
             </div>
 
             <div className="grid gap-5 md:gap-6 grid-cols-1 md:grid-cols-3">
@@ -878,7 +941,7 @@ function StartPage() {
             </div>
 
             <div className="mt-10 text-center text-[#6b7684]">
-              <p className="text-sm">업종이 없나요? <span className="text-[#3182f6] font-medium">"자유롭게 만들기"</span>를 선택하세요!</p>
+              <p className="text-sm">업종이 없나요? 상단 입력창에 자유롭게 설명하거나 <span className="text-[#3182f6] font-medium">"자유롭게 만들기"</span>를 선택하세요!</p>
               <p className="text-xs mt-1.5">포모도로 타이머 | 가계부 | 블로그 | 커뮤니티 | 대시보드 | 게임 — 뭐든 가능합니다</p>
             </div>
           </div>
