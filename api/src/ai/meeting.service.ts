@@ -14,6 +14,7 @@ export type MeetingPreset =
   | 'free';            // 자유 주제
 
 export type MeetingEvent =
+  | { phase: 'pre_question'; content: string }
   | { phase: 'briefing'; content: string }
   | { phase: 'analysis'; ai: 'GPT' | 'Gemini' | 'Claude'; role: string; content: string }
   | { phase: 'debate'; dispute: string; responses: { ai: string; content: string }[] }
@@ -49,6 +50,28 @@ export class MeetingService {
   }
 
   /**
+   * 사전 질문 생성 — 회의 시작 전 AI가 확인 질문
+   */
+  async generatePreQuestions(params: {
+    topic: string;
+    preset?: MeetingPreset;
+  }): Promise<string> {
+    const { topic, preset = 'free' } = params;
+    const presetPrompt = PRESET_PROMPTS[preset];
+
+    const result = await this.llmRouter.callAnthropic(
+      `당신은 전문 퍼실리테이터입니다. 사용자가 요청한 분석 주제를 보고, 더 나은 회의를 위해 2~3개의 확인 질문을 한국어로 만드세요.
+질문은 분석의 방향성, 중점 평가 항목, 특별히 신경 쓸 부분을 확인하는 것이어야 합니다.
+형식: 번호 매긴 질문 리스트. 마지막에 "답변 없이 바로 시작해도 괜찮아요! 🚀" 한 줄 추가.`,
+      `주제: ${topic}\n분석 유형: ${presetPrompt}`,
+      'claude-haiku-4-5-20251001',
+      1024,
+    );
+
+    return result;
+  }
+
+  /**
    * AI 회의 실행 — AsyncGenerator로 SSE 이벤트 순차 생성
    */
   async *runMeeting(params: {
@@ -56,8 +79,9 @@ export class MeetingService {
     file?: string;
     tier: MeetingTier;
     preset?: MeetingPreset;
+    preAnswers?: string;
   }): AsyncGenerator<MeetingEvent> {
-    const { topic, file, tier, preset = 'free' } = params;
+    const { topic, file, tier, preset = 'free', preAnswers } = params;
     const models = MEETING_MODELS[tier];
     const presetPrompt = PRESET_PROMPTS[preset];
 
@@ -71,9 +95,10 @@ export class MeetingService {
         ? file.slice(0, maxFileLen) + `\n\n... (총 ${file.length.toLocaleString()}자 중 앞 ${maxFileLen.toLocaleString()}자만 분석)`
         : file;
 
+      const preAnswerContext = preAnswers ? `\n[사용자 사전 요청]\n${preAnswers}` : '';
       const briefing = await this.llmRouter.callAnthropic(
-        '당신은 브리핑 전문가입니다. 주어진 주제/파일의 핵심을 요약하고 분석 포인트를 추출하세요. 한국어로 작성하세요.',
-        `주제: ${topic}\n${presetPrompt}\n${trimmedFile ? `\n[첨부 파일 내용]\n${trimmedFile}` : ''}`,
+        '당신은 브리핑 전문가입니다. 주어진 주제/파일의 핵심을 요약하고 분석 포인트를 추출하세요. 사용자의 사전 요청이 있으면 그 관점을 우선 반영하세요. 한국어로 작성하세요.',
+        `주제: ${topic}\n${presetPrompt}${preAnswerContext}\n${trimmedFile ? `\n[첨부 파일 내용]\n${trimmedFile}` : ''}`,
         'claude-haiku-4-5-20251001',
         2048,
       );

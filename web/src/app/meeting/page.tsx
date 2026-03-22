@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { authFetch, getToken, API_BASE } from '@/lib/api';
 
 // ── 타입 ────────────────────────────────────────────────
 
 type MeetingTier = 'standard' | 'premium';
 type MeetingPreset = 'business_plan' | 'market_analysis' | 'idea_validation' | 'ir_feedback' | 'competitor' | 'free';
-type MeetingPhase = 'idle' | 'briefing' | 'analysis' | 'debate' | 'report' | 'done' | 'error';
+type MeetingPhase = 'idle' | 'pre_question' | 'briefing' | 'analysis' | 'debate' | 'report' | 'done' | 'error';
 
 interface MeetingMessage {
   id: string;
@@ -38,40 +38,76 @@ const AI_COLORS: Record<string, { bg: string; border: string; text: string; badg
 const AI_ICONS: Record<string, string> = { GPT: '🟢', Gemini: '🔴', Claude: '🔵' };
 
 export default function MeetingPage() {
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null); // null = 아직 체크 안 함
   const [topic, setTopic] = useState('');
   const [file, setFile] = useState('');
   const [fileName, setFileName] = useState('');
   const [fileLoading, setFileLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setIsLoggedIn(!!getToken());
+  }, []);
   const [tier, setTier] = useState<MeetingTier>('standard');
   const [preset, setPreset] = useState<MeetingPreset>('free');
   const [phase, setPhase] = useState<MeetingPhase>('idle');
   const [messages, setMessages] = useState<MeetingMessage[]>([]);
   const [currentAI, setCurrentAI] = useState('');
+  const [preQuestions, setPreQuestions] = useState('');
+  const [preAnswers, setPreAnswers] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const isRunning = phase !== 'idle' && phase !== 'done' && phase !== 'error';
+  const isRunning = phase !== 'idle' && phase !== 'done' && phase !== 'error' && phase !== 'pre_question';
 
-  const handleFileUpload = (uploadedFile: File) => {
+  const handleFileUpload = async (uploadedFile: File) => {
     if (!uploadedFile) return;
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (uploadedFile.size > maxSize) {
-      alert('파일 크기는 5MB 이하만 가능합니다');
+      alert('파일 크기는 10MB 이하만 가능합니다');
       return;
     }
     setFileLoading(true);
     setFileName(uploadedFile.name);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setFile(e.target?.result as string || '');
-      setFileLoading(false);
-    };
-    reader.onerror = () => {
-      alert('파일을 읽을 수 없습니다');
-      setFileLoading(false);
-      setFileName('');
-    };
-    reader.readAsText(uploadedFile);
+
+    const isPdf = uploadedFile.name.toLowerCase().endsWith('.pdf');
+
+    if (isPdf) {
+      // PDF → 서버사이드 파싱
+      try {
+        const formData = new FormData();
+        formData.append('file', uploadedFile);
+        const token = getToken();
+        const res = await fetch(`${API_BASE}/ai/parse-pdf`, {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.message || 'PDF 파싱 실패');
+        }
+        const data = await res.json();
+        setFile(data.text || '');
+        setFileLoading(false);
+      } catch (err: any) {
+        alert(err.message || 'PDF를 읽을 수 없습니다');
+        setFileLoading(false);
+        setFileName('');
+      }
+    } else {
+      // 텍스트 파일 — 기존 방식
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setFile(e.target?.result as string || '');
+        setFileLoading(false);
+      };
+      reader.onerror = () => {
+        alert('파일을 읽을 수 없습니다');
+        setFileLoading(false);
+        setFileName('');
+      };
+      reader.readAsText(uploadedFile);
+    }
   };
   const tierCredits = tier === 'standard' ? 300 : 1500;
 
@@ -81,9 +117,41 @@ export default function MeetingPage() {
 
   // ── 회의 시작 ─────────────────────────────────────────
 
-  const startMeeting = async () => {
+  // 사전 질문 요청
+  const askPreQuestions = async () => {
     if (!topic.trim()) return;
 
+    const token = getToken();
+    if (!token) {
+      alert('AI 회의실을 사용하려면 로그인이 필요합니다');
+      window.location.href = '/login';
+      return;
+    }
+
+    setPhase('pre_question');
+    setPreQuestions('');
+    setPreAnswers('');
+
+    try {
+      const res = await fetch(`${API_BASE}/ai/meeting-pre-question`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ topic: topic.trim(), preset }),
+      });
+      if (!res.ok) throw new Error('사전 질문 생성 실패');
+      const data = await res.json();
+      setPreQuestions(data.questions);
+    } catch {
+      // 사전 질문 실패 시 바로 회의 시작
+      startMeeting();
+    }
+  };
+
+  // 실제 회의 시작
+  const startMeeting = async () => {
     const token = getToken();
     if (!token) {
       alert('AI 회의실을 사용하려면 로그인이 필요합니다');
@@ -100,9 +168,9 @@ export default function MeetingPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ topic: topic.trim(), file: file || undefined, tier, preset }),
+        body: JSON.stringify({ topic: topic.trim(), file: file || undefined, tier, preset, preAnswers: preAnswers || undefined }),
       });
 
       if (!res.ok) {
@@ -112,7 +180,13 @@ export default function MeetingPage() {
           window.location.href = '/login';
           return;
         }
-        throw new Error(errBody.message || `회의 시작 실패 (${res.status})`);
+        const friendlyMessages: Record<number, string> = {
+          400: '입력 형식이 잘못되었습니다',
+          403: '권한이 없습니다',
+          429: '요청이 많아요. 잠시 후 다시 시도해주세요',
+          500: '서버에 일시적인 문제가 발생했습니다',
+        };
+        throw new Error(errBody.message || friendlyMessages[res.status] || '회의 시작에 실패했습니다');
       }
       if (!res.body) throw new Error('SSE 스트림 없음');
 
@@ -222,7 +296,7 @@ export default function MeetingPage() {
         </div>
 
         {/* 비로그인 안내 */}
-        {!getToken() && phase === 'idle' && (
+        {isLoggedIn === false && phase === 'idle' && (
           <div className="mb-6 mx-auto max-w-2xl rounded-xl border border-[#f59e0b]/30 bg-[#f59e0b]/5 p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-xl">🔒</span>
@@ -277,7 +351,7 @@ export default function MeetingPage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".txt,.md,.csv,.json"
+                accept=".txt,.md,.csv,.json,.pdf"
                 className="hidden"
                 onChange={e => {
                   const f = e.target.files?.[0];
@@ -299,7 +373,7 @@ export default function MeetingPage() {
                 >
                   <div className="text-3xl mb-2">📄</div>
                   <p className="text-sm text-[#8b95a1]">파일을 드래그하거나 클릭하여 업로드</p>
-                  <p className="text-xs text-[#4e5968] mt-1">TXT, MD, CSV, JSON (최대 10MB) — 엑셀은 CSV로 변환 후 업로드</p>
+                  <p className="text-xs text-[#4e5968] mt-1">PDF, TXT, MD, CSV, JSON (최대 10MB)</p>
                 </div>
               ) : (
                 <div className="rounded-xl border border-[#2c2c35] bg-[#1b1b21] px-4 py-3 flex items-center justify-between">
@@ -350,7 +424,7 @@ export default function MeetingPage() {
 
             {/* 시작 버튼 */}
             <button
-              onClick={startMeeting}
+              onClick={askPreQuestions}
               disabled={!topic.trim()}
               className="w-full rounded-xl bg-gradient-to-r from-[#3182f6] to-[#6366f1] py-4 text-lg font-bold text-white transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -359,8 +433,57 @@ export default function MeetingPage() {
           </div>
         )}
 
+        {/* 사전 질문 단계 */}
+        {phase === 'pre_question' && (
+          <div className="space-y-4">
+            <div className="rounded-xl border border-[#3182f6]/40 bg-[#3182f6]/10 p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-lg">🤔</span>
+                <span className="font-bold text-[#3182f6]">회의 전 확인</span>
+              </div>
+              {preQuestions ? (
+                <div className="text-sm text-[#d1d5db] whitespace-pre-wrap leading-relaxed">{preQuestions}</div>
+              ) : (
+                <div className="flex items-center gap-2 text-sm text-[#8b95a1]">
+                  <div className="h-3 w-3 rounded-full bg-[#3182f6] animate-pulse" />
+                  질문 생성 중...
+                </div>
+              )}
+            </div>
+
+            {preQuestions && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-[#8b95a1] mb-2">답변 (선택)</label>
+                  <textarea
+                    value={preAnswers}
+                    onChange={e => setPreAnswers(e.target.value)}
+                    placeholder="분석 방향이나 중점 사항을 입력하세요 (건너뛰기 가능)"
+                    rows={3}
+                    className="w-full rounded-xl border border-[#2c2c35] bg-[#1b1b21] px-4 py-3 text-[15px] placeholder-[#6b7684] outline-none focus:border-[#3182f6] transition-colors resize-none"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => { setPhase('idle'); setPreQuestions(''); setPreAnswers(''); }}
+                    className="flex-1 rounded-xl border border-[#2c2c35] py-3 text-sm font-semibold text-[#8b95a1] hover:bg-[#2c2c35] hover:text-white transition-colors"
+                  >
+                    ← 돌아가기
+                  </button>
+                  <button
+                    onClick={startMeeting}
+                    className="flex-[2] rounded-xl bg-gradient-to-r from-[#3182f6] to-[#6366f1] py-3 text-sm font-bold text-white hover:brightness-110 transition-all"
+                  >
+                    {preAnswers.trim() ? '🧠 이 방향으로 회의 시작' : '⚡ 바로 회의 시작'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {/* 회의 진행 중 / 결과 */}
-        {phase !== 'idle' && (
+        {phase !== 'idle' && phase !== 'pre_question' && (
           <div className="space-y-4">
             {/* 상태 표시 */}
             {isRunning && (

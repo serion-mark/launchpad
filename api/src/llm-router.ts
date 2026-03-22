@@ -152,8 +152,28 @@ export class LLMRouter {
             generationConfig: { maxOutputTokens: maxTokens },
             systemInstruction: system,
         });
-        const result = await genModel.generateContent(user);
-        return result.response.text();
+
+        const maxRetries = 3;
+        for (let attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                // 연속 호출 시 rate limit 방지: 첫 호출도 2초 딜레이
+                if (attempt > 0) {
+                    const waitSec = Math.min(30, 10 * attempt); // 10s, 20s, 30s
+                    await new Promise(r => setTimeout(r, waitSec * 1000));
+                } else {
+                    await new Promise(r => setTimeout(r, 2000)); // 사전 2초 딜레이
+                }
+                const result = await genModel.generateContent(user);
+                return result.response.text();
+            } catch (error: any) {
+                const is429 = error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('RESOURCE_EXHAUSTED');
+                if (is429 && attempt < maxRetries) {
+                    continue; // 재시도
+                }
+                throw error;
+            }
+        }
+        throw new Error('Gemini API 호출 실패: 최대 재시도 횟수 초과');
     }
 
     /**

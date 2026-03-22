@@ -1,5 +1,6 @@
-import { Controller, Post, Get, Body, Param, UseGuards, Req, Res, Sse, Logger } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, UseGuards, Req, Res, Sse, Logger, UseInterceptors, UploadedFile } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { AiService } from './ai.service';
 import { AgentService } from './agent.service';
@@ -218,6 +219,36 @@ export class AiController {
   // ── Phase 11: AI 회의실 + 스마트 분석 + 이미지 생성 ────
   // ══════════════════════════════════════════════════════
 
+  // ── PDF 텍스트 추출 ─────────────────────────────────
+  @Post('parse-pdf')
+  @UseInterceptors(FileInterceptor('file'))
+  async parsePdf(@UploadedFile() file: Express.Multer.File) {
+    if (!file) throw new (await import('@nestjs/common')).BadRequestException('파일이 없습니다');
+    if (!file.originalname.toLowerCase().endsWith('.pdf')) {
+      throw new (await import('@nestjs/common')).BadRequestException('PDF 파일만 지원합니다');
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      throw new (await import('@nestjs/common')).BadRequestException('파일 크기는 10MB 이하만 가능합니다');
+    }
+    try {
+      const pdfParse = require('pdf-parse');
+      const data = await pdfParse(file.buffer);
+      return { text: data.text, pages: data.numpages, info: data.info?.Title || file.originalname };
+    } catch (err: any) {
+      this.logger.error(`[PDF 파싱 실패] ${err.message}`);
+      throw new (await import('@nestjs/common')).BadRequestException('PDF를 읽을 수 없습니다. 다른 형식으로 변환 후 업로드해주세요.');
+    }
+  }
+
+  // ── AI 회의실 사전 질문 ─────────────────────────────
+  @Post('meeting-pre-question')
+  async meetingPreQuestion(
+    @Body() body: { topic: string; preset?: MeetingPreset },
+  ) {
+    const questions = await this.meetingService.generatePreQuestions(body);
+    return { questions };
+  }
+
   // ── AI 회의실 SSE ────────────────────────────────────
   @Post('meeting-sse')
   async meetingSSE(
@@ -228,6 +259,7 @@ export class AiController {
       file?: string;
       tier: MeetingTier;
       preset?: MeetingPreset;
+      preAnswers?: string;
     },
   ) {
     res.setHeader('Content-Type', 'text/event-stream');
