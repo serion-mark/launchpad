@@ -54,7 +54,7 @@ export default function MeetingPage() {
 
   const handleFileUpload = (uploadedFile: File) => {
     if (!uploadedFile) return;
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    const maxSize = 10 * 1024 * 1024; // 10MB
     if (uploadedFile.size > maxSize) {
       alert('파일 크기는 5MB 이하만 가능합니다');
       return;
@@ -105,7 +105,15 @@ export default function MeetingPage() {
         body: JSON.stringify({ topic: topic.trim(), file: file || undefined, tier, preset }),
       });
 
-      if (!res.ok) throw new Error('회의 시작 실패');
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        if (res.status === 401) {
+          alert('로그인이 필요합니다');
+          window.location.href = '/login';
+          return;
+        }
+        throw new Error(errBody.message || `회의 시작 실패 (${res.status})`);
+      }
       if (!res.body) throw new Error('SSE 스트림 없음');
 
       const reader = res.body.getReader();
@@ -213,6 +221,22 @@ export default function MeetingPage() {
           <p className="text-[#8b95a1]">AI 3개가 각자 관점으로 분석하고 서로 토론합니다</p>
         </div>
 
+        {/* 비로그인 안내 */}
+        {!getToken() && phase === 'idle' && (
+          <div className="mb-6 mx-auto max-w-2xl rounded-xl border border-[#f59e0b]/30 bg-[#f59e0b]/5 p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">🔒</span>
+              <div>
+                <p className="text-sm font-medium text-[#f59e0b]">로그인이 필요합니다</p>
+                <p className="text-xs text-[#8b95a1]">회원가입 시 500 크레딧 무료 제공 (스탠다드 회의 1회 가능)</p>
+              </div>
+            </div>
+            <a href="/login" className="shrink-0 rounded-lg bg-[#f59e0b] px-4 py-2 text-sm font-bold text-black hover:brightness-110 transition-all">
+              로그인
+            </a>
+          </div>
+        )}
+
         {/* 입력 영역 */}
         {phase === 'idle' && (
           <div className="space-y-6">
@@ -253,7 +277,7 @@ export default function MeetingPage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".txt,.md,.csv,.json,.pdf,.doc,.docx"
+                accept=".txt,.md,.csv,.json"
                 className="hidden"
                 onChange={e => {
                   const f = e.target.files?.[0];
@@ -275,7 +299,7 @@ export default function MeetingPage() {
                 >
                   <div className="text-3xl mb-2">📄</div>
                   <p className="text-sm text-[#8b95a1]">파일을 드래그하거나 클릭하여 업로드</p>
-                  <p className="text-xs text-[#4e5968] mt-1">TXT, MD, CSV, JSON, PDF (최대 5MB)</p>
+                  <p className="text-xs text-[#4e5968] mt-1">TXT, MD, CSV, JSON (최대 10MB) — 엑셀은 CSV로 변환 후 업로드</p>
                 </div>
               ) : (
                 <div className="rounded-xl border border-[#2c2c35] bg-[#1b1b21] px-4 py-3 flex items-center justify-between">
