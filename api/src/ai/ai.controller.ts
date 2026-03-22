@@ -223,20 +223,37 @@ export class AiController {
   @Post('parse-pdf')
   @UseInterceptors(FileInterceptor('file'))
   async parsePdf(@UploadedFile() file: Express.Multer.File) {
-    if (!file) throw new (await import('@nestjs/common')).BadRequestException('파일이 없습니다');
+    const { BadRequestException } = await import('@nestjs/common');
+    if (!file) throw new BadRequestException('파일이 없습니다');
     if (!file.originalname.toLowerCase().endsWith('.pdf')) {
-      throw new (await import('@nestjs/common')).BadRequestException('PDF 파일만 지원합니다');
+      throw new BadRequestException('PDF 파일만 지원합니다');
     }
     if (file.size > 10 * 1024 * 1024) {
-      throw new (await import('@nestjs/common')).BadRequestException('파일 크기는 10MB 이하만 가능합니다');
+      throw new BadRequestException('파일 크기는 10MB 이하만 가능합니다');
     }
     try {
-      const pdfParse = require('pdf-parse');
-      const data = await pdfParse(file.buffer);
-      return { text: data.text, pages: data.numpages, info: data.info?.Title || file.originalname };
+      const fs = await import('fs');
+      const path = await import('path');
+      const { execSync } = await import('child_process');
+      const os = await import('os');
+
+      // 임시 파일에 저장 → pdftotext 실행 → 텍스트 추출
+      const tmpPath = path.join(os.tmpdir(), `pdf-${Date.now()}.pdf`);
+      fs.writeFileSync(tmpPath, file.buffer);
+
+      const text = execSync(`pdftotext "${tmpPath}" -`, {
+        encoding: 'utf-8',
+        timeout: 30000,
+        maxBuffer: 10 * 1024 * 1024,
+      });
+
+      // 임시 파일 삭제
+      fs.unlinkSync(tmpPath);
+
+      return { text: text.trim(), info: file.originalname };
     } catch (err: any) {
       this.logger.error(`[PDF 파싱 실패] ${err.message}`);
-      throw new (await import('@nestjs/common')).BadRequestException('PDF를 읽을 수 없습니다. 다른 형식으로 변환 후 업로드해주세요.');
+      throw new BadRequestException('PDF를 읽을 수 없습니다. 다른 형식으로 변환 후 업로드해주세요.');
     }
   }
 
