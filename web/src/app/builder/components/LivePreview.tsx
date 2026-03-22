@@ -10,13 +10,14 @@ interface GeneratedFile {
 interface LivePreviewProps {
   files: GeneratedFile[];
   previewMode: 'mobile' | 'desktop';
+  visualEditMode?: boolean;
 }
 
 /**
  * 실시간 미리보기 — 생성된 코드를 빌드 없이 iframe에서 렌더링
  * Tailwind CDN + React CDN으로 클라이언트 사이드 렌더링
  */
-export default function LivePreview({ files, previewMode }: LivePreviewProps) {
+export default function LivePreview({ files, previewMode, visualEditMode = false }: LivePreviewProps) {
   const [activePage, setActivePage] = useState('/');
 
   // 페이지 목록 추출 (src/app/*/page.tsx)
@@ -52,6 +53,50 @@ export default function LivePreview({ files, previewMode }: LivePreviewProps) {
     return convertJsxToStaticHtml(currentPage.content, appName);
   }, [currentPage, appName]);
 
+  // Visual Edit 모드 스크립트
+  const visualEditScript = visualEditMode ? `
+    // Visual Edit Mode — 호버 하이라이트 + 클릭 선택
+    var hoveredEl = null;
+    document.addEventListener('mouseover', function(e) {
+      if (hoveredEl) {
+        hoveredEl.style.outline = '';
+        hoveredEl.style.outlineOffset = '';
+      }
+      hoveredEl = e.target;
+      e.target.style.outline = '2px solid #3182f6';
+      e.target.style.outlineOffset = '2px';
+    });
+    document.addEventListener('mouseout', function(e) {
+      e.target.style.outline = '';
+      e.target.style.outlineOffset = '';
+    });
+    document.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var el = e.target;
+      var component = null;
+      var current = el;
+      while (current) {
+        if (current.getAttribute && current.getAttribute('data-component')) {
+          component = current.getAttribute('data-component');
+          break;
+        }
+        current = current.parentElement;
+      }
+      var rect = el.getBoundingClientRect();
+      parent.postMessage({
+        type: 'element-clicked',
+        element: {
+          tagName: el.tagName,
+          className: (el.className || '').toString().slice(0, 200),
+          textContent: (el.textContent || '').slice(0, 100),
+          component: component,
+          rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+        }
+      }, '*');
+    }, true);
+  ` : '';
+
   // iframe에 주입할 전체 HTML
   const iframeHtml = useMemo(() => {
     return `<!DOCTYPE html>
@@ -62,7 +107,7 @@ export default function LivePreview({ files, previewMode }: LivePreviewProps) {
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; ${visualEditMode ? 'cursor: crosshair;' : ''} }
     ${extractCssVariables(globalsCss)}
     .animate-spin { animation: spin 1s linear infinite; }
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -73,6 +118,7 @@ export default function LivePreview({ files, previewMode }: LivePreviewProps) {
 <body class="min-h-screen bg-gray-50 antialiased">
   ${pageHtml}
   <script>
+    ${visualEditMode ? visualEditScript : `
     // 네비게이션 인터셉트 → 부모에 메시지
     document.addEventListener('click', function(e) {
       var link = e.target.closest('a[href]');
@@ -84,12 +130,13 @@ export default function LivePreview({ files, previewMode }: LivePreviewProps) {
         }
       }
     });
+    `}
     // 폼 제출 방지
     document.addEventListener('submit', function(e) { e.preventDefault(); });
   </script>
 </body>
 </html>`;
-  }, [pageHtml, globalsCss]);
+  }, [pageHtml, globalsCss, visualEditMode, visualEditScript]);
 
   return (
     <div className="flex h-full flex-col">
@@ -112,10 +159,19 @@ export default function LivePreview({ files, previewMode }: LivePreviewProps) {
         </div>
       )}
 
+      {/* Visual Edit 모드 인디케이터 */}
+      {visualEditMode && (
+        <div className="flex items-center gap-2 bg-[#f59e0b]/10 border-b border-[#f59e0b]/30 px-3 py-1.5">
+          <span className="text-[11px] text-[#f59e0b] font-medium">Visual Edit 모드 — 요소를 클릭하여 수정</span>
+        </div>
+      )}
+
       {/* iframe 미리보기 */}
       <div className="flex flex-1 items-center justify-center overflow-auto bg-[#1b1b21] p-4">
         <div
-          className={`overflow-hidden border border-[#2c2c35] bg-white shadow-2xl transition-all duration-300 ${
+          className={`overflow-hidden border bg-white shadow-2xl transition-all duration-300 ${
+            visualEditMode ? 'border-[#f59e0b]' : 'border-[#2c2c35]'
+          } ${
             previewMode === 'mobile' ? 'w-[375px] rounded-[2.5rem]' : 'w-full max-w-[900px] rounded-xl'
           }`}
           style={{ height: previewMode === 'mobile' ? '700px' : '600px' }}

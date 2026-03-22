@@ -2,12 +2,17 @@ import { Controller, Post, Get, Body, Param, UseGuards, Req, Res, Sse } from '@n
 import { AuthGuard } from '@nestjs/passport';
 import type { Response } from 'express';
 import { AiService } from './ai.service';
+import { AgentService } from './agent.service';
 import type { GenerationProgress } from './ai.service';
+import type { AgentStepEvent } from './agent.service';
 
 @Controller('ai')
 @UseGuards(AuthGuard('jwt'))
 export class AiController {
-  constructor(private aiService: AiService) {}
+  constructor(
+    private aiService: AiService,
+    private agentService: AgentService,
+  ) {}
 
   // ── 빌더 채팅 (실시간 AI 대화) ─────────────────────
   @Post('chat')
@@ -116,6 +121,48 @@ export class AiController {
     },
   ) {
     return this.aiService.modifyFiles(req.user.userId, body);
+  }
+
+  // ══════════════════════════════════════════════════════
+  // ── Phase 10: Agent Mode (자율 수정) ──────────────────
+  // ══════════════════════════════════════════════════════
+
+  @Post('agent')
+  runAgent(
+    @Req() req: any,
+    @Res() res: Response,
+    @Body() body: { projectId: string; task: string },
+  ) {
+    // SSE 헤더 설정
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+
+    const emitter = this.agentService.runAgentSSE(req.user.userId, body.projectId, body.task);
+
+    // 각 단계 전송
+    emitter.on('step', (data: AgentStepEvent) => {
+      res.write(`data: ${JSON.stringify({ type: 'step', ...data })}\n\n`);
+    });
+
+    // 완료
+    emitter.on('done', (result: any) => {
+      res.write(`data: ${JSON.stringify({ type: 'done', ...result })}\n\n`);
+      res.end();
+    });
+
+    // 에러
+    emitter.on('error', (err: any) => {
+      res.write(`data: ${JSON.stringify({ type: 'error', message: err.message?.slice(0, 300) })}\n\n`);
+      res.end();
+    });
+
+    // 클라이언트 연결 끊김
+    req.on('close', () => {
+      emitter.removeAllListeners();
+    });
   }
 
   // ── 사용 가능한 모델 목록 ─────────────────────────

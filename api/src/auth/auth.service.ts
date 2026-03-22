@@ -132,6 +132,84 @@ export class AuthService {
     return this.issueToken(user.id, user.email);
   }
 
+  /** GitHub 인가코드로 로그인/회원가입 처리 */
+  async githubLogin(code: string) {
+    const clientId = this.config.get('GITHUB_CLIENT_ID');
+    const clientSecret = this.config.get('GITHUB_CLIENT_SECRET');
+
+    // 1) 인가코드 → 액세스 토큰
+    const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        client_id: clientId,
+        client_secret: clientSecret,
+        code,
+      }),
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenData.access_token) {
+      throw new UnauthorizedException('GitHub 토큰 발급 실패');
+    }
+
+    // 2) 액세스 토큰 → 사용자 정보
+    const userRes = await fetch('https://api.github.com/user', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+    const userData = await userRes.json();
+
+    const githubId = String(userData.id);
+    const name = userData.name || userData.login || '사용자';
+    const avatar = userData.avatar_url || null;
+
+    // 이메일 가져오기 (GitHub API 별도 호출 필요할 수 있음)
+    let email = userData.email;
+    if (!email) {
+      try {
+        const emailRes = await fetch('https://api.github.com/user/emails', {
+          headers: { Authorization: `Bearer ${tokenData.access_token}` },
+        });
+        const emails = await emailRes.json();
+        const primary = emails.find((e: any) => e.primary && e.verified);
+        email = primary?.email || `github_${githubId}@github.foundry.ai.kr`;
+      } catch {
+        email = `github_${githubId}@github.foundry.ai.kr`;
+      }
+    }
+
+    // 3) 기존 GitHub 유저 찾기
+    let user = await this.prisma.user.findFirst({
+      where: { provider: 'github', providerId: githubId },
+    });
+
+    if (!user) {
+      const emailUser = await this.prisma.user.findUnique({ where: { email } });
+      if (emailUser) {
+        user = await this.prisma.user.update({
+          where: { id: emailUser.id },
+          data: { provider: 'github', providerId: githubId, avatar: avatar || emailUser.avatar, githubToken: tokenData.access_token },
+        });
+      } else {
+        user = await this.prisma.user.upsert({
+          where: { email },
+          update: { provider: 'github', providerId: githubId, avatar, githubToken: tokenData.access_token },
+          create: { email, name, avatar, provider: 'github', providerId: githubId, githubToken: tokenData.access_token },
+        });
+      }
+    } else {
+      // 토큰 업데이트
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { githubToken: tokenData.access_token },
+      });
+    }
+
+    return this.issueToken(user.id, user.email);
+  }
+
   private issueToken(userId: string, email: string) {
     const token = this.jwt.sign({ sub: userId, email });
     return { token, userId, email };

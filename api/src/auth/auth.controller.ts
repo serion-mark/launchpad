@@ -62,4 +62,33 @@ export class AuthController {
       return res.redirect(`${frontendUrl}/login?error=kakao_failed`);
     }
   }
+
+  /** GitHub 로그인 시작 */
+  @Get('github')
+  githubLogin(@Res() res: Response) {
+    const clientId = this.config.get('GITHUB_CLIENT_ID');
+    const redirectUri = this.config.get('GITHUB_REDIRECT_URI') || 'https://foundry.ai.kr/api/auth/github/callback';
+    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=repo,user:email`;
+    res.redirect(githubAuthUrl);
+  }
+
+  /** GitHub 콜백 */
+  @Get('github/callback')
+  async githubCallback(@Query('code') code: string, @Query('error') error: string, @Res() res: Response) {
+    const frontendUrl = this.config.get('FRONTEND_URL') || 'https://foundry.ai.kr';
+
+    if (error || !code) {
+      return res.redirect(`${frontendUrl}/login?error=github_denied`);
+    }
+
+    try {
+      const result = await this.auth.githubLogin(code);
+      return res.redirect(
+        `${frontendUrl}/auth/github/callback?token=${result.token}&userId=${result.userId}&email=${encodeURIComponent(result.email)}`,
+      );
+    } catch (err) {
+      console.error('GitHub 로그인 실패:', err);
+      return res.redirect(`${frontendUrl}/login?error=github_failed`);
+    }
+  }
 }

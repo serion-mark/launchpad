@@ -24,12 +24,15 @@ model User {
   privacyAgreedAt   DateTime?  // 개인정보처리방침 동의 일시
   refundAgreedAt    DateTime?  // 환불정책+소유권 동의 일시
   marketingAgreedAt DateTime?  // 마케팅 수신 동의 일시 (선택)
+  // ── GitHub 연동 ──
+  githubToken   String?   // GitHub OAuth access token (repo push용)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   projects      Project[]
   invoices      Invoice[]
   creditBalance CreditBalance?
+  memory        UserMemory?
   @@map("users")
 }
 
@@ -66,9 +69,12 @@ model Project {
   buildLog           String?            // 빌드 로그 (에러 디버깅용)
   buildStartedAt     DateTime?
   buildFinishedAt    DateTime?
+  // ── GitHub 연동 ──
+  githubRepoUrl      String?            // https://github.com/user/repo
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  memory        ProjectMemory?
   @@map("projects")
 }
 
@@ -144,4 +150,29 @@ model CreditTransaction {
   @@index([userId, createdAt])
   @@index([type])
   @@map("credit_transactions")
+}
+
+// ── 프로젝트 메모리 (AI 대화 컨텍스트 유지) ──────────
+model ProjectMemory {
+  id            String   @id @default(cuid())
+  projectId     String   @unique
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chatSummary   String?  // Haiku가 매 대화 후 자동 요약
+  preferences   Json?    // 사용자 선호 자동 학습 {style, priority, colors, fonts}
+  modHistory    Json?    // 수정 히스토리 [{version, change, date}]
+  updatedAt     DateTime @updatedAt
+
+  @@map("project_memories")
+}
+
+// ── 사용자 메모리 (프로젝트 공통 선호) ────────────────
+model UserMemory {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  designPref    Json?    // 색상/폰트/레이아웃 선호 (모든 프로젝트 공통)
+  domain        String?  // 업종/분야 ("반려동물", "교육" 등)
+  updatedAt     DateTime @updatedAt
+
+  @@map("user_memories")
 }

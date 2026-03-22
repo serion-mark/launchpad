@@ -2,6 +2,7 @@ import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Req } fro
 import { AuthGuard } from '@nestjs/passport';
 import { ProjectService } from './project.service';
 import { DeployService } from './deploy.service';
+import { GitHubService } from './github.service';
 
 @Controller('projects')
 @UseGuards(AuthGuard('jwt'))
@@ -9,6 +10,7 @@ export class ProjectController {
   constructor(
     private projectService: ProjectService,
     private deployService: DeployService,
+    private githubService: GitHubService,
   ) {}
 
   @Get()
@@ -79,5 +81,11 @@ export class ProjectController {
   @Post(':id/rollback')
   rollback(@Req() req: any, @Param('id') id: string, @Body() body: { version: number }) {
     return this.projectService.rollback(id, req.user.userId, body.version);
+  }
+
+  // ── Phase 10: GitHub 연동 ───────────────────────────
+  @Post(':id/github/push')
+  pushToGitHub(@Req() req: any, @Param('id') id: string) {
+    return this.githubService.pushToGitHub(id, req.user.userId);
   }
 }

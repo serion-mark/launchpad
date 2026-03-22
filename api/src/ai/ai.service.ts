@@ -3,6 +3,7 @@ import { EventEmitter } from 'events';
 import Anthropic from '@anthropic-ai/sdk';
 import { CreditService, type ModelTier as CreditModelTier } from '../credit/credit.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { MemoryService } from './memory.service';
 import { PrismaService } from '../prisma.service';
 
 // ── F7: SSE 진행상황 이벤트 타입 ─────────────────────
@@ -54,6 +55,19 @@ const BUILDER_SYSTEM_PROMPT = `당신은 Foundry AI 빌더 어시스턴트입니
 
 ⚠️ 중요: 반드시 현재 선택된 템플릿/업종에 맞는 용어와 기능만 이야기하세요.
 다른 업종의 용어를 절대 섞지 마세요.`;
+
+// ── Chat Mode 고도화: 응답 태그 규칙 ─────────────────
+const CHAT_RESPONSE_RULES = `
+
+응답 시 반드시 다음 태그 중 하나로 시작하세요:
+[QUESTION] — 사용자에게 확인 질문이 필요할 때 (모호한 요청, 선택지 제시)
+[CODE_CHANGE] — 코드를 수정해야 할 때 (이 경우 구체적인 수정 내용 포함)
+[EXPLANATION] — 설명만 할 때 (질문에 답변, 개념 설명)
+
+예시:
+- "차트 추가해줘" → [QUESTION] 어떤 형태의 차트를 원하시나요? 바차트, 라인차트, 파이차트?
+- "로그인 페이지 만들어줘" → [CODE_CHANGE] 로그인 페이지를 생성하겠습니다. 이메일+비밀번호 입력 폼과 소셜 로그인 버튼을 포함합니다.
+- "Supabase가 뭐야?" → [EXPLANATION] Supabase는 오픈소스 Firebase 대안으로...`;
 
 // ── 업종별 상세 프롬프트 ─────────────────────────────
 const TEMPLATE_PROMPTS: Record<string, string> = {
@@ -223,6 +237,12 @@ Foundry는 Static Export 전용 Next.js 앱을 생성합니다.
 - fetch('/api/...') 사용 금지 → Supabase 클라이언트만 사용
 - getServerSideProps, getStaticProps 사용 금지 (App Router에서 불가)
 - useRouter from 'next/router' 금지 → 반드시 'next/navigation'에서 import
+
+🟢 Visual Edit 지원 (필수!):
+- 모든 주요 섹션/컴포넌트에 data-component 속성 추가
+- 예: <header data-component="Header">, <section data-component="HeroSection">, <nav data-component="Navigation">
+- 버튼, 카드, 네비게이션, 폼 등 수정 가능한 요소에 반드시 포함
+- 컴포넌트명은 PascalCase (Header, CTAButton, ServiceCard 등)
 
 🟢 필수 사항:
 - 모든 page.tsx 파일 첫 줄에 'use client' 필수!
@@ -464,6 +484,7 @@ export class AiService {
   constructor(
     private creditService: CreditService,
     private supabaseService: SupabaseService,
+    private memoryService: MemoryService,
     private prisma: PrismaService,
   ) {
     this.anthropic = new Anthropic({
@@ -483,6 +504,23 @@ export class AiService {
     const tier: ModelTier = 'fast';
     const model = MODELS[tier];
 
+    // ── 메모리 컨텍스트 로드 ──
+    const memoryContext = await this.memoryService.buildContextPrompt(params.projectId, userId);
+
+    // ── 코드베이스 컨텍스트 주입 ──
+    let codeContext = '';
+    try {
+      const project = await this.prisma.project.findUnique({
+        where: { id: params.projectId },
+        select: { generatedCode: true },
+      });
+      if (project?.generatedCode) {
+        const files = project.generatedCode as { path: string; content: string }[];
+        const fileList = files.map(f => f.path).join('\n');
+        codeContext = `\n\n[현재 프로젝트 파일 목록]\n${fileList}`;
+      }
+    } catch { /* 무시 */ }
+
     // 대화 히스토리를 Anthropic 형식으로 변환
     const messages: Anthropic.MessageParam[] = params.chatHistory
       .filter(m => m.role === 'user' || m.role === 'assistant')
@@ -494,11 +532,18 @@ export class AiService {
     // 현재 메시지 추가
     messages.push({ role: 'user', content: params.message });
 
+    // ── 고도화된 시스템 프롬프트 ──
+    const systemPrompt = BUILDER_SYSTEM_PROMPT
+      + '\n\n' + (TEMPLATE_PROMPTS[params.template || ''] || `현재 선택된 템플릿: ${params.template || 'unknown'}`)
+      + memoryContext
+      + codeContext
+      + CHAT_RESPONSE_RULES;
+
     try {
       const response = await this.anthropic.messages.create({
         model: model.model,
         max_tokens: model.maxTokens,
-        system: BUILDER_SYSTEM_PROMPT + '\n\n' + (TEMPLATE_PROMPTS[params.template || ''] || `현재 선택된 템플릿: ${params.template || 'unknown'}`),
+        system: systemPrompt,
         messages,
       });
 
@@ -507,8 +552,17 @@ export class AiService {
         .map(block => (block as Anthropic.TextBlock).text)
         .join('\n');
 
+      // ── 응답 타입 파싱 ──
+      const responseType = this.parseResponseType(content);
+
+      // ── 비동기: 대화 요약 + 선호 감지 (응답 지연 없이) ──
+      const allMessages = [...params.chatHistory, { role: 'user', content: params.message }, { role: 'assistant', content }];
+      this.memoryService.summarizeAndSave(params.projectId, allMessages).catch(() => {});
+      this.memoryService.detectPreferences(params.projectId, userId, params.message).catch(() => {});
+
       return {
-        content,
+        content: content.replace(/^\[(QUESTION|CODE_CHANGE|EXPLANATION)\]\s*/i, ''),
+        responseType,
         model: model.model,
         tier,
         inputTokens: response.usage.input_tokens,
@@ -518,6 +572,17 @@ export class AiService {
       this.logger.error(`AI Chat error: ${error.message}`);
       throw error;
     }
+  }
+
+  /** 응답 타입 파싱: [QUESTION] / [CODE_CHANGE] / [EXPLANATION] */
+  private parseResponseType(content: string): 'question' | 'code_change' | 'explanation' {
+    const trimmed = content.trim();
+    if (trimmed.startsWith('[QUESTION]')) return 'question';
+    if (trimmed.startsWith('[CODE_CHANGE]')) return 'code_change';
+    if (trimmed.startsWith('[EXPLANATION]')) return 'explanation';
+    // 태그 없으면 내용으로 판단
+    if (trimmed.includes('?') && trimmed.split('?').length > 2) return 'question';
+    return 'explanation';
   }
 
   // ── 앱 아키텍처 생성 (크레딧 차감) ─────────────────

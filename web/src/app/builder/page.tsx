@@ -12,13 +12,15 @@ import VersionHistory from './components/VersionHistory';
 import WelcomeBack from './components/WelcomeBack';
 import CodeHealthPanel from './components/CodeHealthPanel';
 import LivePreview from './components/LivePreview';
+import AgentPanel from './components/AgentPanel';
+import VisualEditPopup from './components/VisualEditPopup';
 
 type Message = {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: string;
-  type?: 'text' | 'code' | 'preview' | 'status';
+  type?: 'text' | 'code' | 'preview' | 'status' | 'question';
   chips?: string[]; // 예시 답변 칩
 };
 
@@ -45,17 +47,17 @@ async function callAiChat(params: {
   message: string;
   chatHistory: { role: string; content: string }[];
   template?: string;
-}): Promise<string> {
+}): Promise<{ content: string; responseType: 'question' | 'code_change' | 'explanation' }> {
   try {
     const res = await authFetch('/ai/chat', {
       method: 'POST',
       body: JSON.stringify(params),
     });
-    if (!res.ok) return `AI 응답 오류 (${res.status}). 다시 시도해주세요.`;
+    if (!res.ok) return { content: `AI 응답 오류 (${res.status}). 다시 시도해주세요.`, responseType: 'explanation' };
     const data = await res.json();
-    return data.content;
+    return { content: data.content, responseType: data.responseType || 'explanation' };
   } catch {
-    return '네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+    return { content: '네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', responseType: 'explanation' };
   }
 }
 
@@ -168,6 +170,17 @@ function BuilderContent() {
   const [projectFeatures, setProjectFeatures] = useState<string[]>([]); // 랜딩에서 선택한 기능
   const [activeMenu, setActiveMenu] = useState<string>('dashboard'); // 미리보기 활성 메뉴
   const [showWelcomeBack, setShowWelcomeBack] = useState(false); // Sprint 3: 이어서 하기
+  // ── Phase 10: Agent Mode + Visual Edits ──
+  const [isAgentRunning, setIsAgentRunning] = useState(false);
+  const [agentTask, setAgentTask] = useState('');
+  const [visualEditMode, setVisualEditMode] = useState(false);
+  const [selectedElement, setSelectedElement] = useState<{
+    tagName: string;
+    className: string;
+    textContent: string;
+    component: string | null;
+    rect: { x: number; y: number; width: number; height: number };
+  } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -435,7 +448,7 @@ function BuilderContent() {
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => ({ role: m.role, content: m.content }));
 
-    const aiContent = await callAiChat({
+    const aiResult = await callAiChat({
       projectId,
       message: userMsg.content,
       chatHistory: chatHistory.slice(-10),
@@ -448,17 +461,27 @@ function BuilderContent() {
     }).catch(() => {});
 
     // 토큰 사용량 추정 (메시지 길이 기반)
-    const estimatedTokens = Math.ceil((userMsg.content.length + aiContent.length) / 3);
+    const estimatedTokens = Math.ceil((userMsg.content.length + aiResult.content.length) / 3);
     setTokenUsed(prev => prev + estimatedTokens);
 
     const aiMsg: Message = {
       id: (Date.now() + 1).toString(), role: 'assistant',
-      content: aiContent, timestamp: new Date().toISOString(), type: 'text',
+      content: aiResult.content, timestamp: new Date().toISOString(),
+      type: aiResult.responseType === 'question' ? 'question' : 'text',
     };
     const updatedMessages = [...newMessages, aiMsg];
     setMessages(updatedMessages);
     setIsTyping(false);
     saveChatHistory(updatedMessages);
+
+    // code_change 응답 → done 상태에서 자동 수정 트리거
+    if (aiResult.responseType === 'code_change' && buildPhase === 'done' && projectId) {
+      callModifyFiles({
+        projectId,
+        message: userMsg.content,
+        modelTier: selectedModelTier,
+      });
+    }
   };
 
   // ── 앱 생성 (F7: SSE 스트리밍 파이프라인) ────────────
@@ -958,16 +981,19 @@ function BuilderContent() {
     return project.generatedCode as { path: string; content: string }[];
   }, [project?.generatedCode, streamingFiles, buildPhase]);
 
-  // 실시간 미리보기에서 페이지 네비게이션 수신
+  // 실시간 미리보기에서 페이지 네비게이션 + Visual Edit 클릭 수신
   useEffect(() => {
     const handler = (e: MessageEvent) => {
       if (e.data?.type === 'navigate') {
         // LivePreview 내부에서 처리됨
       }
+      if (e.data?.type === 'element-clicked' && visualEditMode) {
+        setSelectedElement(e.data.element);
+      }
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, []);
+  }, [visualEditMode]);
 
   // generating 중 streamingFiles가 있으면 미리보기 표시
   const showLivePreview = (buildPhase === 'done' && generatedFiles.length > 0) || (buildPhase === 'generating' && streamingFiles.length > 0);
@@ -1189,6 +1215,23 @@ function BuilderContent() {
           </div>
         </div>
 
+        {/* Agent Mode 패널 */}
+        {isAgentRunning && projectId && (
+          <div className="px-4 py-2">
+            <AgentPanel
+              projectId={projectId}
+              task={agentTask}
+              onComplete={(modifiedFiles) => {
+                setIsAgentRunning(false);
+                if (project) {
+                  setProject({ ...project, generatedCode: modifiedFiles });
+                }
+              }}
+              onCancel={() => setIsAgentRunning(false)}
+            />
+          </div>
+        )}
+
         {/* 액션 버튼 (생성/배포/다운로드) */}
         {(buildPhase === 'designing' || buildPhase === 'done') && (
           <div className="border-t border-[#1e1e28] bg-[#13131a] px-4 py-2.5">
@@ -1202,6 +1245,29 @@ function BuilderContent() {
                 <>
                   <button onClick={() => setShowCostModal('deploy')} className="flex-1 rounded-xl bg-gradient-to-r from-[#3182f6] to-[#2563eb] px-3 py-2.5 text-sm font-bold text-white hover:shadow-lg hover:shadow-[#3182f6]/20 transition-all">배포</button>
                   <button onClick={() => setShowCostModal('download')} className="flex-1 rounded-xl bg-gradient-to-r from-[#a855f7] to-[#9333ea] px-3 py-2.5 text-sm font-bold text-white hover:shadow-lg hover:shadow-[#a855f7]/20 transition-all">다운로드</button>
+                  <button
+                    onClick={async () => {
+                      if (!projectId) return;
+                      try {
+                        const res = await authFetch(`/projects/${projectId}/github/push`, { method: 'POST' });
+                        if (res.ok) {
+                          const data = await res.json();
+                          window.open(data.repoUrl, '_blank');
+                        } else {
+                          const err = await res.json();
+                          if (err.message?.includes('GitHub 연결')) {
+                            window.location.href = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/auth/github`;
+                          } else {
+                            alert(err.message || 'GitHub push 실패');
+                          }
+                        }
+                      } catch { alert('GitHub 연결 오류'); }
+                    }}
+                    className="rounded-xl bg-[#24292e] px-3 py-2.5 text-sm font-bold text-white hover:bg-[#1b1f23] transition-all"
+                    title="GitHub로 내보내기"
+                  >
+                    <svg className="h-4 w-4 inline-block" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                  </button>
                 </>
               )}
             </div>
@@ -1220,6 +1286,23 @@ function BuilderContent() {
               className="flex-1 rounded-xl border border-[#1e1e28] bg-[#1a1a24] px-4 py-3 text-sm text-[#f2f4f6] placeholder-[#4e5968] outline-none focus:border-[#3182f6]/50 transition-colors"
               disabled={isTyping}
             />
+            {/* Agent 모드 토글 */}
+            {buildPhase === 'done' && (
+              <button
+                onClick={() => {
+                  if (input.trim() && projectId) {
+                    setAgentTask(input.trim());
+                    setIsAgentRunning(true);
+                    setInput('');
+                  }
+                }}
+                disabled={!input.trim() || isTyping || isAgentRunning}
+                title="Agent 모드 (AI가 자율적으로 수정)"
+                className="rounded-xl bg-[#8b5cf6] px-3 py-3 text-sm font-semibold text-white hover:bg-[#7c3aed] transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+              >
+                🤖
+              </button>
+            )}
             <button
               onClick={sendMessage}
               disabled={!input.trim() || isTyping}
@@ -1237,6 +1320,15 @@ function BuilderContent() {
         <div className="flex items-center justify-between border-b border-[#1e1e28] bg-[#13131a] px-4 py-2.5">
           <div className="flex items-center gap-2.5">
             <span className="text-[11px] font-medium text-[#6b7684]">{showLivePreview ? '실시간 미리보기' : '미리보기'}</span>
+            {buildPhase === 'done' && (
+              <button
+                onClick={() => { setVisualEditMode(!visualEditMode); setSelectedElement(null); }}
+                className={`rounded px-2 py-1 text-[10px] font-medium transition-colors ${visualEditMode ? 'bg-[#f59e0b] text-white' : 'bg-[#1e1e28] text-[#6b7684] hover:text-[#f2f4f6]'}`}
+                title="Visual Edit 모드"
+              >
+                {visualEditMode ? '✏️ 편집 중' : '✏️ 편집'}
+              </button>
+            )}
             <div className="flex rounded-md bg-[#1e1e28] p-0.5">
               <button
                 onClick={() => setPreviewMode('mobile')}
@@ -1295,7 +1387,7 @@ function BuilderContent() {
           {/* 생성 중 + streamingFiles 있음 → 실시간 LivePreview + 미니 프로그레스 오버레이 */}
           {buildPhase === 'generating' && streamingFiles.length > 0 && (
             <div className="relative h-full">
-              <LivePreview files={streamingFiles} previewMode={previewMode} />
+              <LivePreview files={streamingFiles} previewMode={previewMode} visualEditMode={false} />
               {/* 미니 프로그레스 오버레이 */}
               <div className="absolute bottom-4 left-4 right-4 rounded-xl border border-[#2c2c35] bg-[#13131a]/90 backdrop-blur-sm px-4 py-3 shadow-lg">
                 <div className="flex items-center gap-3">
@@ -1314,7 +1406,22 @@ function BuilderContent() {
 
           {/* 생성 완료 → 실제 코드 미리보기 */}
           {showLivePreview && buildPhase !== 'generating' && (
-            <LivePreview files={generatedFiles} previewMode={previewMode} />
+            <>
+              <LivePreview files={generatedFiles} previewMode={previewMode} visualEditMode={visualEditMode} />
+              {/* Visual Edit 팝업 */}
+              {selectedElement && visualEditMode && projectId && (
+                <VisualEditPopup
+                  element={selectedElement}
+                  projectId={projectId}
+                  modelTier={selectedModelTier}
+                  onAiEdit={(message) => {
+                    callModifyFiles({ projectId, message, modelTier: selectedModelTier });
+                    setSelectedElement(null);
+                  }}
+                  onClose={() => setSelectedElement(null)}
+                />
+              )}
+            </>
           )}
 
           {/* 설계 중 → 인터랙티브 미리보기 */}
