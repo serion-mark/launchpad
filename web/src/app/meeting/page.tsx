@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { authFetch, getToken } from '@/lib/api';
+import { authFetch, getToken, API_BASE } from '@/lib/api';
 
 // ── 타입 ────────────────────────────────────────────────
 
@@ -83,13 +83,20 @@ export default function MeetingPage() {
 
   const startMeeting = async () => {
     if (!topic.trim()) return;
+
+    const token = getToken();
+    if (!token) {
+      alert('AI 회의실을 사용하려면 로그인이 필요합니다');
+      window.location.href = '/login';
+      return;
+    }
+
     setMessages([]);
     setPhase('briefing');
     setCurrentAI('브리핑 생성 중...');
 
     try {
-      const token = getToken();
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'}/ai/meeting-sse`, {
+      const res = await fetch(`${API_BASE}/ai/meeting-sse`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
