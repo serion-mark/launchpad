@@ -56,8 +56,10 @@ export default function MeetingPage() {
   const [preQuestions, setPreQuestions] = useState('');
   const [preAnswers, setPreAnswers] = useState('');
   const [chatInput, setChatInput] = useState('');
-  const [chatMessages, setChatMessages] = useState<{ role: string; content: string }[]>([]);
+  const [chatMessages, setChatMessages] = useState<{ role: string; content: string; ai?: string }[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
+  const [chatDirection, setChatDirection] = useState(''); // 방향 확인 질문
+  const [chatPendingQuestion, setChatPendingQuestion] = useState(''); // 대기 중인 원래 질문
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const isRunning = phase !== 'idle' && phase !== 'done' && phase !== 'error' && phase !== 'pre_question';
@@ -276,6 +278,14 @@ export default function MeetingPage() {
 
   // ── 추가 채팅 ───────────────────────────────────────
 
+  const getMeetingContext = () => messages.map(m => {
+    if (m.phase === 'briefing') return `[브리핑]\n${m.content}`;
+    if (m.phase === 'analysis') return `[${m.ai} 분석]\n${m.content}`;
+    if (m.phase === 'report') return `[종합 보고서]\n${m.content}`;
+    return '';
+  }).filter(Boolean).join('\n\n');
+
+  // Step 1: 사용자 질문 → Claude 방향 확인
   const sendChat = async () => {
     if (!chatInput.trim() || chatLoading) return;
     const token = getToken();
@@ -284,31 +294,70 @@ export default function MeetingPage() {
     const question = chatInput.trim();
     setChatInput('');
     setChatMessages(prev => [...prev, { role: '나', content: question }]);
+    setChatPendingQuestion(question);
     setChatLoading(true);
     scrollToBottom();
 
     try {
-      // 회의 결과 전체를 컨텍스트로 전달
-      const context = messages.map(m => {
-        if (m.phase === 'briefing') return `[브리핑]\n${m.content}`;
-        if (m.phase === 'analysis') return `[${m.ai} 분석]\n${m.content}`;
-        if (m.phase === 'report') return `[종합 보고서]\n${m.content}`;
-        return '';
-      }).filter(Boolean).join('\n\n');
-
-      const res = await fetch(`${API_BASE}/ai/meeting-chat`, {
+      const res = await fetch(`${API_BASE}/ai/meeting-chat-direction`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ question, context, history: chatMessages.slice(-6) }),
+        body: JSON.stringify({ question, context: getMeetingContext(), history: chatMessages.slice(-6) }),
       });
-      if (!res.ok) throw new Error('답변 생성 실패');
+      if (!res.ok) throw new Error('방향 확인 실패');
       const data = await res.json();
-      setChatMessages(prev => [...prev, { role: 'AI', content: data.reply }]);
+      setChatDirection(data.direction);
+      setChatMessages(prev => [...prev, { role: 'AI', content: data.direction, ai: 'Claude' }]);
     } catch {
-      setChatMessages(prev => [...prev, { role: 'AI', content: '답변 생성에 실패했습니다. 다시 시도해주세요.' }]);
+      // 방향 확인 실패 시 바로 3AI 답변
+      await runAIPingPong(question, '');
     }
     setChatLoading(false);
     scrollToBottom();
+  };
+
+  // Step 2: 방향 답변(선택) → 3AI 미니 핑퐁
+  const sendDirection = async () => {
+    const token = getToken();
+    if (!token) return;
+
+    const directionAnswer = chatInput.trim();
+    if (directionAnswer) {
+      setChatMessages(prev => [...prev, { role: '나', content: directionAnswer }]);
+    }
+    setChatInput('');
+    setChatDirection('');
+    setChatLoading(true);
+    scrollToBottom();
+
+    await runAIPingPong(chatPendingQuestion, directionAnswer);
+    setChatLoading(false);
+    setChatPendingQuestion('');
+    scrollToBottom();
+  };
+
+  const runAIPingPong = async (question: string, direction: string) => {
+    const token = getToken();
+    if (!token) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/ai/meeting-chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ question, context: getMeetingContext(), direction, history: chatMessages.slice(-6) }),
+      });
+      if (!res.ok) throw new Error('답변 생성 실패');
+      const data = await res.json();
+
+      setChatMessages(prev => [
+        ...prev,
+        { role: 'AI', content: data.gemini, ai: 'Gemini' },
+        { role: 'AI', content: data.gpt, ai: 'GPT' },
+        { role: 'AI', content: data.claude, ai: 'Claude' },
+      ]);
+    } catch {
+      setChatMessages(prev => [...prev, { role: 'AI', content: '답변 생성에 실패했습니다. 다시 시도해주세요.' }]);
+    }
   };
 
   // ── 렌더링 ────────────────────────────────────────────
@@ -641,47 +690,71 @@ export default function MeetingPage() {
                   {/* 대화 목록 */}
                   {chatMessages.length > 0 && (
                     <div className="space-y-3 mb-4 max-h-[40vh] overflow-y-auto">
-                      {chatMessages.map((msg, i) => (
-                        <div key={i} className={`rounded-lg p-3 text-sm ${
-                          msg.role === '나'
-                            ? 'bg-[#3182f6]/10 border border-[#3182f6]/30 ml-8'
-                            : 'bg-[#2c2c35] mr-8'
-                        }`}>
-                          <span className={`text-xs font-bold mb-1 block ${
-                            msg.role === '나' ? 'text-[#3182f6]' : 'text-[#ffd60a]'
-                          }`}>
-                            {msg.role === '나' ? '나' : '🤖 AI 어시스턴트'}
-                          </span>
-                          <div className="text-[#d1d5db] whitespace-pre-wrap leading-relaxed">{msg.content}</div>
-                        </div>
-                      ))}
+                      {chatMessages.map((msg, i) => {
+                        if (msg.role === '나') {
+                          return (
+                            <div key={i} className="rounded-lg p-3 text-sm bg-[#3182f6]/10 border border-[#3182f6]/30 ml-8">
+                              <span className="text-xs font-bold mb-1 block text-[#3182f6]">나</span>
+                              <div className="text-[#d1d5db] whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+                            </div>
+                          );
+                        }
+                        const aiName = msg.ai || 'AI';
+                        const colors = AI_COLORS[aiName] || { bg: 'bg-[#2c2c35]', border: 'border-[#3c3c45]', text: 'text-[#ffd60a]', badge: 'bg-[#6b7684]' };
+                        return (
+                          <div key={i} className={`rounded-lg p-3 text-sm ${colors.bg} border ${colors.border} mr-8`}>
+                            <span className={`text-xs font-bold mb-1 block ${colors.text}`}>
+                              {AI_ICONS[aiName] || '🤖'} {aiName}
+                            </span>
+                            <div className="text-[#d1d5db] whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+                          </div>
+                        );
+                      })}
                       {chatLoading && (
                         <div className="flex items-center gap-2 text-sm text-[#8b95a1] p-3">
                           <div className="h-2 w-2 rounded-full bg-[#3182f6] animate-pulse" />
-                          답변 생성 중...
+                          {chatDirection ? '3개 AI 분석 중...' : '방향 확인 중...'}
                         </div>
                       )}
                     </div>
                   )}
 
-                  {/* 입력창 */}
-                  <div className="flex gap-2">
-                    <input
-                      value={chatInput}
-                      onChange={e => setChatInput(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
-                      placeholder="예: 진입장벽을 극복할 구체적인 전략은?"
-                      className="flex-1 rounded-lg border border-[#2c2c35] bg-[#17171c] px-4 py-2.5 text-sm placeholder-[#6b7684] outline-none focus:border-[#3182f6] transition-colors"
-                      disabled={chatLoading}
-                    />
-                    <button
-                      onClick={sendChat}
-                      disabled={!chatInput.trim() || chatLoading}
-                      className="rounded-lg bg-[#3182f6] px-4 py-2.5 text-sm font-bold text-white hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
-                    >
-                      전송
-                    </button>
-                  </div>
+                  {/* 방향 확인 모드: 답변 입력 + 바로 분석 버튼 */}
+                  {chatDirection && !chatLoading ? (
+                    <div className="flex gap-2">
+                      <input
+                        value={chatInput}
+                        onChange={e => setChatInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendDirection(); } }}
+                        placeholder="방향을 입력하거나, 바로 분석을 눌러주세요"
+                        className="flex-1 rounded-lg border border-[#2c2c35] bg-[#17171c] px-4 py-2.5 text-sm placeholder-[#6b7684] outline-none focus:border-[#3182f6] transition-colors"
+                      />
+                      <button
+                        onClick={sendDirection}
+                        className="rounded-lg bg-gradient-to-r from-[#3182f6] to-[#6366f1] px-4 py-2.5 text-sm font-bold text-white hover:brightness-110 transition-all shrink-0"
+                      >
+                        {chatInput.trim() ? '🧠 이 방향으로' : '⚡ 바로 분석'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        value={chatInput}
+                        onChange={e => setChatInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
+                        placeholder="예: 진입장벽을 극복할 구체적인 전략은?"
+                        className="flex-1 rounded-lg border border-[#2c2c35] bg-[#17171c] px-4 py-2.5 text-sm placeholder-[#6b7684] outline-none focus:border-[#3182f6] transition-colors"
+                        disabled={chatLoading}
+                      />
+                      <button
+                        onClick={sendChat}
+                        disabled={!chatInput.trim() || chatLoading}
+                        className="rounded-lg bg-[#3182f6] px-4 py-2.5 text-sm font-bold text-white hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                      >
+                        전송
+                      </button>
+                    </div>
+                  )}
                 </div>
               </>
             )}

@@ -257,13 +257,22 @@ export class AiController {
     }
   }
 
-  // ── AI 회의실 추가 채팅 ─────────────────────────────
-  @Post('meeting-chat')
-  async meetingChat(
+  // ── AI 회의실 추가 채팅: 방향 확인 ──────────────────
+  @Post('meeting-chat-direction')
+  async meetingChatDirection(
     @Body() body: { question: string; context: string; history?: { role: string; content: string }[] },
   ) {
-    const reply = await this.meetingService.followUpChat(body);
-    return { reply };
+    const direction = await this.meetingService.generateFollowUpDirection(body);
+    return { direction };
+  }
+
+  // ── AI 회의실 추가 채팅: 3AI 답변 ──────────────────
+  @Post('meeting-chat')
+  async meetingChat(
+    @Body() body: { question: string; context: string; direction?: string; history?: { role: string; content: string }[] },
+  ) {
+    const replies = await this.meetingService.followUpChat(body);
+    return replies;
   }
 
   // ── AI 회의실 사전 질문 ─────────────────────────────

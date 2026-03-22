@@ -198,9 +198,9 @@ export class MeetingService {
   }
 
   /**
-   * 회의 완료 후 추가 채팅 — 회의 결과 기반 후속 질문
+   * 추가 채팅: 방향 확인 질문 생성 — Claude가 이전 대화를 요약하고 방향을 물어봄
    */
-  async followUpChat(params: {
+  async generateFollowUpDirection(params: {
     question: string;
     context: string;
     history?: { role: string; content: string }[];
@@ -211,17 +211,70 @@ export class MeetingService {
       ? history.map(h => `${h.role}: ${h.content}`).join('\n\n')
       : '';
 
-    const result = await this.llmRouter.callAnthropic(
-      `당신은 AI 회의 어시스턴트입니다. 아래 회의 결과를 기반으로 사용자의 후속 질문에 답변하세요.
-구체적이고 실용적인 답변을 한국어로 작성하세요. 마크다운 형식 사용 가능합니다.
+    return this.llmRouter.callAnthropic(
+      `당신은 AI 회의 퍼실리테이터입니다. 사용자가 후속 질문을 했습니다.
+이전 회의 결과와 대화를 빠르게 요약한 뒤, 더 좋은 답변을 위해 1~2개의 방향 확인 질문을 하세요.
+간결하게 3~5줄로 작성하세요. 한국어로.
 
-[회의 결과 요약]
-${context.slice(0, 6000)}`,
+형식:
+📌 이전 논의: (1줄 요약)
+🤔 확인 질문: (1~2개)
+💡 답변 없이 바로 분석해도 괜찮아요!
+
+[회의 결과]
+${context.slice(0, 4000)}`,
       `${historyText ? `[이전 대화]\n${historyText}\n\n` : ''}[사용자 질문]\n${question}`,
       'claude-haiku-4-5-20251001',
-      2048,
+      1024,
+    );
+  }
+
+  /**
+   * 추가 채팅: 3개 AI 미니 핑퐁 답변
+   */
+  async followUpChat(params: {
+    question: string;
+    context: string;
+    direction?: string;
+    history?: { role: string; content: string }[];
+  }): Promise<{ gemini: string; gpt: string; claude: string }> {
+    const { question, context, direction, history = [] } = params;
+
+    const historyText = history.length > 0
+      ? history.slice(-4).map(h => `${h.role}: ${h.content}`).join('\n\n')
+      : '';
+
+    const systemBase = `아래 회의 결과를 바탕으로 사용자의 후속 질문에 답변하세요.
+간결하고 실용적으로 3~5줄 이내로 답변. 한국어로.
+${direction ? `\n사용자 방향: ${direction}` : ''}
+
+[회의 결과 요약]
+${context.slice(0, 3000)}`;
+
+    const userPrompt = `${historyText ? `[이전 대화]\n${historyText}\n\n` : ''}[사용자 질문]\n${question}`;
+
+    // Gemini 먼저 (rate limit 방지)
+    const gemini = await this.llmRouter.callGoogle(
+      `당신은 ${AI_ROLES.gemini.role}입니다. ${systemBase}`,
+      userPrompt,
+      'gemini-2.0-flash',
+      1024,
     );
 
-    return result;
+    const gpt = await this.llmRouter.callOpenAI(
+      `당신은 ${AI_ROLES.gpt.role}입니다. ${systemBase}\n\n[Gemini 의견]\n${gemini}`,
+      userPrompt,
+      'gpt-4o',
+      1024,
+    );
+
+    const claude = await this.llmRouter.callAnthropic(
+      `당신은 ${AI_ROLES.claude.role}입니다. 두 AI의 답변을 종합하고 최종 의견을 제시하세요. ${systemBase}\n\n[Gemini]\n${gemini}\n\n[GPT]\n${gpt}`,
+      userPrompt,
+      'claude-haiku-4-5-20251001',
+      1024,
+    );
+
+    return { gemini, gpt, claude };
   }
 }
