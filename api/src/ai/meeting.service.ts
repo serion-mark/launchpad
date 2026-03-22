@@ -104,30 +104,30 @@ export class MeetingService {
       );
       yield { phase: 'briefing', content: briefing };
 
-      // ── Phase 2: 순차 누적 분석 ──────────────────────
+      // ── Phase 2: 순차 누적 분석 (Gemini 먼저 — rate limit 방지) ──
 
-      // 2-1: GPT (브리핑만 읽고 분석)
-      const gptAnalysis = await this.llmRouter.callOpenAI(
-        `당신은 ${AI_ROLES.gpt.role}입니다. ${AI_ROLES.gpt.instruction} 한국어로 분석하세요.`,
-        `[분석 브리핑]\n${briefing}\n\n${presetPrompt}`,
-        models.gpt,
-        4096,
-      );
-      yield { phase: 'analysis', ai: 'GPT', role: AI_ROLES.gpt.role, content: gptAnalysis };
-
-      // 2-2: Gemini (브리핑 + GPT 분석 둘 다 읽고)
+      // 2-1: Gemini (브리핑만 읽고 분석 — 입력 최소화로 429 방지)
       const geminiAnalysis = await this.llmRouter.callGoogle(
         `당신은 ${AI_ROLES.gemini.role}입니다. ${AI_ROLES.gemini.instruction} 한국어로 분석하세요.`,
-        `[분석 브리핑]\n${briefing}\n\n[GPT ${AI_ROLES.gpt.role}의 분석]\n${gptAnalysis}\n\n${presetPrompt}`,
+        `[분석 브리핑]\n${briefing}\n\n${presetPrompt}`,
         models.gemini,
         4096,
       );
       yield { phase: 'analysis', ai: 'Gemini', role: AI_ROLES.gemini.role, content: geminiAnalysis };
 
-      // 2-3: Claude (브리핑 + GPT + Gemini 전부 읽고 종합)
+      // 2-2: GPT (브리핑 + Gemini 분석 읽고)
+      const gptAnalysis = await this.llmRouter.callOpenAI(
+        `당신은 ${AI_ROLES.gpt.role}입니다. ${AI_ROLES.gpt.instruction} 한국어로 분석하세요.`,
+        `[분석 브리핑]\n${briefing}\n\n[Gemini ${AI_ROLES.gemini.role}의 분석]\n${geminiAnalysis}\n\n${presetPrompt}`,
+        models.gpt,
+        4096,
+      );
+      yield { phase: 'analysis', ai: 'GPT', role: AI_ROLES.gpt.role, content: gptAnalysis };
+
+      // 2-3: Claude (브리핑 + Gemini + GPT 전부 읽고 종합)
       const claudeAnalysis = await this.llmRouter.callAnthropic(
         `당신은 ${AI_ROLES.claude.role}입니다. ${AI_ROLES.claude.instruction} 한국어로 분석하세요.`,
-        `[분석 브리핑]\n${briefing}\n\n[GPT ${AI_ROLES.gpt.role}]\n${gptAnalysis}\n\n[Gemini ${AI_ROLES.gemini.role}]\n${geminiAnalysis}\n\n${presetPrompt}`,
+        `[분석 브리핑]\n${briefing}\n\n[Gemini ${AI_ROLES.gemini.role}]\n${geminiAnalysis}\n\n[GPT ${AI_ROLES.gpt.role}]\n${gptAnalysis}\n\n${presetPrompt}`,
         models.claude,
         4096,
       );
