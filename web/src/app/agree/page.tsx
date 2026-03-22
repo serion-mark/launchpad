@@ -32,7 +32,7 @@ export default function AgreePage() {
         body: JSON.stringify({ terms, privacy, refund, marketing }),
       });
       if (res.ok) {
-        window.location.href = '/dashboard';
+        window.location.href = '/';
       } else {
         const data = await res.json();
         setError(data.message || '약관 동의 처리에 실패했습니다');
