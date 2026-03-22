@@ -16,6 +16,14 @@
 
 ---
 
+## 나중에 필요할 때만 (급하지 않음, Phase 12 범위 아님)
+
+- DALL-E → Gemini Imagen 전환: 비용 이슈 생기면 그때
+- premium 모델 Sonnet → Opus: 토스 결제 실연동 후 크레딧 여유 생기면
+- Grok API: 안 넣음. 삭제.
+
+---
+
 ## Phase 12 Week 1: 풀스택 백엔드 강화 + 특허 출원
 
 ### 풀스택 백엔드 자동생성 (Foundry 독자 강점)
