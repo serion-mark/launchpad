@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { authFetch, getUser, getToken, API_BASE } from '@/lib/api';
+import { authFetch, getUser, getToken, logout, API_BASE } from '@/lib/api';
 
 // ── 템플릿 데이터 ──────────────────────────────────────
 const TEMPLATES = [
@@ -911,15 +911,28 @@ function StartPage() {
             <img src="/logo.svg" alt="Foundry" className="h-7 md:h-8" />
           </h1>
           <div className="flex items-center gap-2.5">
-            <a href="/dashboard" className="rounded-xl bg-[#2c2c35] px-4 py-2.5 text-sm font-semibold text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">
-              내 프로젝트
-            </a>
-            <a href="/credits" className="rounded-xl bg-[#3182f6] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1b64da] transition-colors">
-              요금제
-            </a>
-            <a href="/login" className="rounded-xl bg-[#2c2c35] px-4 py-2.5 text-sm text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">
-              로그인
-            </a>
+            {getUser() ? (
+              <>
+                <a href="/dashboard" className="rounded-xl bg-[#2c2c35] px-4 py-2.5 text-sm font-semibold text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">
+                  내 프로젝트
+                </a>
+                <a href="/credits" className="rounded-xl bg-[#3182f6] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1b64da] transition-colors">
+                  요금제
+                </a>
+                <button onClick={logout} className="rounded-xl bg-[#2c2c35] px-4 py-2.5 text-sm text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">
+                  로그아웃
+                </button>
+              </>
+            ) : (
+              <>
+                <a href="/credits" className="rounded-xl bg-[#2c2c35] px-4 py-2.5 text-sm font-semibold text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">
+                  요금제
+                </a>
+                <a href="/login" className="rounded-xl bg-[#3182f6] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1b64da] transition-colors">
+                  로그인
+                </a>
+              </>
+            )}
           </div>
         </div>
       </header>
