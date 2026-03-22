@@ -40,6 +40,9 @@ const AI_ICONS: Record<string, string> = { GPT: '🟢', Gemini: '🔴', Claude: 
 export default function MeetingPage() {
   const [topic, setTopic] = useState('');
   const [file, setFile] = useState('');
+  const [fileName, setFileName] = useState('');
+  const [fileLoading, setFileLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [tier, setTier] = useState<MeetingTier>('standard');
   const [preset, setPreset] = useState<MeetingPreset>('free');
   const [phase, setPhase] = useState<MeetingPhase>('idle');
@@ -48,6 +51,28 @@ export default function MeetingPage() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const isRunning = phase !== 'idle' && phase !== 'done' && phase !== 'error';
+
+  const handleFileUpload = (uploadedFile: File) => {
+    if (!uploadedFile) return;
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (uploadedFile.size > maxSize) {
+      alert('파일 크기는 5MB 이하만 가능합니다');
+      return;
+    }
+    setFileLoading(true);
+    setFileName(uploadedFile.name);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setFile(e.target?.result as string || '');
+      setFileLoading(false);
+    };
+    reader.onerror = () => {
+      alert('파일을 읽을 수 없습니다');
+      setFileLoading(false);
+      setFileName('');
+    };
+    reader.readAsText(uploadedFile);
+  };
   const tierCredits = tier === 'standard' ? 300 : 1500;
 
   const scrollToBottom = () => {
@@ -215,16 +240,53 @@ export default function MeetingPage() {
               />
             </div>
 
-            {/* 파일 첨부 (텍스트) */}
+            {/* 파일 첨부 (드래그앤드롭 + 클릭) */}
             <div>
               <label className="block text-sm font-medium text-[#8b95a1] mb-2">첨부 자료 (선택)</label>
-              <textarea
-                value={file}
-                onChange={e => setFile(e.target.value)}
-                placeholder="사업계획서나 분석할 내용을 붙여넣으세요"
-                rows={4}
-                className="w-full rounded-xl border border-[#2c2c35] bg-[#1b1b21] px-4 py-3 text-sm placeholder-[#6b7684] outline-none focus:border-[#2c2c35] transition-colors resize-none"
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".txt,.md,.csv,.json,.pdf,.doc,.docx"
+                className="hidden"
+                onChange={e => {
+                  const f = e.target.files?.[0];
+                  if (f) handleFileUpload(f);
+                }}
               />
+              {!fileName ? (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('border-[#3182f6]', 'bg-[#3182f6]/5'); }}
+                  onDragLeave={e => { e.preventDefault(); e.currentTarget.classList.remove('border-[#3182f6]', 'bg-[#3182f6]/5'); }}
+                  onDrop={e => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove('border-[#3182f6]', 'bg-[#3182f6]/5');
+                    const f = e.dataTransfer.files?.[0];
+                    if (f) handleFileUpload(f);
+                  }}
+                  className="w-full rounded-xl border-2 border-dashed border-[#2c2c35] bg-[#1b1b21] px-4 py-8 text-center cursor-pointer hover:border-[#3c3c45] transition-colors"
+                >
+                  <div className="text-3xl mb-2">📄</div>
+                  <p className="text-sm text-[#8b95a1]">파일을 드래그하거나 클릭하여 업로드</p>
+                  <p className="text-xs text-[#4e5968] mt-1">TXT, MD, CSV, JSON, PDF (최대 5MB)</p>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-[#2c2c35] bg-[#1b1b21] px-4 py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-lg">📎</span>
+                    <div>
+                      <p className="text-sm font-medium text-[#f2f4f6]">{fileName}</p>
+                      <p className="text-xs text-[#6b7684]">{fileLoading ? '읽는 중...' : `${(file.length / 1024).toFixed(1)}KB`}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => { setFile(''); setFileName(''); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                    className="rounded-lg px-3 py-1 text-xs text-[#8b95a1] hover:bg-[#2c2c35] hover:text-red-400 transition-colors"
+                  >
+                    삭제
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* 티어 선택 */}
