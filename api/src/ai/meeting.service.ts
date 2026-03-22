@@ -65,9 +65,15 @@ export class MeetingService {
       // ── Phase 1: 브리핑 생성 (Haiku — 저렴) ──────────
       this.logger.log(`[회의 시작] 주제: ${topic}, 티어: ${tier}, 프리셋: ${preset}`);
 
+      // 첨부 파일이 너무 길면 앞부분만 사용 (토큰 제한 방지)
+      const maxFileLen = 8000;
+      const trimmedFile = file && file.length > maxFileLen
+        ? file.slice(0, maxFileLen) + `\n\n... (총 ${file.length.toLocaleString()}자 중 앞 ${maxFileLen.toLocaleString()}자만 분석)`
+        : file;
+
       const briefing = await this.llmRouter.callAnthropic(
         '당신은 브리핑 전문가입니다. 주어진 주제/파일의 핵심을 요약하고 분석 포인트를 추출하세요. 한국어로 작성하세요.',
-        `주제: ${topic}\n${presetPrompt}\n${file ? `\n[첨부 파일 내용]\n${file}` : ''}`,
+        `주제: ${topic}\n${presetPrompt}\n${trimmedFile ? `\n[첨부 파일 내용]\n${trimmedFile}` : ''}`,
         'claude-haiku-4-5-20251001',
         2048,
       );
