@@ -1100,7 +1100,7 @@ function BuilderContent() {
             {buildPhase !== 'questionnaire' && (
               <div className="flex rounded-md bg-[#1e1e28] p-0.5">
                 <button onClick={() => setMode('build')} className={`rounded px-2.5 py-1 text-[10px] font-semibold transition-colors ${mode === 'build' ? 'bg-[#3182f6] text-white' : 'text-[#6b7684]'}`}>빌드</button>
-                <button onClick={() => setMode('discuss')} className={`rounded px-2.5 py-1 text-[10px] font-semibold transition-colors ${mode === 'discuss' ? 'bg-[#a855f7] text-white' : 'text-[#6b7684]'}`}>토론</button>
+                <button onClick={() => setMode('discuss')} className={`rounded px-2.5 py-1 text-[10px] font-semibold transition-colors ${mode === 'discuss' ? 'bg-[#a855f7] text-white' : 'text-[#6b7684]'}`}>AI채팅</button>
               </div>
             )}
           </div>
