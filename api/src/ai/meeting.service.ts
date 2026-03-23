@@ -104,30 +104,42 @@ export class MeetingService {
       );
       yield { phase: 'briefing', content: briefing };
 
-      // ── Phase 2: 순차 누적 분석 (Gemini 먼저 — rate limit 방지) ──
+      // ── Phase 2: 순차 누적 분석 (Gemini 먼저, 실패 시 건너뛰기) ──
 
-      // 2-1: Gemini (브리핑만 읽고 분석 — 입력 최소화로 429 방지)
-      const geminiAnalysis = await this.llmRouter.callGoogle(
-        `당신은 ${AI_ROLES.gemini.role}입니다. ${AI_ROLES.gemini.instruction} 한국어로 분석하세요.`,
-        `[분석 브리핑]\n${briefing}\n\n${presetPrompt}`,
-        models.gemini,
-        4096,
-      );
-      yield { phase: 'analysis', ai: 'Gemini', role: AI_ROLES.gemini.role, content: geminiAnalysis };
+      // 2-1: Gemini (실패 시 조용히 건너뛰고 GPT+Claude로 진행)
+      let geminiAnalysis = '';
+      try {
+        geminiAnalysis = await this.llmRouter.callGoogle(
+          `당신은 ${AI_ROLES.gemini.role}입니다. ${AI_ROLES.gemini.instruction} 한국어로 분석하세요.`,
+          `[분석 브리핑]\n${briefing}\n\n${presetPrompt}`,
+          models.gemini,
+          4096,
+        );
+        yield { phase: 'analysis', ai: 'Gemini', role: AI_ROLES.gemini.role, content: geminiAnalysis };
+      } catch (err: any) {
+        this.logger.warn(`[Gemini 패스] ${err.message}`);
+        // Gemini 실패 시 UI에 표시하지 않고 GPT+Claude로 이어감
+      }
 
-      // 2-2: GPT (브리핑 + Gemini 분석 읽고)
+      // 2-2: GPT
+      const gptContext = geminiAnalysis
+        ? `[분석 브리핑]\n${briefing}\n\n[Gemini ${AI_ROLES.gemini.role}의 분석]\n${geminiAnalysis}\n\n${presetPrompt}`
+        : `[분석 브리핑]\n${briefing}\n\n${presetPrompt}`;
       const gptAnalysis = await this.llmRouter.callOpenAI(
         `당신은 ${AI_ROLES.gpt.role}입니다. ${AI_ROLES.gpt.instruction} 한국어로 분석하세요.`,
-        `[분석 브리핑]\n${briefing}\n\n[Gemini ${AI_ROLES.gemini.role}의 분석]\n${geminiAnalysis}\n\n${presetPrompt}`,
+        gptContext,
         models.gpt,
         4096,
       );
       yield { phase: 'analysis', ai: 'GPT', role: AI_ROLES.gpt.role, content: gptAnalysis };
 
-      // 2-3: Claude (브리핑 + Gemini + GPT 전부 읽고 종합)
+      // 2-3: Claude (종합)
+      const claudeContext = geminiAnalysis
+        ? `[분석 브리핑]\n${briefing}\n\n[Gemini ${AI_ROLES.gemini.role}]\n${geminiAnalysis}\n\n[GPT ${AI_ROLES.gpt.role}]\n${gptAnalysis}\n\n${presetPrompt}`
+        : `[분석 브리핑]\n${briefing}\n\n[GPT ${AI_ROLES.gpt.role}]\n${gptAnalysis}\n\n${presetPrompt}`;
       const claudeAnalysis = await this.llmRouter.callAnthropic(
         `당신은 ${AI_ROLES.claude.role}입니다. ${AI_ROLES.claude.instruction} 한국어로 분석하세요.`,
-        `[분석 브리핑]\n${briefing}\n\n[Gemini ${AI_ROLES.gemini.role}]\n${geminiAnalysis}\n\n[GPT ${AI_ROLES.gpt.role}]\n${gptAnalysis}\n\n${presetPrompt}`,
+        claudeContext,
         models.claude,
         4096,
       );
@@ -159,12 +171,17 @@ export class MeetingService {
             1024,
           );
 
-          const geminiRebuttal = await this.llmRouter.callGoogle(
-            `당신은 ${AI_ROLES.gemini.role}입니다. 쟁점에 대해 데이터로 검증하고 최종 의견을 제시하세요. 한국어로.`,
-            `쟁점: "${dispute}"\nGPT 추가 반론: ${gptRebuttal}`,
-            models.gemini,
-            1024,
-          );
+          let geminiRebuttal = '';
+          try {
+            geminiRebuttal = await this.llmRouter.callGoogle(
+              `당신은 ${AI_ROLES.gemini.role}입니다. 쟁점에 대해 데이터로 검증하고 최종 의견을 제시하세요. 한국어로.`,
+              `쟁점: "${dispute}"\nGPT 추가 반론: ${gptRebuttal}`,
+              models.gemini,
+              1024,
+            );
+          } catch {
+            // Gemini 실패 시 GPT 반론만으로 진행
+          }
 
           yield {
             phase: 'debate',
@@ -193,7 +210,16 @@ export class MeetingService {
       this.logger.log(`[회의 완료] 주제: ${topic}`);
     } catch (error: any) {
       this.logger.error(`[회의 오류] ${error.message}`);
-      yield { phase: 'error', message: error.message || 'AI 회의 중 오류가 발생했습니다' };
+      const msg = error.message || '';
+      let userMessage = 'AI 회의 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+      if (msg.includes('429') || msg.includes('rate_limit')) {
+        userMessage = 'AI 요청이 많아요. 1~2분 후 다시 시도해주세요.';
+      } else if (msg.includes('401') || msg.includes('API_KEY')) {
+        userMessage = 'AI 서비스 인증 오류입니다. 관리자에게 문의해주세요.';
+      } else if (msg.includes('timeout') || msg.includes('ETIMEDOUT')) {
+        userMessage = 'AI 응답 시간이 초과되었습니다. 다시 시도해주세요.';
+      }
+      yield { phase: 'error', message: userMessage };
     }
   }
 
@@ -253,16 +279,24 @@ ${context.slice(0, 3000)}`;
 
     const userPrompt = `${historyText ? `[이전 대화]\n${historyText}\n\n` : ''}[사용자 질문]\n${question}`;
 
-    // Gemini 먼저 (rate limit 방지)
-    const gemini = await this.llmRouter.callGoogle(
-      `당신은 ${AI_ROLES.gemini.role}입니다. ${systemBase}`,
-      userPrompt,
-      'gemini-2.0-flash',
-      1024,
-    );
+    // Gemini 먼저 (실패 시 빈값으로 GPT+Claude만 진행)
+    let gemini = '';
+    try {
+      gemini = await this.llmRouter.callGoogle(
+        `당신은 ${AI_ROLES.gemini.role}입니다. ${systemBase}`,
+        userPrompt,
+        'gemini-2.0-flash',
+        1024,
+      );
+    } catch {
+      // Gemini 실패 시 조용히 넘어감
+    }
 
+    const gptSystem = gemini
+      ? `당신은 ${AI_ROLES.gpt.role}입니다. ${systemBase}\n\n[Gemini 의견]\n${gemini}`
+      : `당신은 ${AI_ROLES.gpt.role}입니다. ${systemBase}`;
     const gpt = await this.llmRouter.callOpenAI(
-      `당신은 ${AI_ROLES.gpt.role}입니다. ${systemBase}\n\n[Gemini 의견]\n${gemini}`,
+      gptSystem,
       userPrompt,
       'gpt-4o',
       1024,
