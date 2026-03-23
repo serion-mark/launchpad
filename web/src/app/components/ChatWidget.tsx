@@ -12,7 +12,7 @@ const FAQ: { keywords: string[]; answer: string; link?: { label: string; href: s
   },
   {
     keywords: ['시간', '얼마나', '오래', '며칠', '기간', '몇분'],
-    answer: 'AI가 약 3분이면 앱을 생성합니다. 질문 답변 포함해도 10분이면 충분해요!',
+    answer: 'AI가 약 20~40분이면 풀스택 앱을 생성합니다. 질문 답변 포함해도 30분이면 충분해요! 생성 중에도 AI 상담이 가능합니다.',
   },
   {
     keywords: ['코드', '소유', '다운로드', '소스', 'zip', '내꺼'],

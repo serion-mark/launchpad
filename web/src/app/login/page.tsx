@@ -68,7 +68,7 @@ export default function LoginPage() {
           <a href="/">
             <img src="/logo.svg" alt="Foundry" className="h-9 mx-auto" />
           </a>
-          <p className="mt-3 text-[#8b95a1]">AI로 MVP를 10분 만에 만드세요</p>
+          <p className="mt-3 text-[#8b95a1]">AI로 MVP를 30분 만에 만드세요</p>
         </div>
 
         {/* 카드 */}

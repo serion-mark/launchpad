@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { authFetch, getUser } from '@/lib/api';
+import { authFetch, getUser, getToken, API_BASE } from '@/lib/api';
 import { QUESTIONNAIRES, THEME_MAP, getFeatLabel } from './constants';
 import type { Question } from './constants';
 import { getDemoData } from './demo-data';
@@ -531,6 +531,38 @@ function BuilderContent() {
   const [genStartTime, setGenStartTime] = useState(0);
   // 실시간 미리보기: SSE에서 생성된 파일을 즉시 LivePreview에 전달
   const [streamingFiles, setStreamingFiles] = useState<{ path: string; content: string }[]>([]);
+  // ── 생성 대기 중 AI 채팅 ──
+  const [waitChatMessages, setWaitChatMessages] = useState<{ role: string; content: string }[]>([]);
+  const [waitChatInput, setWaitChatInput] = useState('');
+  const [waitChatLoading, setWaitChatLoading] = useState(false);
+  const waitChatRef = useRef<HTMLDivElement>(null);
+  const sendWaitChat = async (question?: string) => {
+    const q = (question || waitChatInput).trim();
+    if (!q || waitChatLoading) return;
+    setWaitChatInput('');
+    setWaitChatMessages(prev => [...prev, { role: 'user', content: q }]);
+    setWaitChatLoading(true);
+    setTimeout(() => waitChatRef.current?.scrollTo({ top: waitChatRef.current.scrollHeight, behavior: 'smooth' }), 100);
+    try {
+      const token = getToken();
+      const res = await fetch(`${API_BASE}/ai/meeting-chat-simple`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          question: q,
+          context: `프로젝트: ${project?.name || ''}, 템플릿: ${project?.template || ''}, 테마: ${project?.theme || ''}`,
+          history: waitChatMessages.slice(-6),
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setWaitChatMessages(prev => [...prev, { role: 'ai', content: data.reply }]);
+    } catch {
+      setWaitChatMessages(prev => [...prev, { role: 'ai', content: '답변 생성에 실패했습니다. 다시 시도해주세요.' }]);
+    }
+    setWaitChatLoading(false);
+    setTimeout(() => waitChatRef.current?.scrollTo({ top: waitChatRef.current.scrollHeight, behavior: 'smooth' }), 100);
+  };
 
   const handleGenerate = async () => {
     if (!projectId) return;
@@ -1422,7 +1454,7 @@ function BuilderContent() {
                     {generateStep === 'architecture' ? '📐' : generateStep === 'schema' ? '🗄️' : generateStep === 'supabase' ? '☁️' : generateStep === 'frontend' ? '🎨' : generateStep === 'quality' ? '🔍' : generateStep === 'complete' ? '✅' : '⚙️'}
                   </div>
                   <h3 className="mt-4 text-lg font-bold text-[#f2f4f6]">AI가 앱을 생성하고 있습니다</h3>
-                  <p className="mt-1 text-sm text-[#6b7684]">AI가 코드를 생성하고 있습니다</p>
+                  <p className="mt-1 text-sm text-[#6b7684]">풀스택 앱 생성 중 — 약 20~40분 소요</p>
                 </div>
                 {/* 퍼센트 프로그레스 바 */}
                 {(() => {
@@ -1466,6 +1498,54 @@ function BuilderContent() {
                       </div>
                     );
                   })}
+                </div>
+
+                {/* 대기 중 AI 채팅 */}
+                <div className="mt-6 w-full max-w-md">
+                  <div className="rounded-xl border border-[#2c2c35] bg-[#1b1b21] p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <span>💬</span>
+                      <span className="text-xs font-bold text-[#f2f4f6]">대기 중 AI 상담</span>
+                      <span className="text-[10px] text-[#6b7684]">생성 중에도 질문 가능!</span>
+                    </div>
+
+                    {/* 추천 질문 */}
+                    {waitChatMessages.length === 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        {['이 앱의 수익모델은?', '타겟 사용자 분석', '출시 후 마케팅 전략', '정부지원사업 정산 방법'].map(q => (
+                          <button key={q} onClick={() => sendWaitChat(q)} className="text-[11px] px-2.5 py-1 rounded-full border border-[#3182f6]/30 text-[#93c5fd] hover:bg-[#3182f6]/10 transition-colors">{q}</button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* 대화 목록 */}
+                    {waitChatMessages.length > 0 && (
+                      <div ref={waitChatRef} className="space-y-2 mb-3 max-h-[200px] overflow-y-auto pr-1">
+                        {waitChatMessages.map((msg, i) => (
+                          <div key={i} className={`rounded-lg p-2.5 text-xs ${msg.role === 'user' ? 'bg-[#3182f6]/10 border border-[#3182f6]/20 ml-6 text-[#93c5fd]' : 'bg-[#2c2c35] mr-6 text-[#d1d5db]'}`}>
+                            {msg.role === 'ai' ? <MarkdownRenderer content={msg.content} /> : msg.content}
+                          </div>
+                        ))}
+                        {waitChatLoading && (
+                          <div className="flex items-center gap-1.5 text-xs text-[#6b7684] p-2">
+                            <div className="h-1.5 w-1.5 rounded-full bg-[#3182f6] animate-pulse" />답변 생성 중...
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 입력 */}
+                    <div className="flex gap-2">
+                      <input
+                        value={waitChatInput}
+                        onChange={e => setWaitChatInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendWaitChat(); }}}
+                        placeholder="궁금한 점을 물어보세요"
+                        className="flex-1 rounded-lg border border-[#2c2c35] bg-[#17171c] px-3 py-2 text-xs placeholder-[#4e5968] outline-none focus:border-[#3182f6] transition-colors"
+                      />
+                      <button onClick={() => sendWaitChat()} disabled={waitChatLoading || !waitChatInput.trim()} className="rounded-lg bg-[#3182f6] px-3 py-2 text-xs font-bold text-white hover:bg-[#1b64da] disabled:opacity-40 transition-colors">전송</button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

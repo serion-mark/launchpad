@@ -12,10 +12,10 @@ const PORTFOLIO_ITEMS: {
   name: string; category: string; icon: string; desc: string; time: string;
   features: string[]; badge: string; mockup: MockupType; screenshot?: string; liveUrl?: string;
 }[] = [
-  { name: '헤어드림 POS', category: '미용실', icon: '✂️', desc: '예약 + 매출 + 고객CRM + 디자이너 정산', time: '~3분', features: ['예약관리', '매출통계', '알림톡'], badge: '지역', mockup: 'pos' },
-  { name: '펫메이트', category: 'O2O 매칭', icon: '🐾', desc: '반려동물 돌봄 매칭 + 실시간 상태 추적', time: '~3분', features: ['매칭시스템', '실시간추적', '리뷰'], badge: '테크', mockup: 'matching', screenshot: '/screenshots/petmate.png', liveUrl: 'https://foundry.ai.kr/petmate/dashboard' },
-  { name: '백설공주 사과농장', category: '지역특산품', icon: '🍎', desc: '산지직송 농산물몰 + 정기배송 + 체험예약', time: '~3분', features: ['산지직송', '정기배송', '체험예약'], badge: '지역', mockup: 'farm' },
-  { name: '취미모아', category: '소셜/매칭', icon: '💕', desc: '취미 기반 동호회 매칭 + 모임 관리', time: '~3분', features: ['프로필매칭', '그룹채팅', '모임일정'], badge: '테크', mockup: 'social' },
+  { name: '헤어드림 POS', category: '미용실', icon: '✂️', desc: '예약 + 매출 + 고객CRM + 디자이너 정산', time: '~30분', features: ['예약관리', '매출통계', '알림톡'], badge: '지역', mockup: 'pos' },
+  { name: '펫메이트', category: 'O2O 매칭', icon: '🐾', desc: '반려동물 돌봄 매칭 + 실시간 상태 추적', time: '~30분', features: ['매칭시스템', '실시간추적', '리뷰'], badge: '테크', mockup: 'matching', screenshot: '/screenshots/petmate.png', liveUrl: 'https://foundry.ai.kr/petmate/dashboard' },
+  { name: '백설공주 사과농장', category: '지역특산품', icon: '🍎', desc: '산지직송 농산물몰 + 정기배송 + 체험예약', time: '~30분', features: ['산지직송', '정기배송', '체험예약'], badge: '지역', mockup: 'farm' },
+  { name: '취미모아', category: '소셜/매칭', icon: '💕', desc: '취미 기반 동호회 매칭 + 모임 관리', time: '~30분', features: ['프로필매칭', '그룹채팅', '모임일정'], badge: '테크', mockup: 'social' },
 ];
 
 // ── 가격 패키지 ──
@@ -116,7 +116,7 @@ export default function LandingPage() {
       <section className="px-5 py-20 md:py-28">
         <div className="mx-auto max-w-6xl">
           <div className="mb-14 text-center">
-            <h2 className="mb-3 text-3xl md:text-4xl font-bold tracking-tight">3분이면 완성</h2>
+            <h2 className="mb-3 text-3xl md:text-4xl font-bold tracking-tight">30분이면 완성</h2>
             <p className="text-[#8b95a1] text-lg">복잡한 설정 없이 4단계로 앱을 만드세요</p>
           </div>
 
@@ -124,7 +124,7 @@ export default function LandingPage() {
             {[
               { step: '1', title: '업종 선택', desc: '미용실, 쇼핑몰, 매칭앱 등 10개 업종 또는 자유 입력', color: '#3182f6' },
               { step: '2', title: '질문 답변', desc: '6가지 질문에 답하면 AI가 최적 기능을 자동 구성', color: '#30d158' },
-              { step: '3', title: 'AI 생성', desc: '프론트+백엔드+DB를 3분 안에 자동 생성', color: '#a855f7' },
+              { step: '3', title: 'AI 생성', desc: '프론트+백엔드+DB를 자동 생성 (약 20~40분)', color: '#a855f7' },
               { step: '4', title: '배포/다운로드', desc: '내 앱 전용 주소로 즉시 배포 또는 ZIP 다운로드', color: '#f59e0b' },
             ].map((s, i) => (
               <div key={s.step} className="relative flex flex-col items-center text-center p-6">
@@ -261,7 +261,7 @@ export default function LandingPage() {
               <tbody>
                 {[
                   ['개발 비용', '2,000~5,000만원', '10~30만원'],
-                  ['개발 기간', '2~6개월', '3분'],
+                  ['개발 기간', '2~6개월', '30분'],
                   ['코드 소유권', '계약에 따라 다름', '100% 사용자 소유'],
                   ['수정 비용', '건당 50~200만원', '크레딧 소량 차감'],
                   ['기술 스택', '업체마다 다름', '최신 기술로 안정적으로 (글로벌 표준)'],

@@ -884,7 +884,10 @@ function StartPage() {
           template: selectedTemplate!.id,
           theme: selectedTheme.id,
           features: { selected: selectedFeatureIds, themeId: selectedTheme.id },
-          description: customRequirements || undefined,
+          description: [
+            customRequirements,
+            smartAnalysis.results.optimization ? `\n\n[스마트 분석 결과]\n시장분석: ${smartAnalysis.results.market || ''}\n벤치마크: ${smartAnalysis.results.benchmark || ''}\n설계최적화: ${smartAnalysis.results.optimization}` : '',
+          ].filter(Boolean).join('') || undefined,
         }),
       });
 
@@ -1617,10 +1620,6 @@ function StartPage() {
                             }
                           }
                           setSmartAnalysis({ running: false, phase: '', results });
-                          // 분석 완료 → 자동으로 앱 생성 시작
-                          if (results.optimization) {
-                            setTimeout(() => handleGenerate(), 500);
-                          }
                         } catch {
                           setSmartAnalysis({ running: false, phase: '', results: {} });
                         }
@@ -1642,14 +1641,61 @@ function StartPage() {
                   </div>
                 )}
 
-                {/* 스마트 분석 완료 결과 요약 */}
+                {/* 스마트 분석 완료 — 전체 결과 표시 */}
                 {smartAnalysis.results.optimization && (
-                  <div className="mb-5 rounded-xl border border-emerald-700/30 bg-emerald-900/10 p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span>✅</span>
-                      <span className="font-bold text-sm text-emerald-400">스마트 분석 완료</span>
+                  <div className="mb-5 space-y-3">
+                    <div className="rounded-xl border border-emerald-700/30 bg-emerald-900/10 p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span>🧠</span>
+                        <span className="font-bold text-sm text-emerald-400">스마트 분석 완료!</span>
+                        <span className="text-xs text-[#6b7684] ml-auto">200 cr 사용</span>
+                      </div>
+                      <p className="text-xs text-[#8b95a1]">아래 분석 결과가 앱 생성에 자동 반영됩니다.</p>
                     </div>
-                    <p className="text-xs text-[#8b95a1]">시장조사 + 벤치마크 + 설계최적화가 앱 생성에 자동 반영됩니다.</p>
+
+                    {/* 시장 분석 */}
+                    {smartAnalysis.results.market && (
+                      <details open className="rounded-xl border border-[#2c2c35] bg-[#1b1b21] overflow-hidden group">
+                        <summary className="flex items-center gap-2 p-4 cursor-pointer hover:bg-[#2c2c35]/50 transition-colors">
+                          <span>📊</span>
+                          <span className="font-bold text-sm text-[#f2f4f6]">시장 분석</span>
+                          <span className="text-xs text-[#6b7684] ml-auto group-open:rotate-180 transition-transform">▼</span>
+                        </summary>
+                        <div className="px-4 pb-4 text-sm text-[#d1d5db] leading-relaxed border-t border-[#2c2c35]">
+                          <div className="pt-3"><MarkdownRenderer content={smartAnalysis.results.market} /></div>
+                        </div>
+                      </details>
+                    )}
+
+                    {/* 벤치마크 */}
+                    {smartAnalysis.results.benchmark && (
+                      <details open className="rounded-xl border border-[#2c2c35] bg-[#1b1b21] overflow-hidden group">
+                        <summary className="flex items-center gap-2 p-4 cursor-pointer hover:bg-[#2c2c35]/50 transition-colors">
+                          <span>🏆</span>
+                          <span className="font-bold text-sm text-[#f2f4f6]">벤치마크</span>
+                          <span className="text-xs text-[#6b7684] ml-auto group-open:rotate-180 transition-transform">▼</span>
+                        </summary>
+                        <div className="px-4 pb-4 text-sm text-[#d1d5db] leading-relaxed border-t border-[#2c2c35]">
+                          <div className="pt-3"><MarkdownRenderer content={smartAnalysis.results.benchmark} /></div>
+                        </div>
+                      </details>
+                    )}
+
+                    {/* 설계 최적화 */}
+                    <details open className="rounded-xl border border-[#2c2c35] bg-[#1b1b21] overflow-hidden group">
+                      <summary className="flex items-center gap-2 p-4 cursor-pointer hover:bg-[#2c2c35]/50 transition-colors">
+                        <span>🏗️</span>
+                        <span className="font-bold text-sm text-[#f2f4f6]">설계 최적화</span>
+                        <span className="text-xs text-[#6b7684] ml-auto group-open:rotate-180 transition-transform">▼</span>
+                      </summary>
+                      <div className="px-4 pb-4 text-sm text-[#d1d5db] leading-relaxed border-t border-[#2c2c35]">
+                        <div className="pt-3"><MarkdownRenderer content={smartAnalysis.results.optimization} /></div>
+                      </div>
+                    </details>
+
+                    <div className="rounded-lg bg-[#3182f6]/10 border border-[#3182f6]/20 p-3">
+                      <p className="text-xs text-[#93c5fd]">💡 이 분석을 기반으로 앱을 생성하면 시장에서 검증된 구조로 만들어집니다.</p>
+                    </div>
                   </div>
                 )}
 
