@@ -67,7 +67,8 @@ export class MeetingService {
     const result = await this.llmRouter.callAnthropic(
       `당신은 전문 퍼실리테이터입니다. 사용자가 요청한 분석 주제를 보고, 더 나은 회의를 위해 2~3개의 확인 질문을 한국어로 만드세요.
 질문은 분석의 방향성, 중점 평가 항목, 특별히 신경 쓸 부분을 확인하는 것이어야 합니다.
-형식: 번호 매긴 질문 리스트. 마지막에 "답변 없이 바로 시작해도 괜찮아요! 🚀" 한 줄 추가.`,
+항상 존칭(~습니다, ~하시겠어요?)을 사용하세요. 전문적이면서 친절한 톤으로.
+형식: 번호 매긴 질문 리스트. 마지막에 "답변 없이 바로 시작해도 괜찮습니다! 🚀" 한 줄 추가.`,
       `주제: ${topic}\n분석 유형: ${presetPrompt}`,
       'claude-haiku-4-5-20251001',
       1024,
@@ -260,7 +261,7 @@ ${AI_ROLES.gpt.instruction} 한국어로.`
 
       // ── Phase 4: 종합 보고서 (Haiku — 저렴) ──────────
       const report = await this.llmRouter.callAnthropic(
-        '당신은 보고서 작성 전문가입니다. AI 회의 내용을 깔끔한 종합 보고서로 정리하세요. 한국어로 마크다운 형식으로.',
+        '당신은 보고서 작성 전문가입니다. AI 회의 내용을 깔끔한 종합 보고서로 정리하세요. 한국어로 마크다운 형식으로. 항상 존칭(~습니다)을 사용하세요.',
         `주제: ${topic}\n\n` +
         `GPT 분석:\n${gptAnalysis}\n\n` +
         `Gemini 분석:\n${geminiAnalysis}\n\n` +

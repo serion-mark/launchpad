@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { authFetch, getUser, getToken, logout, API_BASE } from '@/lib/api';
+import MarkdownRenderer from '@/app/components/MarkdownRenderer';
 
 // ── 템플릿 데이터 ──────────────────────────────────────
 const TEMPLATES = [
@@ -1002,7 +1003,10 @@ function StartPage() {
                           {msg.role === 'assistant' && (
                             <span className="text-[10px] text-[#6b7684] block mb-1">🤖 Foundry AI</span>
                           )}
-                          <span className="whitespace-pre-wrap">{msg.content}</span>
+                          {msg.role === 'assistant'
+                            ? <MarkdownRenderer content={msg.content} />
+                            : <span className="whitespace-pre-wrap">{msg.content}</span>
+                          }
                         </div>
                       </div>
                     ))}
@@ -1521,7 +1525,7 @@ function StartPage() {
                     ['템플릿', `${selectedTemplate.icon} ${selectedTemplate.name}`],
                     ['프로젝트 이름', projectName],
                     ['디자인 테마', `${selectedTheme.name}${selectedTheme.credits > 0 ? ` (+${selectedTheme.credits})` : ''}`],
-                    ['기술 스택', 'Next.js + NestJS + PostgreSQL'],
+                    ['기술 스택', '최신 기술로 안정적으로'],
                   ].map(([label, value]) => (
                     <div key={label} className="flex justify-between text-sm">
                       <span className="text-[#8b95a1]">{label}</span>
@@ -1552,9 +1556,9 @@ function StartPage() {
                 <div className="mb-5 rounded-xl bg-[#2c2c35] p-4">
                   <h4 className="mb-3 text-sm font-bold text-[#8b95a1]">생성될 항목</h4>
                   <ul className="space-y-1.5 text-xs text-[#6b7684]">
-                    <li>Prisma DB 스키마 + 마이그레이션</li>
-                    <li>NestJS 백엔드 API (CRUD + 인증)</li>
-                    <li>Next.js 프론트엔드 (반응형 UI)</li>
+                    <li>데이터 구조 + 자동 설정</li>
+                    <li>서버 기능 (데이터 관리 + 인증)</li>
+                    <li>화면 디자인 (반응형 UI)</li>
                     <li>JWT 로그인/회원가입</li>
                     <li>관리자 대시보드</li>
                   </ul>
@@ -1710,7 +1714,7 @@ function StartPage() {
               {progress < 25 ? '📐' : progress < 50 ? '🗄️' : progress < 75 ? '⚙️' : '🎨'}
             </div>
             <h2 className="mb-5 text-2xl font-bold tracking-tight">
-              {progress < 25 ? '아키텍처 설계 중...' : progress < 50 ? 'DB 스키마 생성 중...' : progress < 75 ? '백엔드 API 생성 중...' : '프론트엔드 UI 생성 중...'}
+              {progress < 25 ? '구조 설계 중...' : progress < 50 ? '데이터 구조 생성 중...' : progress < 75 ? '서버 기능 생성 중...' : '화면 UI 생성 중...'}
             </h2>
 
             <div className="mb-4 h-2 overflow-hidden rounded-full bg-[#2c2c35]">
@@ -1729,7 +1733,7 @@ function StartPage() {
             <div className="mb-6 text-6xl">🎉</div>
             <h2 className="mb-4 text-3xl font-bold tracking-tight">MVP 생성 완료!</h2>
             <p className="mb-10 text-[#8b95a1]">
-              {selectedTemplate.name} 기반 풀스택 앱이 생성되었습니다.
+              {selectedTemplate.name} 기반 앱이 생성되었습니다.
               아래 미리보기로 결과를 확인하세요!
             </p>
 
@@ -1737,9 +1741,9 @@ function StartPage() {
               <h3 className="mb-4 font-bold">생성된 파일</h3>
               <div className="space-y-2 font-mono text-sm text-[#8b95a1]">
                 <p>prisma/schema.prisma</p>
-                <p>src/auth/ (로그인/회원가입 API)</p>
-                <p>src/reservations/ (예약 관리 API)</p>
-                <p>src/customers/ (고객 관리 API)</p>
+                <p>src/auth/ (로그인/회원가입)</p>
+                <p>src/reservations/ (예약 관리)</p>
+                <p>src/customers/ (고객 관리)</p>
                 <p>src/app/page.tsx (메인 페이지)</p>
                 <p>src/app/reservations/page.tsx</p>
                 <p>src/app/customers/page.tsx</p>
@@ -1786,7 +1790,7 @@ function StartPage() {
 
       {/* 푸터 */}
       <footer className="border-t border-[#2c2c35] px-6 py-8 text-center text-sm text-[#6b7684]">
-        <p>Foundry &mdash; AI가 만드는 풀스택 MVP. 외주비 3천만원을 20만원으로.</p>
+        <p>Foundry &mdash; AI가 만드는 MVP. 외주비 3천만원을 20만원으로.</p>
       </footer>
     </div>
   );

@@ -13,6 +13,7 @@ import WelcomeBack from './components/WelcomeBack';
 import CodeHealthPanel from './components/CodeHealthPanel';
 import LivePreview from './components/LivePreview';
 import AgentPanel from './components/AgentPanel';
+import MarkdownRenderer from '@/app/components/MarkdownRenderer';
 import VisualEditPopup from './components/VisualEditPopup';
 
 type Message = {
@@ -1151,16 +1152,13 @@ function BuilderContent() {
                     : msg.type === 'status' ? 'bg-[#1e1e28] text-[#6b7684] text-xs py-2'
                     : 'bg-[#1a1a24] border border-[#1e1e28] text-[#e5e7eb]'
                 }`}>
-                  {msg.content.split('\n').map((line, i) => {
-                    if (line.startsWith('**') && line.endsWith('**')) return <div key={i} className="font-bold mt-2 mb-1">{line.replace(/\*\*/g, '')}</div>;
-                    if (line.startsWith('- **')) {
-                      const parts = line.match(/- \*\*(.+?)\*\*: (.+)/);
-                      if (parts) return <div key={i} className="ml-2"><span className="font-semibold">{parts[1]}:</span> {parts[2]}</div>;
-                    }
-                    if (line.startsWith('- ')) return <div key={i} className="ml-2">• {line.slice(2)}</div>;
-                    if (line.trim() === '') return <div key={i} className="h-2" />;
-                    return <div key={i}>{line}</div>;
-                  })}
+                  {msg.role === 'assistant'
+                    ? <MarkdownRenderer content={msg.content} />
+                    : msg.content.split('\n').map((line, i) => {
+                      if (line.trim() === '') return <div key={i} className="h-2" />;
+                      return <div key={i}>{line}</div>;
+                    })
+                  }
                 </div>
               </div>
             ))}

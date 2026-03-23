@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { authFetch, getToken, API_BASE } from '@/lib/api';
+import MarkdownRenderer from '@/app/components/MarkdownRenderer';
 
 // ── 타입 ────────────────────────────────────────────────
 
@@ -561,7 +562,7 @@ export default function MeetingPage() {
                 <span className="font-bold text-[#3182f6]">회의 전 확인</span>
               </div>
               {preQuestions ? (
-                <div className="text-sm text-[#d1d5db] whitespace-pre-wrap leading-relaxed">{preQuestions}</div>
+                <div className="text-sm text-[#d1d5db] leading-relaxed"><MarkdownRenderer content={preQuestions} /></div>
               ) : (
                 <div className="flex items-center gap-2 text-sm text-[#8b95a1]">
                   <div className="h-3 w-3 rounded-full bg-[#3182f6] animate-pulse" />
@@ -649,7 +650,7 @@ export default function MeetingPage() {
                         <span className="text-lg">📋</span>
                         <span className="font-bold text-[#ffd60a]">브리핑</span>
                       </div>
-                      <div className="text-sm text-[#d1d5db] whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+                      <div className="text-sm text-[#d1d5db] leading-relaxed"><MarkdownRenderer content={msg.content} /></div>
                     </div>
                   );
                 }
@@ -663,7 +664,7 @@ export default function MeetingPage() {
                         <span className={`font-bold ${colors.text}`}>{msg.ai}</span>
                         <span className={`text-xs px-2 py-0.5 rounded-full ${colors.badge} text-white`}>{msg.role}</span>
                       </div>
-                      <div className="text-sm text-[#d1d5db] whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+                      <div className="text-sm text-[#d1d5db] leading-relaxed"><MarkdownRenderer content={msg.content} /></div>
                     </div>
                   );
                 }
@@ -680,7 +681,7 @@ export default function MeetingPage() {
                         <span>{AI_ICONS[msg.ai]}</span>
                         <span className={`font-bold text-sm ${colors.text}`}>{msg.ai} 반론</span>
                       </div>
-                      <div className="text-sm text-[#d1d5db] whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+                      <div className="text-sm text-[#d1d5db] leading-relaxed"><MarkdownRenderer content={msg.content} /></div>
                     </div>
                   );
                 }
@@ -692,7 +693,7 @@ export default function MeetingPage() {
                         <span className="text-lg">📊</span>
                         <span className="font-bold text-[#3182f6]">종합 보고서</span>
                       </div>
-                      <div className="text-sm text-[#d1d5db] whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+                      <div className="text-sm text-[#d1d5db] leading-relaxed"><MarkdownRenderer content={msg.content} /></div>
                     </div>
                   );
                 }
@@ -760,7 +761,7 @@ export default function MeetingPage() {
                             <span className={`text-xs font-bold mb-1 block ${colors.text}`}>
                               {AI_ICONS[aiName] || '🤖'} {aiName}
                             </span>
-                            <div className="text-[#d1d5db] whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+                            <div className="text-[#d1d5db] leading-relaxed"><MarkdownRenderer content={msg.content} /></div>
                           </div>
                         );
                       })}

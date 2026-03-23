@@ -48,9 +48,12 @@ const BUILDER_SYSTEM_PROMPT = `당신은 Foundry AI 빌더 어시스턴트입니
 
 규칙:
 - 항상 한국어로 답변
+- 항상 존칭(~습니다, ~드리겠습니다, ~하시겠어요?)을 사용하세요. 반말 금지!
+- 전문적이면서 친절한 톤으로 답변하세요. 한국 비즈니스 문화에 맞는 경어를 사용하세요.
 - 마크다운 형식 사용 (**굵게**, - 목록, 코드블록)
 - 답변은 간결하게 (200자 이내 권장, 필요시 더 길게)
-- 기술 용어는 쉽게 풀어서 설명
+- 기술 용어 사용 금지! "API" → "서버 기능", "DB 스키마" → "데이터 구조", "Supabase" → "데이터베이스" 등 쉽게 풀어서 설명
+- 이모지는 최소한으로 사용하세요
 - 사용자가 "생성해줘"라고 하면 구체적인 기능 목록을 정리하여 확인
 
 ⚠️ 중요: 반드시 현재 선택된 템플릿/업종에 맞는 용어와 기능만 이야기하세요.
@@ -1122,6 +1125,20 @@ const supabase = createClient()
             content: await this.continueGeneration(tier, FRONTEND_SYSTEM_PROMPT, allFiles[i].content, allFiles[i].path),
           };
         }
+      }
+
+      // 루트 page.tsx 미생성 방어 — AI가 안 만들었으면 fallback 자동 삽입
+      const hasRootPage = allFiles.some(f => f.path === 'src/app/page.tsx' || f.path === 'app/page.tsx');
+      if (!hasRootPage) {
+        const pagePaths = (architecture.pages || [])
+          .filter((p: any) => p.path !== '/')
+          .map((p: any) => `            <a href="${p.path}" className="block p-4 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-primary)] transition-colors">\n              <h3 className="font-semibold text-[var(--color-text-primary)]">${p.name}</h3>\n              <p className="text-sm text-[var(--color-text-secondary)] mt-1">${p.description || ''}</p>\n            </a>`)
+          .join('\n');
+        allFiles.push({
+          path: 'src/app/page.tsx',
+          content: `'use client';\n\nexport default function Home() {\n  return (\n    <div className="min-h-screen bg-[var(--color-background)]">\n      <div className="max-w-4xl mx-auto px-4 py-16">\n        <h1 className="text-4xl font-bold text-[var(--color-text-primary)] mb-4">${architecture.appName || 'My App'}</h1>\n        <p className="text-lg text-[var(--color-text-secondary)] mb-12">${architecture.description || ''}</p>\n        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">\n${pagePaths}\n        </div>\n      </div>\n    </div>\n  );\n}`,
+        });
+        this.logger.warn(`[메인페이지 fallback] AI가 page.tsx 미생성 → fallback 삽입`);
       }
 
       // F3: Import 검증 + 미설치 패키지 자동 추가

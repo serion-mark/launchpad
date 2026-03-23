@@ -124,6 +124,7 @@ export default function CreditsPage() {
                 <span className="text-[#ffd60a]">⚡</span>
                 <span className="text-sm font-bold">{balance.toLocaleString()}</span>
                 <span className="text-xs text-[#8b95a1]">크레딧</span>
+                <span className="text-xs text-[#6b7684]">· 앱 약 {Math.floor(balance / 3500)}개 제작 가능</span>
               </div>
             )}
             <button
@@ -137,6 +138,15 @@ export default function CreditsPage() {
       </header>
 
       <main className="mx-auto max-w-6xl px-5 py-10 md:px-8 md:py-14">
+        {/* 잔액 대시보드 */}
+        {balance !== null && isLoggedIn && (
+          <div className="mb-10 rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6 md:p-8 text-center">
+            <p className="text-sm text-[#8b95a1] mb-2">내 크레딧 잔액</p>
+            <p className="text-4xl font-bold text-[#ffd60a] mb-2">⚡ {balance.toLocaleString()}<span className="text-lg text-[#8b95a1] ml-2">크레딧</span></p>
+            <p className="text-base text-[#8b95a1]">앱 약 <span className="text-[#f2f4f6] font-bold">{Math.floor(balance / 3500)}개</span> 제작 가능</p>
+          </div>
+        )}
+
         {/* 타이틀 */}
         <div className="mb-10 text-center md:mb-14">
           <h2 className="mb-3 text-3xl font-bold tracking-tight md:text-[40px]">크레딧 충전</h2>

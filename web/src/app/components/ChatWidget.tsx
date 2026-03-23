@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import MarkdownRenderer from './MarkdownRenderer';
 
 // ── FAQ 데이터 ──
 const FAQ: { keywords: string[]; answer: string; link?: { label: string; href: string } }[] = [
@@ -174,7 +175,10 @@ export default function ChatWidget() {
                       : 'bg-[#2c2c35] text-[#e5e7eb] rounded-bl-md'
                   }`}
                 >
-                  <div style={{ whiteSpace: 'pre-wrap' }}>{msg.text}</div>
+                  {msg.role === 'bot'
+                    ? <MarkdownRenderer content={msg.text} />
+                    : <div style={{ whiteSpace: 'pre-wrap' }}>{msg.text}</div>
+                  }
                   {msg.link && (
                     <a
                       href={msg.link.href}

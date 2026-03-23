@@ -95,7 +95,7 @@ export default function LandingPage() {
                 icon: '📦',
                 title: '코드 100% 소유',
                 desc: 'Bubble처럼 갇히지 않습니다. ZIP으로 소스코드 전체 다운로드. 개발자에게 바로 인수인계 가능.',
-                badge: 'Lock-in 제로',
+                badge: '종속 없이 자유롭게',
                 badgeColor: 'bg-[#a855f7]/10 text-[#a855f7]',
               },
             ].map(item => (
@@ -125,7 +125,7 @@ export default function LandingPage() {
               { step: '1', title: '업종 선택', desc: '미용실, 쇼핑몰, 매칭앱 등 10개 업종 또는 자유 입력', color: '#3182f6' },
               { step: '2', title: '질문 답변', desc: '6가지 질문에 답하면 AI가 최적 기능을 자동 구성', color: '#30d158' },
               { step: '3', title: 'AI 생성', desc: '프론트+백엔드+DB를 3분 안에 자동 생성', color: '#a855f7' },
-              { step: '4', title: '배포/다운로드', desc: '서브도메인으로 즉시 배포 또는 ZIP 다운로드', color: '#f59e0b' },
+              { step: '4', title: '배포/다운로드', desc: '내 앱 전용 주소로 즉시 배포 또는 ZIP 다운로드', color: '#f59e0b' },
             ].map((s, i) => (
               <div key={s.step} className="relative flex flex-col items-center text-center p-6">
                 {i < 3 && <div className="hidden md:block absolute top-12 right-0 w-1/2 h-0.5 bg-[#2c2c35]" />}
@@ -264,7 +264,7 @@ export default function LandingPage() {
                   ['개발 기간', '2~6개월', '3분'],
                   ['코드 소유권', '계약에 따라 다름', '100% 사용자 소유'],
                   ['수정 비용', '건당 50~200만원', '크레딧 소량 차감'],
-                  ['기술 스택', '업체마다 다름', 'Next.js + Supabase (글로벌 표준)'],
+                  ['기술 스택', '업체마다 다름', '최신 기술로 안정적으로 (글로벌 표준)'],
                   ['배포', '별도 협의', '원클릭 자동 배포'],
                 ].map(([label, outsource, foundry]) => (
                   <tr key={label} className="border-b border-[#2c2c35]/50">
