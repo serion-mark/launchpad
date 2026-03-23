@@ -320,7 +320,7 @@ function BuilderContent() {
 
       const completeMsg: Message = {
         id: (Date.now() + 1).toString(), role: 'assistant',
-        content: `질문지 완료! 답변을 정리했습니다:\n\n${summary}\n\n**👈 왼쪽 미리보기에서 메뉴를 클릭해 각 화면을 체험해보세요! (무료)**\n\n수정하고 싶은 부분이 있으면 아래 채팅으로 자유롭게 말씀해주세요.\n(예: "고객 관리에 포인트 기능도 추가해줘", "색상을 좀 더 밝게")\n\n만족하시면 **"앱 생성하기"** 버튼을 누르면 AI가 실제 코드를 만들어드립니다!`,
+        content: `질문지 완료! 답변을 정리했습니다:\n\n${summary}\n\n**👉 오른쪽 미리보기에서 메뉴를 클릭해 각 화면을 체험해보세요! (무료)**\n\n수정하고 싶은 부분이 있으면 아래 채팅으로 자유롭게 말씀해주세요.\n(예: "고객 관리에 포인트 기능도 추가해줘", "색상을 좀 더 밝게")\n\n만족하시면 **"앱 생성하기"** 버튼을 누르면 AI가 실제 코드를 만들어드립니다!`,
         timestamp: new Date().toISOString(), type: 'text',
       };
       const updated = [...messages, userMsg, completeMsg];
