@@ -281,13 +281,19 @@ export default nextConfig;
       // ── Step 2: npm install ──
       appendLog('npm install 시작...');
       try {
+        // NODE_ENV=production 제거 — Tailwind 등 빌드 도구가 설치 안 되는 문제 방지
+        const installEnv = { ...process.env };
+        delete installEnv.NODE_ENV;
         execSync('npm install --legacy-peer-deps 2>&1', {
           cwd: outputDir,
           timeout: BUILD_TIMEOUT,
-          env: { ...process.env, NODE_ENV: 'production' },
+          env: installEnv,
           stdio: 'pipe',
         });
-        appendLog('npm install 완료');
+        // Tailwind 설치 확인
+        const hasTailwind = fs.existsSync(path.join(outputDir, 'node_modules', 'tailwindcss'));
+        const hasPostcss = fs.existsSync(path.join(outputDir, 'node_modules', '@tailwindcss', 'postcss'));
+        appendLog(`npm install 완료 (tailwindcss: ${hasTailwind ? '✅' : '❌'}, @tailwindcss/postcss: ${hasPostcss ? '✅' : '❌'})`);
       } catch (e: any) {
         const stderr = e.stderr?.toString() || e.stdout?.toString() || e.message;
         appendLog(`npm install 실패: ${stderr.slice(0, 500)}`);
