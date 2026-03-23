@@ -882,9 +882,11 @@ export class AiService {
       steps.push({ step: 'architecture', status: 'in_progress', fileCount: 0 });
       emitter?.emit('progress', { step: 'architecture', progress: '1/4', message: '아키텍처 설계 중...' } as GenerationProgress);
 
-      const answersText = Object.entries(params.answers)
-        .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
-        .join('\n');
+      const answersText = params.answers
+        ? Object.entries(params.answers)
+          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
+          .join('\n')
+        : '';
 
       const chatSummary = params.chatHistory
         ?.map(m => `${m.role === 'user' ? '사용자' : 'AI'}: ${m.content}`)
