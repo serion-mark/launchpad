@@ -568,6 +568,10 @@ export default nextConfig;
           // @import "tailwindcss" 제거하고 순수 CSS만 추출
           const pureCss = cssContent.replace(/@import\s+["']tailwindcss["'];?/g, '').trim();
           if (pureCss) {
+            // @theme inline 블록도 제거 (순수 CSS만 남기기)
+            const inlineCss = pureCss
+              .replace(/@theme\s+inline\s*\{[^}]*\}/g, '')
+              .trim();
             // 모든 HTML 파일에 인라인 <style> 주입
             const htmlFiles: string[] = [];
             const findHtml = (dir: string) => {
@@ -580,8 +584,13 @@ export default nextConfig;
             findHtml(outDir);
             for (const htmlFile of htmlFiles) {
               let html = fs.readFileSync(htmlFile, 'utf-8');
-              if (!html.includes(pureCss.slice(0, 50))) {
-                html = html.replace('</head>', `<style>${pureCss}</style>\n</head>`);
+              if (!html.includes(':root')) {
+                // Next.js 16 static export는 </head> 없을 수 있음 — 맨 앞에 주입
+                if (html.includes('</head>')) {
+                  html = html.replace('</head>', `<style>${inlineCss}</style>\n</head>`);
+                } else {
+                  html = `<style>${inlineCss}</style>\n${html}`;
+                }
                 fs.writeFileSync(htmlFile, html, 'utf-8');
               }
             }
