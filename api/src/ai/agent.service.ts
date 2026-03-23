@@ -239,7 +239,7 @@ export class AgentService {
   // ── AI에게 다음 행동 결정 요청 ─────────────────────────
   private async decideAction(task: string, context: string): Promise<AgentAction | null> {
     const response = await this.anthropic.messages.create({
-      model: 'claude-sonnet-4-5-20250514',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 16384,
       system: AGENT_SYSTEM_PROMPT,
       messages: [

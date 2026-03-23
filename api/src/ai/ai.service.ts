@@ -25,8 +25,8 @@ type AppModelTier = 'flash' | 'smart' | 'pro';
 
 const APP_MODELS: Record<AppModelTier, { model: string; maxTokens: number; label: string }> = {
   flash: { model: 'claude-haiku-4-5-20251001', maxTokens: 8192, label: 'Flash (빠르고 저렴)' },
-  smart: { model: 'claude-sonnet-4-5-20250514', maxTokens: 16384, label: 'Smart (균형잡힌)' },
-  pro:   { model: 'claude-sonnet-4-5-20250514', maxTokens: 16384, label: 'Pro (최고 품질)' },
+  smart: { model: 'claude-sonnet-4-20250514', maxTokens: 16384, label: 'Smart (균형잡힌)' },
+  pro:   { model: 'claude-sonnet-4-20250514', maxTokens: 16384, label: 'Pro (최고 품질)' },
 };
 
 // 레거시 모델맵 (기존 chat/generate 호환)

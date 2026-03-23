@@ -10,7 +10,8 @@ export class StartChatController {
   async startChat(
     @Body() body: {
       message: string;
-      chatHistory: { role: string; content: string }[];
+      chatHistory?: { role: string; content: string }[];
+      history?: { role: string; content: string }[];
     },
   ) {
     const systemPrompt = `당신은 Foundry AI MVP 빌더의 앱 기획 도우미입니다.
@@ -34,7 +35,8 @@ export class StartChatController {
 - 사용자가 질문만 하면 (예: "뭘 할 수 있어?") 친절하게 설명하고 앱 아이디어를 제안하세요
 - 응답은 짧고 핵심적으로 (3~5줄 이내)`;
 
-    const messages = body.chatHistory.map(m => `${m.role === 'user' ? '사용자' : 'AI'}: ${m.content}`).join('\n');
+    const chatHistory = body.chatHistory || body.history || [];
+    const messages = chatHistory.map(m => `${m.role === 'user' ? '사용자' : 'AI'}: ${m.content}`).join('\n');
     const userPrompt = messages ? `${messages}\n사용자: ${body.message}` : `사용자: ${body.message}`;
 
     const content = await this.router.callAnthropic(
