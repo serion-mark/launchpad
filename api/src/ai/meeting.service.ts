@@ -95,51 +95,58 @@ export class MeetingService {
         ? file.slice(0, maxFileLen) + `\n\n... (총 ${file.length.toLocaleString()}자 중 앞 ${maxFileLen.toLocaleString()}자만 분석)`
         : file;
 
-      const preAnswerContext = preAnswers ? `\n[사용자 사전 요청]\n${preAnswers}` : '';
+      const preAnswerContext = preAnswers ? `\n[사용자 요청 방향]\n${preAnswers}` : '';
+
+      // ── Phase 1: 브리핑 (분석 X, 요약+요청 정리만) ──────────
       const briefing = await this.llmRouter.callAnthropic(
-        '당신은 브리핑 전문가입니다. 주어진 주제/파일의 핵심을 요약하고 분석 포인트를 추출하세요. 사용자의 사전 요청이 있으면 그 관점을 우선 반영하세요. 한국어로 작성하세요.',
-        `주제: ${topic}\n${presetPrompt}${preAnswerContext}\n${trimmedFile ? `\n[첨부 파일 내용]\n${trimmedFile}` : ''}`,
+        `당신은 회의 준비 담당입니다. 분석하지 마세요. 아래 2가지만 정리하세요:
+1. 📄 자료 요약: 첨부 파일이 있으면 핵심 내용을 5줄 이내로 요약. 없으면 주제만 정리.
+2. 🎯 분석 요청: 사용자가 원하는 분석 방향과 프리셋을 1~2줄로 정리.
+절대 평가/의견/점수를 내지 마세요. 사실만 정리하세요. 한국어로.`,
+        `주제: ${topic}\n분석 유형: ${presetPrompt}${preAnswerContext}\n${trimmedFile ? `\n[첨부 파일 내용]\n${trimmedFile}` : ''}`,
         'claude-haiku-4-5-20251001',
-        2048,
+        1024,
       );
       yield { phase: 'briefing', content: briefing };
 
-      // ── Phase 2: 순차 누적 분석 (Gemini 먼저, 실패 시 건너뛰기) ──
+      // ── Phase 2: 각 AI가 원본 자료를 직접 보고 독립 분석 ──────
 
-      // 2-1: Gemini (실패 시 조용히 건너뛰고 GPT+Claude로 진행)
+      // 원본 자료 컨텍스트 (각 AI에게 직접 전달)
+      const rawContext = `[주제]\n${topic}\n\n[분석 유형]\n${presetPrompt}${preAnswerContext}${trimmedFile ? `\n\n[원본 자료]\n${trimmedFile}` : ''}`;
+
+      // 2-1: Gemini (원본 자료 직접 분석, 실패 시 건너뛰기)
       let geminiAnalysis = '';
       try {
         geminiAnalysis = await this.llmRouter.callGoogle(
           `당신은 ${AI_ROLES.gemini.role}입니다. ${AI_ROLES.gemini.instruction} 한국어로 분석하세요.`,
-          `[분석 브리핑]\n${briefing}\n\n${presetPrompt}`,
+          rawContext,
           models.gemini,
           4096,
         );
         yield { phase: 'analysis', ai: 'Gemini', role: AI_ROLES.gemini.role, content: geminiAnalysis };
       } catch (err: any) {
         this.logger.warn(`[Gemini 패스] ${err.message}`);
-        // Gemini 실패 시 UI에 표시하지 않고 GPT+Claude로 이어감
       }
 
-      // 2-2: GPT
-      const gptContext = geminiAnalysis
-        ? `[분석 브리핑]\n${briefing}\n\n[Gemini ${AI_ROLES.gemini.role}의 분석]\n${geminiAnalysis}\n\n${presetPrompt}`
-        : `[분석 브리핑]\n${briefing}\n\n${presetPrompt}`;
+      // 2-2: GPT (원본 자료 + Gemini 분석 참고)
+      const gptInput = geminiAnalysis
+        ? `${rawContext}\n\n[Gemini ${AI_ROLES.gemini.role}의 분석]\n${geminiAnalysis}`
+        : rawContext;
       const gptAnalysis = await this.llmRouter.callOpenAI(
         `당신은 ${AI_ROLES.gpt.role}입니다. ${AI_ROLES.gpt.instruction} 한국어로 분석하세요.`,
-        gptContext,
+        gptInput,
         models.gpt,
         4096,
       );
       yield { phase: 'analysis', ai: 'GPT', role: AI_ROLES.gpt.role, content: gptAnalysis };
 
-      // 2-3: Claude (종합)
-      const claudeContext = geminiAnalysis
-        ? `[분석 브리핑]\n${briefing}\n\n[Gemini ${AI_ROLES.gemini.role}]\n${geminiAnalysis}\n\n[GPT ${AI_ROLES.gpt.role}]\n${gptAnalysis}\n\n${presetPrompt}`
-        : `[분석 브리핑]\n${briefing}\n\n[GPT ${AI_ROLES.gpt.role}]\n${gptAnalysis}\n\n${presetPrompt}`;
+      // 2-3: Claude (원본 자료 + 다른 AI 분석 종합)
+      const claudeInput = geminiAnalysis
+        ? `${rawContext}\n\n[Gemini ${AI_ROLES.gemini.role}]\n${geminiAnalysis}\n\n[GPT ${AI_ROLES.gpt.role}]\n${gptAnalysis}`
+        : `${rawContext}\n\n[GPT ${AI_ROLES.gpt.role}]\n${gptAnalysis}`;
       const claudeAnalysis = await this.llmRouter.callAnthropic(
         `당신은 ${AI_ROLES.claude.role}입니다. ${AI_ROLES.claude.instruction} 한국어로 분석하세요.`,
-        claudeContext,
+        claudeInput,
         models.claude,
         4096,
       );
