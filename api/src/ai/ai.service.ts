@@ -903,11 +903,12 @@ export class AiService {
     let fellBack = false;
     const tier = params.modelTier;
 
-    // 프로젝트 상태 → generating
-    await this.prisma.project.update({
+    // 프로젝트 조회 (description에 스마트 분석 결과 포함 가능)
+    const projectData = await this.prisma.project.update({
       where: { id: params.projectId },
       data: { status: 'generating', modelUsed: tier },
     });
+    const projectDescription = projectData.description || '';
 
     try {
       // ── Step 1: 아키텍처 설계 (Supabase 기반) ─────
@@ -925,6 +926,13 @@ export class AiService {
         ?.map(m => `${m.role === 'user' ? '사용자' : 'AI'}: ${m.content}`)
         .join('\n') || '';
 
+      // 스마트 분석 결과 + 앱 유형별 필수 구조 프롬프트 동적 주입
+      const smartAnalysisContext = projectDescription.includes('[스마트 분석 결과]')
+        ? `\n\n⚠️ 중요: 아래 스마트 분석 결과를 반드시 반영하여 앱을 설계하세요. 분석 결과를 무시하면 안 됩니다.
+${projectDescription}
+위 분석에서 언급된 벤치마크 앱의 UI 패턴을 참고하고, 핵심 기능을 반드시 포함하고, 타겟 사용자에 맞는 디자인을 적용하세요.`
+        : (projectDescription ? `\n\n프로젝트 설명: ${projectDescription}` : '');
+
       const archResult = await this.callWithFallback(tier, GENERATE_SYSTEM_PROMPT, [{
         role: 'user',
         content: `앱 아키텍처를 설계해주세요.
@@ -938,7 +946,17 @@ ${answersText}
 선택한 기능: ${params.selectedFeatures.join(', ')}
 테마: ${params.theme || 'basic-light'}
 
-${chatSummary ? `대화 내역:\n${chatSummary}` : ''}`,
+${chatSummary ? `대화 내역:\n${chatSummary}` : ''}${smartAnalysisContext}
+
+⚠️ 앱 이름과 설명에서 유형을 파악하고 해당하는 필수 UI 패턴을 반드시 포함하세요:
+- 데이팅/소개팅/매칭 유형: 프로필 카드(사진+이름+소개), 좋아요/패스 인터랙션, 매칭 목록, 1:1 채팅, 프로필 편집, 필터/검색
+- 커머스/쇼핑몰/판매/직거래 유형: 상품 목록(그리드, 이미지+가격), 상품 상세(이미지+설명+리뷰), 장바구니, 주문/결제, 주문 내역
+- 예약/스케줄링 유형: 캘린더 뷰(날짜 선택), 시간 슬롯(가능 시간 표시), 예약 확정/취소, 예약 내역
+- 커뮤니티/SNS 유형: 피드(게시물 목록), 게시물 작성(사진+텍스트), 댓글/좋아요, 프로필, 팔로우
+- 교육/학원 유형: 강좌 목록, 수강 신청, 학습 진도 대시보드, 수강생 관리
+- 배달/주문 유형: 메뉴/상품 목록, 장바구니, 주문 + 배달 추적, 리뷰
+- SaaS/관리도구/POS 유형: 대시보드(KPI 카드), 데이터 테이블(CRUD), 차트/통계, 설정
+위 유형에 해당하지 않으면 사용자 설명 기반으로 적절한 UI를 구성하세요.`,
       }]);
 
       if (archResult.fellBack) fellBack = true;
@@ -1070,7 +1088,8 @@ const supabase = createClient()
 
 데이터 페이지인 경우:
 - const { data } = await supabase.from('테이블명').select('*').eq('user_id', user.id)
-- await supabase.from('테이블명').insert([{ ... }])`,
+- await supabase.from('테이블명').insert([{ ... }])
+${smartAnalysisContext ? `\n${smartAnalysisContext}\n위 분석을 참고하여 이 페이지의 UI/UX를 설계하세요.` : ''}`,
         }]);
 
         if (frontendResult.fellBack) fellBack = true;

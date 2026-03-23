@@ -40,6 +40,8 @@ type ProjectData = {
   currentVersion?: number;
   totalModifications?: number;
   modelUsed?: string;
+  deployedUrl?: string;
+  subdomain?: string;
 };
 
 // ── AI API 호출 ──────────────────────────────────────
@@ -1594,12 +1596,27 @@ function BuilderContent() {
             </div>
           )}
 
-          {/* 생성 완료 → 실제 코드 미리보기 */}
+          {/* 생성 완료 → 배포됐으면 iframe, 아니면 LivePreview */}
           {showLivePreview && buildPhase !== 'generating' && (
             <>
-              <LivePreview files={generatedFiles} previewMode={previewMode} visualEditMode={visualEditMode} />
-              {/* Visual Edit 팝업 */}
-              {selectedElement && visualEditMode && projectId && (
+              {project?.status === 'deployed' && project?.deployedUrl ? (
+                <div className="relative h-full w-full">
+                  <iframe
+                    src={project?.deployedUrl}
+                    className="h-full w-full border-0 rounded-lg bg-white"
+                    style={{ maxWidth: previewMode === 'mobile' ? '375px' : '100%', margin: previewMode === 'mobile' ? '0 auto' : undefined }}
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                    title="앱 미리보기"
+                  />
+                  <div className="absolute top-2 right-2 flex items-center gap-1.5 rounded-full bg-emerald-600/90 px-2.5 py-1 text-[10px] font-bold text-white shadow-lg">
+                    <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />LIVE
+                  </div>
+                </div>
+              ) : (
+                <LivePreview files={generatedFiles} previewMode={previewMode} visualEditMode={visualEditMode} />
+              )}
+              {/* Visual Edit 팝업 (LivePreview 모드에서만) */}
+              {!((project?.status === 'deployed') && project?.deployedUrl) && selectedElement && visualEditMode && projectId && (
                 <VisualEditPopup
                   element={selectedElement}
                   projectId={projectId}
