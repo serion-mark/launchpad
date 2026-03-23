@@ -776,6 +776,23 @@ function BuilderContent() {
             }]);
             return;
           }
+          // 큐 대기 중이면 위치 표시
+          if (status.buildStatus === 'queued' && status.queuePosition) {
+            setMessages(prev => {
+              const last = prev[prev.length - 1];
+              if (last?.content?.includes('대기열')) {
+                return [...prev.slice(0, -1), {
+                  ...last,
+                  content: `⏳ 빌드 대기열 **${status.queuePosition}번째** — 약 ${status.estimatedMinutes}분 소요 예상`,
+                }];
+              }
+              return [...prev, {
+                id: 'queue-' + Date.now(), role: 'assistant' as const,
+                content: `⏳ 빌드 대기열 **${status.queuePosition}번째** — 약 ${status.estimatedMinutes}분 소요 예상`,
+                timestamp: new Date().toISOString(), type: 'text' as const,
+              }];
+            });
+          }
           // building/exporting/fixing 상태면 계속 폴링
         } catch { /* 네트워크 에러 시 계속 폴링 */ }
       }

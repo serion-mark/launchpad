@@ -147,25 +147,36 @@ export class CreditService {
       return { balance: bal.balance, cost: 0, remaining: bal.balance };
     }
 
-    // 잔액 부족 체크
+    // 잔액 부족 사전 체크
     if (bal.balance < cost) {
-      throw new ForbiddenException(
-        JSON.stringify({
-          code: 'INSUFFICIENT_CREDITS',
-          required: cost,
-          current: bal.balance,
-          message: `크레딧이 부족합니다 (필요: ${cost}, 잔액: ${bal.balance})`,
-        }),
-      );
+      throw new ForbiddenException({
+        code: 'INSUFFICIENT_CREDITS',
+        required: cost,
+        current: bal.balance,
+        message: `크레딧이 부족합니다 (필요: ${cost}, 잔액: ${bal.balance})`,
+      });
     }
 
-    const updated = await this.prisma.creditBalance.update({
-      where: { id: bal.id },
+    // Race Condition 방지: DB 레벨에서 잔액 >= cost 조건 보장
+    const result = await this.prisma.creditBalance.updateMany({
+      where: { id: bal.id, balance: { gte: cost } },
       data: {
         balance: { decrement: cost },
         totalUsed: { increment: cost },
       },
     });
+
+    if (result.count === 0) {
+      throw new ForbiddenException({
+        code: 'INSUFFICIENT_CREDITS',
+        required: cost,
+        current: bal.balance,
+        message: `크레딧이 부족합니다 (동시 요청으로 잔액 변경됨)`,
+      });
+    }
+
+    // 차감 후 잔액 계산 (updateMany는 레코드를 반환하지 않으므로)
+    const newBalance = bal.balance - cost;
 
     await this.prisma.creditTransaction.create({
       data: {
@@ -173,7 +184,7 @@ export class CreditService {
         balanceId: bal.id,
         type: 'USE',
         amount: -cost,
-        balanceAfter: updated.balance,
+        balanceAfter: newBalance,
         description: params.description || params.action,
         projectId: params.projectId,
         taskType: params.taskType,
@@ -181,7 +192,7 @@ export class CreditService {
       },
     });
 
-    return { balance: updated.balance, cost, remaining: updated.balance };
+    return { balance: newBalance, cost, remaining: newBalance };
   }
 
   // ── 모델 기반 동적 차감 (코드 생성 엔진용) ──────────
@@ -196,24 +207,34 @@ export class CreditService {
     const bal = await this.getBalance(userId);
 
     if (bal.balance < cost) {
-      throw new ForbiddenException(
-        JSON.stringify({
-          code: 'INSUFFICIENT_CREDITS',
-          required: cost,
-          current: bal.balance,
-          tier: params.tier,
-          message: `크레딧이 부족합니다 (필요: ${cost}, 잔액: ${bal.balance})`,
-        }),
-      );
+      throw new ForbiddenException({
+        code: 'INSUFFICIENT_CREDITS',
+        required: cost,
+        current: bal.balance,
+        tier: params.tier,
+        message: `크레딧이 부족합니다 (필요: ${cost}, 잔액: ${bal.balance})`,
+      });
     }
 
-    const updated = await this.prisma.creditBalance.update({
-      where: { id: bal.id },
+    // Race Condition 방지: DB 레벨에서 잔액 >= cost 조건 보장
+    const result = await this.prisma.creditBalance.updateMany({
+      where: { id: bal.id, balance: { gte: cost } },
       data: {
         balance: { decrement: cost },
         totalUsed: { increment: cost },
       },
     });
+
+    if (result.count === 0) {
+      throw new ForbiddenException({
+        code: 'INSUFFICIENT_CREDITS',
+        required: cost,
+        current: bal.balance,
+        message: `크레딧이 부족합니다 (동시 요청으로 잔액 변경됨)`,
+      });
+    }
+
+    const newBalance = bal.balance - cost;
 
     await this.prisma.creditTransaction.create({
       data: {
@@ -221,7 +242,7 @@ export class CreditService {
         balanceId: bal.id,
         type: 'USE',
         amount: -cost,
-        balanceAfter: updated.balance,
+        balanceAfter: newBalance,
         description: params.description || `${params.tier} 모델 사용 (${params.fileCount}파일)`,
         projectId: params.projectId,
         taskType: params.taskType,
@@ -229,7 +250,7 @@ export class CreditService {
       },
     });
 
-    return { balance: updated.balance, cost, remaining: updated.balance, tier: params.tier, fileCount: params.fileCount };
+    return { balance: newBalance, cost, remaining: newBalance, tier: params.tier, fileCount: params.fileCount };
   }
 
   /** 예상 비용 조회 (차감 없이) */

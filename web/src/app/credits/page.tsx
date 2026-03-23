@@ -131,7 +131,9 @@ export default function CreditsPage() {
     try {
       const { loadTossPayments } = await import('@tosspayments/tosspayments-sdk');
       const tossPayments = await loadTossPayments(TOSS_CLIENT_KEY);
-      const payment = tossPayments.payment({ customerKey: 'foundry-user-' + Date.now() });
+      const user = (await import('@/lib/api')).getUser();
+      const customerKey = user?.userId ? `foundry-${user.userId}` : `foundry-anon-${Date.now()}`;
+      const payment = tossPayments.payment({ customerKey });
 
       await payment.requestPayment({
         method: 'CARD',

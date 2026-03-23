@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, Query, UseGuards, Req, ForbiddenException, Logger, BadRequestException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { CreditService } from './credit.service';
+import { CreditService, CREDIT_PACKAGES } from './credit.service';
 import { PrismaService } from '../prisma.service';
 import type { PackageId, CreditAction } from './credit.service';
 
@@ -73,6 +73,13 @@ export class CreditController {
     const packageId = parts[1] as PackageId;
     if (!['micro', 'mini', 'lite', 'standard', 'pro'].includes(packageId)) {
       throw new BadRequestException(`유효하지 않은 패키지: ${packageId}`);
+    }
+
+    // 결제금액 검증: 클라이언트가 보낸 amount가 패키지 가격과 일치하는지 확인
+    const pkg = CREDIT_PACKAGES[packageId];
+    if (amount !== pkg.price) {
+      this.logger.error(`결제금액 불일치! 패키지: ${packageId}, 예상: ${pkg.price}, 실제: ${amount}`);
+      throw new BadRequestException(`결제 금액이 올바르지 않습니다 (예상: ${pkg.price}원)`);
     }
 
     // 멱등성: 이미 처리된 결제인지 확인

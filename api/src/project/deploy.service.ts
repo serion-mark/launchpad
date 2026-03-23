@@ -17,14 +17,99 @@ const BUILD_TIMEOUT = parseInt(process.env.BUILD_TIMEOUT_MS || '', 10) || 5 * 60
 /** F6: 빌드 자동 수정 최대 시도 횟수 */
 const MAX_BUILD_FIX_ATTEMPTS = 3;
 
+/** ── 빌드 큐 (In-Memory) ───────────────────────────────── */
+const MAX_CONCURRENT_BUILDS = 2;
+
+interface QueueItem {
+  projectId: string;
+  userId: string;
+  subdomain: string;
+  resolve: (value: void) => void;
+  reject: (reason: any) => void;
+  queuedAt: Date;
+}
+
 @Injectable()
 export class DeployService {
   private readonly logger = new Logger(DeployService.name);
+  private activeBuildCount = 0;
+  private buildQueue: QueueItem[] = [];
 
   constructor(
     private prisma: PrismaService,
     @Inject(forwardRef(() => AiService)) private aiService: AiService,
   ) {}
+
+  /** 현재 큐 상태 조회 */
+  getQueueStatus() {
+    return {
+      activeBuilds: this.activeBuildCount,
+      maxConcurrent: MAX_CONCURRENT_BUILDS,
+      queueLength: this.buildQueue.length,
+      queuedProjects: this.buildQueue.map(q => ({
+        projectId: q.projectId,
+        queuedAt: q.queuedAt,
+      })),
+    };
+  }
+
+  /** 큐에서 대기 위치 조회 */
+  getQueuePosition(projectId: string): { position: number; estimatedMinutes: number } | null {
+    const idx = this.buildQueue.findIndex(q => q.projectId === projectId);
+    if (idx === -1) return null;
+    return {
+      position: idx + 1,
+      estimatedMinutes: Math.ceil((idx + 1) * 3), // 빌드 1개당 약 3분 추정
+    };
+  }
+
+  /** 다음 큐 아이템 실행 */
+  private processNextInQueue() {
+    while (this.activeBuildCount < MAX_CONCURRENT_BUILDS && this.buildQueue.length > 0) {
+      const item = this.buildQueue.shift()!;
+      this.activeBuildCount++;
+      this.logger.log(`큐에서 빌드 시작: ${item.projectId} (활성: ${this.activeBuildCount}/${MAX_CONCURRENT_BUILDS}, 대기: ${this.buildQueue.length})`);
+
+      this._executeBuild(item.projectId, item.userId, item.subdomain)
+        .then(() => item.resolve())
+        .catch(err => item.reject(err))
+        .finally(() => {
+          this.activeBuildCount--;
+          this.processNextInQueue();
+        });
+    }
+  }
+
+  /** 빌드를 큐에 추가하거나 즉시 실행 */
+  private async enqueueBuild(projectId: string, userId: string, subdomain: string): Promise<void> {
+    if (this.activeBuildCount < MAX_CONCURRENT_BUILDS) {
+      // 즉시 실행
+      this.activeBuildCount++;
+      this.logger.log(`빌드 즉시 시작: ${projectId} (활성: ${this.activeBuildCount}/${MAX_CONCURRENT_BUILDS})`);
+      try {
+        await this._executeBuild(projectId, userId, subdomain);
+      } finally {
+        this.activeBuildCount--;
+        this.processNextInQueue();
+      }
+    } else {
+      // 대기열에 추가
+      const position = this.buildQueue.length + 1;
+      this.logger.log(`빌드 대기열 추가: ${projectId} (위치: ${position}, 예상: ${position * 3}분)`);
+
+      await this.prisma.project.update({
+        where: { id: projectId },
+        data: {
+          buildStatus: 'queued',
+          buildLog: `대기열 ${position}번째, 약 ${position * 3}분 소요 예상`,
+        },
+      });
+
+      return new Promise<void>((resolve, reject) => {
+        this.buildQueue.push({ projectId, userId, subdomain, resolve, reject, queuedAt: new Date() });
+      });
+    }
+  }
 
   /**
    * 서브도메인 자동 할당 (프로젝트명 기반, 영문+숫자만)
@@ -62,7 +147,12 @@ export class DeployService {
     let fileCount = 0;
 
     for (const file of files) {
-      const filePath = path.join(outputDir, file.path);
+      const filePath = path.resolve(outputDir, file.path);
+      // Path Traversal 방지: 생성 경로가 outputDir 하위인지 검증
+      if (!filePath.startsWith(outputDir + path.sep) && filePath !== outputDir) {
+        this.logger.warn(`Path traversal 시도 차단: ${file.path}`);
+        continue;
+      }
       fs.mkdirSync(path.dirname(filePath), { recursive: true });
       fs.writeFileSync(filePath, file.content, 'utf-8');
       fileCount++;
@@ -245,8 +335,8 @@ export default nextConfig;
       },
     });
 
-    // Step 2: 비동기 빌드 시작 (API 응답은 즉시 반환)
-    this.buildAndDeploy(projectId, userId, subdomain).catch(err => {
+    // Step 2: 빌드 큐에 추가 (동시 빌드 제한, API 응답은 즉시 반환)
+    this.enqueueBuild(projectId, userId, subdomain).catch(err => {
       this.logger.error(`빌드 실패 [${projectId}]: ${err.message}`);
     });
 
@@ -259,9 +349,9 @@ export default nextConfig;
   }
 
   /**
-   * 실제 빌드+배포 (백그라운드)
+   * 실제 빌드+배포 실행 (큐에서 호출)
    */
-  private async buildAndDeploy(projectId: string, userId: string, subdomain: string): Promise<void> {
+  private async _executeBuild(projectId: string, userId: string, subdomain: string): Promise<void> {
     const log: string[] = [];
     const appendLog = (msg: string) => {
       this.logger.log(`[${projectId}] ${msg}`);
@@ -816,11 +906,17 @@ export default nextConfig;
     });
     if (!project) throw new NotFoundException('프로젝트를 찾을 수 없습니다');
     if (project.userId !== userId) throw new ForbiddenException();
+    // 큐 대기 중이면 위치 정보 추가
+    const queuePos = this.getQueuePosition(projectId);
     return {
       buildStatus: project.buildStatus,
       buildLog: project.buildLog,
       deployedUrl: project.deployedUrl,
       subdomain: project.subdomain,
+      ...(queuePos && {
+        queuePosition: queuePos.position,
+        estimatedMinutes: queuePos.estimatedMinutes,
+      }),
     };
   }
 
