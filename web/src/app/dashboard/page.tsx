@@ -300,6 +300,29 @@ export default function DashboardPage() {
                     </button>
                   </div>
 
+                  {/* 독립 패키지 안내 */}
+                  {(project.status === 'active' || project.status === 'deployed') && project.buildStatus === 'done' && (
+                    <div className="mt-4 rounded-xl border border-[#2c2c35] bg-[#2c2c35]/30 p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-sm">🚀</span>
+                        <span className="text-xs font-bold text-[#f2f4f6]">이 앱을 독립시키기</span>
+                      </div>
+                      <p className="text-xs text-[#6b7684] mb-3">사업이 성장했나요? 내 도메인으로 독립 운영하세요.</p>
+                      <div className="flex gap-2">
+                        <a href="/credits?tab=independence" className="flex-1 rounded-lg bg-[#2c2c35] py-2 text-center text-xs font-medium text-[#8b95a1] hover:bg-[#3a3a45] transition-colors">
+                          📦 코드팩 99만
+                        </a>
+                        <a href="/credits?tab=independence" className="flex-1 rounded-lg bg-[#2c2c35] py-2 text-center text-xs font-medium text-[#8b95a1] hover:bg-[#3a3a45] transition-colors">
+                          📦 프로팩 199만
+                        </a>
+                        <a href="/credits?tab=independence" className="flex-1 rounded-lg bg-[#2c2c35] py-2 text-center text-xs font-medium text-[#ffd60a] hover:bg-[#3a3a45] transition-colors">
+                          📦 엔터 499만
+                        </a>
+                      </div>
+                      <p className="text-[10px] text-[#6b7684] mt-2 text-center">💡 정부사업비로 정산 가능 (세금계산서 발행)</p>
+                    </div>
+                  )}
+
                   {deleteId === project.id && (
                     <div className="mt-4 rounded-xl border border-[#f45452]/20 bg-[#f45452]/8 p-4">
                       <p className="mb-3 text-xs text-[#f45452]">정말 삭제하시겠습니까? 복구할 수 없습니다.</p>

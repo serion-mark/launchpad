@@ -3,8 +3,10 @@ import { PrismaService } from '../prisma.service';
 
 // ── 크레딧 패키지 정의 ──────────────────────────────────
 export const CREDIT_PACKAGES = {
+  micro: { credits: 1000, price: 12000, label: '소량팩' },
+  mini: { credits: 3000, price: 33000, label: '미니팩' },
   lite: { credits: 5000, price: 49000, label: '라이트팩' },
-  standard: { credits: 15000, price: 99000, label: '스탠다드팩' },
+  standard: { credits: 20000, price: 149000, label: '스탠다드팩' },
   pro: { credits: 50000, price: 249000, label: '프로팩' },
 } as const;
 

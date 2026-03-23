@@ -71,7 +71,7 @@ export class CreditController {
     // orderId 형식: credit-{packageId}-{timestamp}
     const parts = orderId.split('-');
     const packageId = parts[1] as PackageId;
-    if (!['lite', 'standard', 'pro'].includes(packageId)) {
+    if (!['micro', 'mini', 'lite', 'standard', 'pro'].includes(packageId)) {
       throw new BadRequestException(`유효하지 않은 패키지: ${packageId}`);
     }
 
