@@ -122,13 +122,6 @@ export class DeployService {
           `$1\n  typescript: { ignoreBuildErrors: true },`,
         );
       }
-      // Turbopack 비활성화 — Tailwind v4 CSS 빌드 충돌 방지 (Webpack 사용 강제)
-      if (!content.includes('turbo')) {
-        content = content.replace(
-          /(output:\s*'export',?)/,
-          `$1\n  experimental: { turbo: false },`,
-        );
-      }
       fs.writeFileSync(configPath, content, 'utf-8');
     } else {
       // 설정 파일이 아예 없으면 생성
@@ -139,7 +132,6 @@ const nextConfig: NextConfig = {
   images: { unoptimized: true },
   typescript: { ignoreBuildErrors: true },
   eslint: { ignoreDuringBuilds: true },
-  experimental: { turbo: false },
 };
 
 export default nextConfig;
@@ -877,7 +869,7 @@ export default nextConfig;
       },
       {
         path: 'next.config.ts',
-        content: `import type { NextConfig } from 'next';\n\nconst nextConfig: NextConfig = {\n  output: 'export',\n  images: { unoptimized: true },\n  experimental: { turbo: false },\n};\n\nexport default nextConfig;\n`,
+        content: `import type { NextConfig } from 'next';\n\nconst nextConfig: NextConfig = {\n  output: 'export',\n  images: { unoptimized: true },\n};\n\nexport default nextConfig;\n`,
       },
       {
         path: 'src/app/layout.tsx',
