@@ -576,12 +576,38 @@ export default function MeetingPage() {
           <div className="space-y-4">
             {/* 상태 표시 */}
             {isRunning && (
-              <div className="flex items-center gap-3 rounded-xl border border-[#2c2c35] bg-[#1b1b21] p-4">
-                <div className="h-3 w-3 rounded-full bg-[#3182f6] animate-pulse" />
-                <span className="text-sm font-medium">{currentAI}</span>
-                <span className="text-xs text-[#6b7684] ml-auto">
-                  {tier === 'premium' ? '프리미엄 회의 진행 중' : '스탠다드 회의 진행 중'}
-                </span>
+              <div className="rounded-xl border border-[#3182f6]/30 bg-[#3182f6]/5 p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="relative h-4 w-4">
+                    <div className="absolute inset-0 rounded-full bg-[#3182f6] animate-ping opacity-30" />
+                    <div className="absolute inset-0.5 rounded-full bg-[#3182f6]" />
+                  </div>
+                  <span className="text-sm font-bold text-[#3182f6]">{currentAI}</span>
+                  <span className="text-xs text-[#6b7684] ml-auto">
+                    {tier === 'premium' ? '프리미엄 회의 진행 중' : '스탠다드 회의 진행 중'}
+                  </span>
+                </div>
+                {/* 진행 단계 표시 */}
+                <div className="flex items-center gap-2 text-xs text-[#6b7684]">
+                  {['Gemini 분석', 'GPT 분석', 'Claude 종합', '보고서 작성'].map((step, i) => {
+                    const phases = ['analysis', 'analysis', 'analysis', 'report'];
+                    const aiNames = ['Gemini', 'GPT', 'Claude', ''];
+                    const messageCount = messages.filter(m => m.phase === 'analysis').length;
+                    const isReport = phase === 'report';
+                    const stepDone = isReport ? i < 4 : messageCount > i;
+                    const stepActive = !stepDone && (isReport ? i === 3 : messageCount === i);
+                    return (
+                      <div key={step} className="flex items-center gap-1">
+                        {i > 0 && <div className={`w-4 h-px ${stepDone || stepActive ? 'bg-[#3182f6]' : 'bg-[#2c2c35]'}`} />}
+                        <span className={`px-2 py-0.5 rounded-full ${
+                          stepDone ? 'bg-[#3182f6]/20 text-[#3182f6]' :
+                          stepActive ? 'bg-[#3182f6] text-white animate-pulse' :
+                          'bg-[#2c2c35] text-[#4e5968]'
+                        }`}>{step}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
