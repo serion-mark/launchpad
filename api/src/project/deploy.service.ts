@@ -550,11 +550,49 @@ export default nextConfig;
         throw new Error('next build 실패: 모든 자동 수정 시도 소진');
       }
 
-      // ── Step 4: out/ 디렉토리를 DEPLOY_DIR/{subdomain}/ 으로 복사 ──
+      // ── Step 3.5: CSS 빌드 검증 ──
       const outDir = path.join(outputDir, 'out');
       if (!fs.existsSync(outDir)) {
         throw new Error('next build 결과물(out/)이 생성되지 않았습니다. next.config에 output: "export" 확인 필요.');
       }
+
+      // CSS 파일 존재 확인 — 없으면 globals.css 인라인 주입
+      const cssDir = path.join(outDir, '_next', 'static', 'css');
+      const hasCSS = fs.existsSync(cssDir) && fs.readdirSync(cssDir).some(f => f.endsWith('.css'));
+      if (!hasCSS) {
+        appendLog('⚠️ CSS 빌드 결과물 없음 — HTML에 인라인 스타일 주입');
+        // globals.css에서 CSS 변수 읽어서 인라인 주입
+        const globalsCssPath = path.join(outputDir, 'src', 'app', 'globals.css');
+        if (fs.existsSync(globalsCssPath)) {
+          const cssContent = fs.readFileSync(globalsCssPath, 'utf-8');
+          // @import "tailwindcss" 제거하고 순수 CSS만 추출
+          const pureCss = cssContent.replace(/@import\s+["']tailwindcss["'];?/g, '').trim();
+          if (pureCss) {
+            // 모든 HTML 파일에 인라인 <style> 주입
+            const htmlFiles: string[] = [];
+            const findHtml = (dir: string) => {
+              for (const f of fs.readdirSync(dir, { withFileTypes: true })) {
+                const fp = path.join(dir, f.name);
+                if (f.isDirectory()) findHtml(fp);
+                else if (f.name.endsWith('.html')) htmlFiles.push(fp);
+              }
+            };
+            findHtml(outDir);
+            for (const htmlFile of htmlFiles) {
+              let html = fs.readFileSync(htmlFile, 'utf-8');
+              if (!html.includes(pureCss.slice(0, 50))) {
+                html = html.replace('</head>', `<style>${pureCss}</style>\n</head>`);
+                fs.writeFileSync(htmlFile, html, 'utf-8');
+              }
+            }
+            appendLog(`CSS 인라인 주입 완료 (${htmlFiles.length}개 HTML)`);
+          }
+        }
+      } else {
+        appendLog('CSS 빌드 정상 확인');
+      }
+
+      // ── Step 4: out/ 디렉토리를 DEPLOY_DIR/{subdomain}/ 으로 복사 ──
 
       const deployTarget = path.join(DEPLOY_DIR, subdomain);
       if (fs.existsSync(deployTarget)) {

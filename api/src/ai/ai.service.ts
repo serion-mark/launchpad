@@ -149,6 +149,13 @@ const SCHEMA_SYSTEM_PROMPT = `당신은 Supabase PostgreSQL 전문가입니다.
 - 마크다운 문법(###, **, ✅ 등) 사용 금지
 - updated_at 자동 갱신 트리거 포함
 
+🔴 샘플 데이터 필수 삽입 (매우 중요!):
+- 모든 주요 테이블에 INSERT문으로 현실적인 한국어 샘플 데이터 3~5개 삽입
+- 상품/서비스 테이블: 실제 가격과 이미지 URL(placeholder) 포함
+- user_id 컬럼은 auth.users에 존재하지 않으므로 샘플 INSERT에서는 제외하거나, 별도 service_role 전용 함수 사용
+- 샘플 데이터는 해당 업종에 맞는 현실적인 이름/설명/가격 사용 (예: 딸기 1kg 25,000원)
+- INSERT 전에 반드시 테이블이 생성된 후에 실행되도록 순서 보장
+
 🟢 관계형 데이터 패턴 (반드시 적용):
 - 1:N 관계: FK 컬럼에 인덱스 자동 생성 (CREATE INDEX idx_orders_customer_id ON orders(customer_id))
 - N:M 관계: junction 테이블 사용 (복합 PK 또는 unique 제약조건)
@@ -259,7 +266,9 @@ Foundry는 Static Export 전용 Next.js 앱을 생성합니다.
 - 테이블/컬럼명은 snake_case (PostgreSQL 규칙)
 
 🎨 테마 CSS 변수 규칙 (반드시 준수!):
-- globals.css의 :root에 아래 CSS 변수를 정의하고 모든 컴포넌트에서 사용:
+- globals.css에는 @import "tailwindcss" + :root(CSS 변수) + @theme inline(Tailwind 4.0 연동) + body 스타일이 모두 포함됨 (자동 생성)
+- globals.css를 절대 직접 생성하지 마세요! 시스템이 자동으로 올바른 globals.css를 생성합니다.
+- 모든 컴포넌트에서 아래 CSS 변수를 사용:
   --color-primary: 주요 액션 색상 (버튼, 링크)
   --color-primary-hover: 주요 색상 hover
   --color-secondary: 보조 색상
@@ -272,6 +281,7 @@ Foundry는 Static Export 전용 Next.js 앱을 생성합니다.
 - Tailwind 사용법: bg-[var(--color-primary)], text-[var(--color-text-primary)], border-[var(--color-border)]
 - 하드코딩 색상(bg-blue-500 등) 대신 반드시 CSS 변수 사용!
 - 예외: Tailwind 유틸리티 클래스(bg-white, text-gray-50 등)는 중성색에 한해 허용
+- body 태그에 bg-gray-50, bg-white 등 하드코딩 배경색 절대 금지! globals.css의 body 스타일이 자동 적용됨
 
 🟢 Supabase 인증 패턴 (이것만 사용):
 - 인증 상태: const { data: { user } } = await supabase.auth.getUser()
@@ -2376,7 +2386,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-primary)]" />
     </div>
   );
 
@@ -2413,7 +2423,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
-      <body className="min-h-screen bg-gray-50 antialiased">
+      <body className="min-h-screen antialiased">
         {children}
         ${architecture.hasChatbot ? '<ChatBot />' : ''}
       </body>
@@ -2435,6 +2445,66 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   --color-text-secondary: ${this.getThemeColor(theme, 'textSecondary')};
   --color-border: ${this.getThemeColor(theme, 'border')};
   --color-accent: ${this.getThemeColor(theme, 'accent')};
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Noto Sans KR', sans-serif;
+}
+
+@theme inline {
+  --color-background: var(--color-background);
+  --color-foreground: var(--color-text-primary);
+  --color-primary: var(--color-primary);
+  --color-secondary: var(--color-secondary);
+  --color-accent: var(--color-accent);
+  --color-border: var(--color-border);
+  --font-sans: var(--font-sans);
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  background-color: var(--color-primary);
+  color: #ffffff;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--color-primary-hover);
 }`,
       },
       // 사이드바 네비게이션 컴포넌트
@@ -2465,7 +2535,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
 
   if (loading) return (
     <div className="flex min-h-screen items-center justify-center">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--color-primary)]" />
     </div>
   );
 
@@ -2476,10 +2546,10 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
-      <aside className={\`\${collapsed ? 'w-16' : 'w-56'} flex flex-col border-r border-gray-200 bg-white transition-all duration-200\`}>
-        <div className="flex h-14 items-center justify-between border-b border-gray-100 px-4">
-          {!collapsed && <span className="text-sm font-bold text-gray-900">${appName}</span>}
-          <button onClick={() => setCollapsed(!collapsed)} className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+      <aside className={\`\${collapsed ? 'w-16' : 'w-56'} flex flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] transition-all duration-200\`}>
+        <div className="flex h-14 items-center justify-between border-b border-[var(--color-border)] px-4">
+          {!collapsed && <span className="text-sm font-bold text-[var(--color-text-primary)]">${appName}</span>}
+          <button onClick={() => setCollapsed(!collapsed)} className="rounded-lg p-1.5 text-[var(--color-text-secondary)] hover:bg-[var(--color-background)] hover:text-[var(--color-text-primary)]">
             {collapsed ? '→' : '←'}
           </button>
         </div>
@@ -2491,7 +2561,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 href={item.href}
                 className={\`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors \${
-                  isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  isActive ? 'bg-[var(--color-primary)]/10 text-[var(--color-primary)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-background)] hover:text-[var(--color-text-primary)]'
                 }\`}
               >
                 <span className={\`\${collapsed ? 'mx-auto' : ''}\`}>{item.label}</span>
@@ -2499,8 +2569,8 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <div className="border-t border-gray-100 p-3">
-          <button onClick={handleLogout} className="w-full rounded-lg px-3 py-2 text-left text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-700">
+        <div className="border-t border-[var(--color-border)] p-3">
+          <button onClick={handleLogout} className="w-full rounded-lg px-3 py-2 text-left text-sm text-[var(--color-text-secondary)] hover:bg-[var(--color-background)] hover:text-[var(--color-text-primary)]">
             {collapsed ? '←' : '로그아웃'}
           </button>
         </div>

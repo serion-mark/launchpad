@@ -28,7 +28,7 @@ export default function KakaoCallbackPage() {
             }
           }
         } catch { /* 약관 확인 실패 시 대시보드로 이동 */ }
-        window.location.href = '/';
+        window.location.href = '/start';
       } else {
         setError('카카오 로그인에 실패했습니다. 다시 시도해주세요.');
       }

@@ -719,6 +719,18 @@ function StartPage() {
   const [chatLoading, setChatLoading] = useState(false);
   const [appSpec, setAppSpec] = useState<Record<string, string> | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  // 크레딧 잔액
+  const [creditBalance, setCreditBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    const token = getToken();
+    if (token) {
+      authFetch('/credits/balance')
+        .then(res => res.ok ? res.json() : null)
+        .then(data => { if (data?.balance != null) setCreditBalance(data.balance); })
+        .catch(() => {});
+    }
+  }, []);
 
   const sendChatMessage = async () => {
     const msg = chatInput.trim();
@@ -942,6 +954,28 @@ function StartPage() {
         {/* ── Step 1: 템플릿 선택 ─────────────── */}
         {step === 'select-template' && (
           <div>
+            {/* 온보딩 환영 배너 — 로그인 사용자 + 크레딧 있을 때만 */}
+            {getUser() && creditBalance !== null && (
+              <div className="mx-auto mb-8 max-w-2xl rounded-2xl border border-[#3182f6]/30 bg-[#3182f6]/5 p-5">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">👋</span>
+                  <div>
+                    <p className="font-semibold text-[#f2f4f6] mb-1">
+                      환영합니다! AI가 앱을 만들어 드립니다
+                    </p>
+                    <p className="text-sm text-[#8b95a1] mb-2">
+                      아래 대화창에 만들고 싶은 앱을 설명하거나, 템플릿을 선택하세요.
+                    </p>
+                    <div className="inline-flex items-center gap-2 rounded-xl bg-[#2c2c35] px-3 py-1.5 text-sm">
+                      <span className="text-[#3182f6] font-bold">⚡ {creditBalance.toLocaleString()} 크레딧</span>
+                      <span className="text-[#6b7684]">|</span>
+                      <span className="text-[#8b95a1]">앱 약 {Math.floor(creditBalance / 3000)}개 제작 가능</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="mb-10 md:mb-14 text-center">
               <h2 className="mb-3 text-3xl md:text-[40px] font-bold leading-tight tracking-tight">
                 어떤 앱을 만들까요?
