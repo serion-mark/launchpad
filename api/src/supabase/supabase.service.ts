@@ -131,49 +131,30 @@ export class SupabaseService {
     return { anonKey, serviceKey };
   }
 
-  /** 4. SQL 마이그레이션 실행 — 문장별 분리 + 재시도 */
+  /** 4. SQL 마이그레이션 실행 — /database/query API 사용 + 재시도 */
   async runMigration(ref: string, sql: string): Promise<void> {
     this.logger.log(`Supabase [${ref}] SQL 마이그레이션 실행 (${sql.length}자)`);
 
-    // SQL을 개별 문장으로 분리 (세미콜론 기준, 빈 문장 제외)
-    const statements = sql
-      .split(/;\s*\n/g)
-      .map(s => s.trim())
-      .filter(s => s.length > 0 && !s.startsWith('--'))
-      .map(s => s.endsWith(';') ? s : s + ';');
-
-    if (statements.length === 0) {
+    if (!sql.trim()) {
       this.logger.warn(`Supabase [${ref}] SQL이 비어있습니다`);
       return;
     }
 
-    this.logger.log(`Supabase [${ref}] SQL 문장 ${statements.length}개 실행`);
-
     // 최대 3회 재시도
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        await this.apiCall('POST', `/v1/projects/${ref}/database/migrations`, {
-          statements,
+        // Supabase Management API: /database/query 엔드포인트에 query 필드
+        await this.apiCall('POST', `/v1/projects/${ref}/database/query`, {
+          query: sql,
         });
         this.logger.log(`Supabase [${ref}] SQL 마이그레이션 완료`);
         return;
       } catch (error: any) {
         this.logger.warn(`Supabase [${ref}] 마이그레이션 실패 (시도 ${attempt + 1}/3): ${error.message}`);
         if (attempt < 2) {
-          // 재시도 전 2초 대기
           await new Promise(resolve => setTimeout(resolve, 2000));
         } else {
-          // 최후 시도: 전체 SQL을 하나의 문장으로 보내기
-          this.logger.log(`Supabase [${ref}] 전체 SQL 단일 문장으로 재시도`);
-          try {
-            await this.apiCall('POST', `/v1/projects/${ref}/database/migrations`, {
-              statements: [sql],
-            });
-            this.logger.log(`Supabase [${ref}] SQL 마이그레이션 완료 (단일 문장)`);
-            return;
-          } catch (finalError: any) {
-            throw new Error(`SQL 마이그레이션 최종 실패: ${finalError.message}`);
-          }
+          throw new Error(`SQL 마이그레이션 최종 실패: ${error.message}`);
         }
       }
     }
