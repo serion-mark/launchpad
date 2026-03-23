@@ -611,6 +611,15 @@ export default nextConfig;
       fs.mkdirSync(DEPLOY_DIR, { recursive: true });
       // cp -r out/ → deployTarget
       execSync(`cp -r "${outDir}" "${deployTarget}"`, { timeout: 30000 });
+
+      // index.html 없으면 404.html 복사 (Next.js SPA fallback)
+      const indexPath = path.join(deployTarget, 'index.html');
+      const fallback404 = path.join(deployTarget, '404.html');
+      if (!fs.existsSync(indexPath) && fs.existsSync(fallback404)) {
+        fs.copyFileSync(fallback404, indexPath);
+        appendLog('index.html 없음 → 404.html 복사로 SPA fallback 생성');
+      }
+
       appendLog(`Static 파일 배포 완료 → ${deployTarget}`);
 
       // ── Step 5: 소스 정리 (디스크 절약) ──
