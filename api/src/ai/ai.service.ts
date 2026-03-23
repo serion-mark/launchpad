@@ -249,6 +249,11 @@ Foundry는 Static Export 전용 Next.js 앱을 생성합니다.
 - getServerSideProps, getStaticProps 사용 금지 (App Router에서 불가)
 - useRouter from 'next/router' 금지 → 반드시 'next/navigation'에서 import
 
+🔴 홈페이지 필수 생성 (매우 중요!):
+- 반드시 app/page.tsx (루트 홈페이지)를 첫 번째 페이지로 생성하세요!
+- 홈페이지에는: 앱 이름 히어로, 주요 기능 소개, 각 페이지로 이동하는 CTA 버튼 포함
+- 홈페이지가 없으면 고객이 메인 URL 접속 시 404 에러 발생
+
 🟢 Visual Edit 지원 (필수!):
 - 모든 주요 섹션/컴포넌트에 data-component 속성 추가
 - 예: <header data-component="Header">, <section data-component="HeroSection">, <nav data-component="Navigation">
