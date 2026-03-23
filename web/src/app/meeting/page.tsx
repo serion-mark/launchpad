@@ -619,7 +619,7 @@ export default function MeetingPage() {
                 </div>
                 {/* 진행 단계 표시 */}
                 <div className="flex items-center gap-2 text-xs text-[#6b7684]">
-                  {['Gemini', 'GPT', 'Claude 분석', 'Claude 종합', '보고서'].map((step, i) => {
+                  {['Gemini', 'GPT', 'Claude', '최종종합', '보고서'].map((step, i) => {
                     const messageCount = messages.filter(m => m.phase === 'analysis').length;
                     const isReport = phase === 'report';
                     const stepDone = isReport ? i < 5 : messageCount > i;
