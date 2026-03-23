@@ -131,7 +131,7 @@ export class SupabaseService {
     return { anonKey, serviceKey };
   }
 
-  /** 4. SQL 마이그레이션 실행 — /database/query API 사용 + 재시도 */
+  /** 4. SQL 마이그레이션 실행 — /database/query API + INSERT 분리 실행 */
   async runMigration(ref: string, sql: string): Promise<void> {
     this.logger.log(`Supabase [${ref}] SQL 마이그레이션 실행 (${sql.length}자)`);
 
@@ -140,24 +140,70 @@ export class SupabaseService {
       return;
     }
 
-    // 최대 3회 재시도
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        // Supabase Management API: /database/query 엔드포인트에 query 필드
-        await this.apiCall('POST', `/v1/projects/${ref}/database/query`, {
-          query: sql,
-        });
-        this.logger.log(`Supabase [${ref}] SQL 마이그레이션 완료`);
-        return;
-      } catch (error: any) {
-        this.logger.warn(`Supabase [${ref}] 마이그레이션 실패 (시도 ${attempt + 1}/3): ${error.message}`);
-        if (attempt < 2) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        } else {
-          throw new Error(`SQL 마이그레이션 최종 실패: ${error.message}`);
+    // DDL(CREATE/ALTER/DROP/ENABLE)과 DML(INSERT/UPDATE)을 분리
+    const lines = sql.split('\n');
+    let ddlParts: string[] = [];
+    let dmlParts: string[] = [];
+    let currentBlock = '';
+    let inInsert = false;
+
+    for (const line of lines) {
+      const trimmed = line.trim().toUpperCase();
+      if (trimmed.startsWith('INSERT ') || trimmed.startsWith('INSERT\t')) {
+        // 이전 블록 flush
+        if (currentBlock.trim() && !inInsert) {
+          ddlParts.push(currentBlock);
+          currentBlock = '';
         }
+        inInsert = true;
+      }
+      if (inInsert && trimmed.endsWith(';') && !trimmed.startsWith('--')) {
+        currentBlock += line + '\n';
+        dmlParts.push(currentBlock.trim());
+        currentBlock = '';
+        inInsert = false;
+        continue;
+      }
+      if (!inInsert && (trimmed.startsWith('INSERT '))) {
+        inInsert = true;
+      }
+      currentBlock += line + '\n';
+    }
+    if (currentBlock.trim()) {
+      if (inInsert) dmlParts.push(currentBlock.trim());
+      else ddlParts.push(currentBlock.trim());
+    }
+
+    const ddlSql = ddlParts.join('\n').trim();
+    const dmlSql = dmlParts.join('\n').trim();
+
+    // 1단계: DDL 실행 (CREATE TABLE, ALTER, RLS 등)
+    if (ddlSql) {
+      try {
+        await this.apiCall('POST', `/v1/projects/${ref}/database/query`, {
+          query: ddlSql,
+        });
+        this.logger.log(`Supabase [${ref}] DDL 실행 완료 (${ddlSql.length}자)`);
+      } catch (error: any) {
+        this.logger.error(`Supabase [${ref}] DDL 실패: ${error.message?.slice(0, 200)}`);
+        throw new Error(`DDL 실패: ${error.message}`);
       }
     }
+
+    // 2단계: DML 실행 (INSERT 등) — 실패해도 테이블은 이미 생성됨
+    if (dmlSql) {
+      try {
+        await this.apiCall('POST', `/v1/projects/${ref}/database/query`, {
+          query: dmlSql,
+        });
+        this.logger.log(`Supabase [${ref}] 샘플 데이터 삽입 완료`);
+      } catch (error: any) {
+        // INSERT 실패는 경고만 — 테이블은 이미 있으니 OK
+        this.logger.warn(`Supabase [${ref}] 샘플 데이터 삽입 실패 (무시): ${error.message?.slice(0, 200)}`);
+      }
+    }
+
+    this.logger.log(`Supabase [${ref}] SQL 마이그레이션 완료`);
   }
 
   /**

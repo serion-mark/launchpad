@@ -151,9 +151,13 @@ const SCHEMA_SYSTEM_PROMPT = `당신은 Supabase PostgreSQL 전문가입니다.
 
 🔴 샘플 데이터 필수 삽입 (매우 중요!):
 - 모든 주요 테이블에 INSERT문으로 현실적인 한국어 샘플 데이터 3~5개 삽입
-- 상품/서비스 테이블: 실제 가격과 이미지 URL(placeholder) 포함
-- user_id 컬럼은 auth.users에 존재하지 않으므로 샘플 INSERT에서는 제외하거나, 별도 service_role 전용 함수 사용
 - 샘플 데이터는 해당 업종에 맞는 현실적인 이름/설명/가격 사용 (예: 딸기 1kg 25,000원)
+- ⚠️ user_id 컬럼 처리 (매우 중요):
+  1. 샘플 INSERT 전에 반드시: ALTER TABLE [테이블명] DISABLE ROW LEVEL SECURITY;
+  2. user_id NOT NULL 컬럼이 있으면 INSERT 전에: ALTER TABLE [테이블명] ALTER COLUMN user_id DROP NOT NULL;
+  3. 샘플 INSERT 실행 (user_id는 null로)
+  4. INSERT 후에: ALTER TABLE [테이블명] ENABLE ROW LEVEL SECURITY;
+  5. 또는: user_id 컬럼을 nullable로 처음부터 설계 (user_id uuid references auth.users)
 - INSERT 전에 반드시 테이블이 생성된 후에 실행되도록 순서 보장
 
 🟢 관계형 데이터 패턴 (반드시 적용):
