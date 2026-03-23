@@ -745,12 +745,23 @@ export class AiService {
         fellBack: false,
       };
     } catch (error: any) {
-      // rate limit → 대기 후 재시도 (최대 3회)
-      if (error.status === 429 && retryCount < 3) {
-        const waitSec = Math.min(30, 10 * (retryCount + 1)); // 10s, 20s, 30s
-        this.logger.warn(`Rate limit 도달, ${waitSec}초 후 재시도 (${retryCount + 1}/3)`);
-        await this.rateLimitDelay(waitSec * 1000);
-        return this.callWithFallback(tier, system, messages, retryCount + 1);
+      // rate limit → 대기 후 재시도 (최대 3회), 그래도 실패하면 flash 폴백
+      if (error.status === 429) {
+        if (retryCount < 3) {
+          const waitSec = Math.min(30, 10 * (retryCount + 1)); // 10s, 20s, 30s
+          this.logger.warn(`Rate limit 도달, ${waitSec}초 후 재시도 (${retryCount + 1}/3)`);
+          await this.rateLimitDelay(waitSec * 1000);
+          return this.callWithFallback(tier, system, messages, retryCount + 1);
+        }
+        // 3회 재시도 실패 → flash 폴백 (에러보다 낫다)
+        if (tier !== 'flash') {
+          this.logger.warn(`Rate limit 3회 재시도 실패, flash로 폴백합니다`);
+          await this.rateLimitDelay(5000);
+          const fb = APP_MODELS.flash;
+          const fbRes = await this.anthropic.messages.create({ model: fb.model, max_tokens: fb.maxTokens, system, messages });
+          const fbContent = fbRes.content.filter(b => b.type === 'text').map(b => (b as Anthropic.TextBlock).text).join('\n');
+          return { content: fbContent, actualTier: 'flash' as AppModelTier, inputTokens: fbRes.usage.input_tokens, outputTokens: fbRes.usage.output_tokens, fellBack: true };
+        }
       }
 
       // 404 또는 모델 접근 불가 → Haiku(flash)로 폴백

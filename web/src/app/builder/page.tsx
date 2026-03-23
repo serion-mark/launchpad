@@ -446,6 +446,17 @@ function BuilderContent() {
       }).catch(() => {});
 
       if (modifyResult) {
+        // 수정된 파일을 기존 generatedCode에 merge하여 미리보기 즉시 갱신
+        if (project && modifyResult.modifiedFiles.length > 0) {
+          const existingFiles = Array.isArray(project.generatedCode) ? [...project.generatedCode] : [];
+          for (const mod of modifyResult.modifiedFiles) {
+            const idx = existingFiles.findIndex((f: any) => f.path === mod.path);
+            if (idx >= 0) existingFiles[idx] = mod;
+            else existingFiles.push(mod);
+          }
+          setProject({ ...project, generatedCode: existingFiles });
+        }
+
         const paths = modifyResult.modifiedFiles.map(f => f.path).join(', ');
         let replyContent = `✅ **코드 수정 완료!**\n\n`;
         replyContent += `수정된 파일 (${modifyResult.modifiedFiles.length}개): ${paths}\n`;
@@ -507,14 +518,8 @@ function BuilderContent() {
     setIsTyping(false);
     saveChatHistory(updatedMessages);
 
-    // code_change 응답 → done 상태에서 자동 수정 트리거
-    if (aiResult.responseType === 'code_change' && buildPhase === 'done' && projectId) {
-      callModifyFiles({
-        projectId,
-        message: userMsg.content,
-        modelTier: selectedModelTier,
-      });
-    }
+    // code_change 응답은 이미 done 상태에서 상단 분기로 처리됨
+    // designing 상태의 code_change는 아직 앱이 없으므로 무시
   };
 
   // ── 앱 생성 (F7: SSE 스트리밍 파이프라인) ────────────
@@ -1496,8 +1501,17 @@ function BuilderContent() {
                   element={selectedElement}
                   projectId={projectId}
                   modelTier={selectedModelTier}
-                  onAiEdit={(message) => {
-                    callModifyFiles({ projectId, message, modelTier: selectedModelTier });
+                  onAiEdit={async (message) => {
+                    const result = await callModifyFiles({ projectId, message, modelTier: selectedModelTier });
+                    if (result && project && result.modifiedFiles.length > 0) {
+                      const existingFiles = Array.isArray(project.generatedCode) ? [...project.generatedCode] : [];
+                      for (const mod of result.modifiedFiles) {
+                        const idx = existingFiles.findIndex((f: any) => f.path === mod.path);
+                        if (idx >= 0) existingFiles[idx] = mod;
+                        else existingFiles.push(mod);
+                      }
+                      setProject({ ...project, generatedCode: existingFiles });
+                    }
                     setSelectedElement(null);
                   }}
                   onClose={() => setSelectedElement(null)}

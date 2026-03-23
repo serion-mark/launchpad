@@ -153,7 +153,7 @@ export default function LivePreview({ files, previewMode, visualEditMode = false
                   : 'text-[#8b95a1] hover:bg-[#2c2c35] hover:text-[#f2f4f6]'
               }`}
             >
-              {p.route === '/' ? '홈' : p.route.replace(/^\//, '').replace(/\//g, ' / ')}
+              {p.route === '/' ? '홈' : routeToKorean(p.route)}
             </button>
           ))}
         </div>
@@ -192,6 +192,22 @@ export default function LivePreview({ files, previewMode, visualEditMode = false
       </div>
     </div>
   );
+}
+
+/** 영어 라우트를 한글 메뉴명으로 변환 */
+function routeToKorean(route: string): string {
+  const map: Record<string, string> = {
+    'store-intro': '매장소개', 'member': '회원', 'products': '상품',
+    'orders': '주문', 'shipping': '배송', 'coupons': '쿠폰',
+    'reviews': '리뷰', 'subscriptions': '정기구독', 'experience': '체험예약',
+    'dashboard': '대시보드', 'settings': '설정', 'customers': '고객',
+    'analytics': '분석', 'reservations': '예약', 'payment': '결제',
+    'cart': '장바구니', 'profile': '프로필', 'login': '로그인',
+    'signup': '회원가입', 'about': '소개', 'contact': '문의',
+    'notifications': '알림', 'chat': '채팅', 'search': '검색',
+  };
+  const key = route.replace(/^\//, '').split('/')[0];
+  return map[key] || route.replace(/^\//, '').replace(/\//g, ' / ');
 }
 
 /** globals.css에서 CSS 변수만 추출 */
@@ -243,8 +259,25 @@ function convertJsxToStaticHtml(code: string, appName: string): string {
     // {`텍스트 ${변수}`} → 텍스트 ...
     html = html.replace(/\{`([^`]*)\$\{[^}]+\}([^`]*)`\}/g, '$1...$2');
 
-    // {변수.map(...)} → 빈 문자열 (리스트 렌더링 제거)
-    html = html.replace(/\{[\w.]+\.map\([^)]*\)\s*=>\s*\([^]*?\)\)\}/g, '');
+    // {변수.map(...)} → 내부 JSX를 3개 샘플로 렌더링
+    html = html.replace(/\{[\w.]+\.map\(\s*\([^)]*\)\s*=>\s*\(([\s\S]*?)\)\s*\)\}/g, (_match, inner) => {
+      // 내부 JSX에서 변수 참조를 샘플 텍스트로 치환
+      let sample = inner
+        .replace(/\{[\w.]+\.name\}/g, '샘플 항목')
+        .replace(/\{[\w.]+\.title\}/g, '샘플 제목')
+        .replace(/\{[\w.]+\.description\}/g, '설명 텍스트입니다')
+        .replace(/\{[\w.]+\.price\}/g, '15,000원')
+        .replace(/\{[\w.]+\.image\w*\}/g, '')
+        .replace(/\{[\w.]+\.status\}/g, '진행중')
+        .replace(/\{[\w.]+\.date\}/g, '2026-03-23')
+        .replace(/\{[\w.]+\.count\}/g, '5')
+        .replace(/\{[\w.]+\.id\}/g, '1')
+        .replace(/\{[\w.[\]?]+\}/g, '...')
+        .replace(/key=\{[^}]+\}/g, '')
+        .replace(/className=/g, 'class=');
+      return sample + sample + sample;
+    });
+    // 나머지 단순 map 패턴도 처리
     html = html.replace(/\{[\w.]+\.map\([^]*?\)\}/g, '');
 
     // {조건 && (...)} → 내용 표시
