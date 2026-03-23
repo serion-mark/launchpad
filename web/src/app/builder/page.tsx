@@ -1457,7 +1457,20 @@ function BuilderContent() {
                      generateStep === 'config' ? '설정 파일 생성 중...' :
                      'AI가 코드를 생성하고 있습니다...'}
                   </span>
-                  <span className="ml-auto text-xs font-medium text-[#3182f6]">{streamingFiles.length}개 파일</span>
+                  <span className="ml-auto text-xs font-medium text-[#3182f6]">
+                    {streamingFiles.length}개 파일
+                    {(() => {
+                      if (!genStartTime || streamingFiles.length < 2) return '';
+                      const elapsed = (Date.now() - genStartTime) / 1000;
+                      const avgPerFile = elapsed / streamingFiles.length;
+                      const totalEstimate = genFileCount || streamingFiles.length + 5;
+                      const remaining = Math.max(0, Math.round(avgPerFile * (totalEstimate - streamingFiles.length) * 1.3));
+                      if (remaining <= 0) return '';
+                      const min = Math.floor(remaining / 60);
+                      const sec = remaining % 60;
+                      return ` · 약 ${min > 0 ? `${min}분 ` : ''}${sec}초 남음`;
+                    })()}
+                  </span>
                 </div>
                 {(() => {
                   const stepOrder = ['architecture', 'schema', 'supabase', 'frontend', 'config', 'quality'];
