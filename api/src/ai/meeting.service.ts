@@ -133,28 +133,56 @@ export class MeetingService {
         this.logger.warn(`[Gemini 패스] ${err.message}`);
       }
 
-      // 2-2: GPT (원본 자료 + Gemini 분석 참고)
+      // 2-2: GPT 2차 분석 (원본 + Gemini 누적)
       const gptInput = geminiAnalysis
-        ? `${rawContext}\n\n[Gemini ${AI_ROLES.gemini.role}의 분석]\n${geminiAnalysis}`
+        ? `${rawContext}\n\n[Gemini ${AI_ROLES.gemini.role}의 1차 분석]\n${geminiAnalysis}`
         : rawContext;
+      const gptSystemPrompt = geminiAnalysis
+        ? `당신은 ${AI_ROLES.gpt.role}입니다. Gemini(${AI_ROLES.gemini.role})의 1차 분석을 읽었습니다.
+반드시 아래 형식으로 답변하세요:
+
+## ✅ Gemini 분석에 공감하는 부분
+- (Gemini가 말한 내용 중 동의하는 것과 이유)
+
+## ❌ Gemini 분석에 반박하는 부분
+- (Gemini가 놓치거나 틀린 부분, 대안적 근거 제시)
+
+## 💡 새로운 관점 (Gemini가 다루지 않은 것)
+- (추가 분석)
+
+## 📊 나의 분석
+${AI_ROLES.gpt.instruction} 한국어로.`
+        : `당신은 ${AI_ROLES.gpt.role}입니다. ${AI_ROLES.gpt.instruction} 한국어로 분석하세요.`;
       const gptAnalysis = await this.llmRouter.callOpenAI(
-        `당신은 ${AI_ROLES.gpt.role}입니다. ${AI_ROLES.gpt.instruction} 한국어로 분석하세요.`,
+        gptSystemPrompt,
         gptInput,
         models.gpt,
         4096,
       );
       yield { phase: 'analysis', ai: 'GPT', role: AI_ROLES.gpt.role, content: gptAnalysis };
 
-      // 2-3: Claude 3차 분석 (순차 누적 — 원본 + Gemini + GPT 전부 읽고 종합)
+      // 2-3: Claude 3차 분석 (순차 누적 — 원본 + Gemini + GPT 전부 읽고)
       const claudeInput = geminiAnalysis
         ? `${rawContext}\n\n[Gemini ${AI_ROLES.gemini.role}의 1차 분석]\n${geminiAnalysis}\n\n[GPT ${AI_ROLES.gpt.role}의 2차 분석]\n${gptAnalysis}`
         : `${rawContext}\n\n[GPT ${AI_ROLES.gpt.role}의 분석]\n${gptAnalysis}`;
+      const prevAIs = geminiAnalysis ? 'Gemini와 GPT' : 'GPT';
       const claudeAnalysis = await this.llmRouter.callAnthropic(
-        `당신은 ${AI_ROLES.claude.role}입니다. 이전 AI들의 분석을 모두 읽고:
-1. 공감하는 부분과 반박할 부분을 명시적으로 구분하세요
-2. 이전 AI들이 놓친 새로운 관점을 추가하세요
-3. 종합 판단과 실행 가능한 제안을 포함하세요
-${AI_ROLES.claude.instruction} 한국어로 분석하세요.`,
+        `당신은 ${AI_ROLES.claude.role}입니다. ${prevAIs}의 분석을 모두 읽었습니다.
+반드시 아래 형식으로 답변하세요:
+
+## ✅ 이전 AI들과 공감하는 부분
+- (누구의 어떤 분석에 동의하는지 명시)
+
+## ❌ 이전 AI들에 반박하는 부분
+- (누구의 어떤 주장에 반박하는지 + 대안 근거)
+
+## 💡 놓친 관점 보완
+- (이전 AI들이 모두 다루지 않은 새로운 관점)
+
+## 🎯 종합 판단 및 실행 제안
+- (전체를 종합한 최종 의견과 구체적 액션 아이템)
+
+한국어로 분석하세요.`,
         claudeInput,
         models.claude,
         4096,
