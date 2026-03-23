@@ -1579,6 +1579,10 @@ function StartPage() {
                             }
                           }
                           setSmartAnalysis({ running: false, phase: '', results });
+                          // 분석 완료 → 자동으로 앱 생성 시작
+                          if (results.optimization) {
+                            setTimeout(() => handleGenerate(), 500);
+                          }
                         } catch {
                           setSmartAnalysis({ running: false, phase: '', results: {} });
                         }
