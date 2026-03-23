@@ -150,7 +150,7 @@ export default function ChatWidget() {
 
       {/* 챗봇 창 */}
       {isOpen && (
-        <div className="fixed bottom-24 right-6 z-50 w-[360px] max-w-[calc(100vw-48px)] rounded-2xl border border-[#2c2c35] bg-[#1b1b21] shadow-2xl shadow-black/40 flex flex-col overflow-hidden"
+        <div className="fixed bottom-24 right-3 sm:right-6 z-50 w-[calc(100vw-24px)] sm:w-[360px] max-w-[360px] rounded-2xl border border-[#2c2c35] bg-[#1b1b21] shadow-2xl shadow-black/40 flex flex-col overflow-hidden"
           style={{ maxHeight: 'min(520px, calc(100vh - 140px))' }}
         >
           {/* 헤더 */}

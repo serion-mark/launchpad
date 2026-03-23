@@ -236,7 +236,7 @@ export default function LandingPage() {
           </div>
 
           <p className="mt-6 text-center text-xs text-[#6b7684]">
-            가격은 부가세 별도 &middot; 호스팅 월 9,900원 별도 &middot; 다운로드 5,000 크레딧
+            가격은 부가세 별도 &middot; 호스팅 월 29,000원 별도 &middot; 다운로드 5,000 크레딧
           </p>
         </div>
       </section>

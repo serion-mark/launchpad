@@ -7,6 +7,7 @@ import { AgentService } from './agent.service';
 import { MeetingService } from './meeting.service';
 import { SmartAnalysisService } from './smart-analysis.service';
 import { ImageService } from './image.service';
+import { CreditService } from '../credit/credit.service';
 import type { GenerationProgress } from './ai.service';
 import type { AgentStepEvent } from './agent.service';
 import type { MeetingTier, MeetingPreset } from './meeting.service';
@@ -22,6 +23,7 @@ export class AiController {
     private meetingService: MeetingService,
     private smartAnalysisService: SmartAnalysisService,
     private imageService: ImageService,
+    private creditService: CreditService,
   ) {}
 
   // ── 빌더 채팅 (실시간 AI 대화) ─────────────────────
@@ -278,8 +280,14 @@ export class AiController {
   // ── AI 회의실 추가 분석: 3AI 핑퐁 ─────────────────
   @Post('meeting-chat')
   async meetingChat(
+    @Req() req: any,
     @Body() body: { question: string; context: string; direction?: string; history?: { role: string; content: string }[] },
   ) {
+    // 후속 핑퐁은 스탠다드 비용 차감
+    await this.creditService.deduct(req.user.userId, {
+      action: 'meeting_standard',
+      description: 'AI 회의실 추가 분석',
+    });
     const replies = await this.meetingService.followUpChat(body);
     return replies;
   }
@@ -306,6 +314,24 @@ export class AiController {
       preAnswers?: string;
     },
   ) {
+    // 크레딧 선차감 (SSE 시작 전)
+    const creditAction = body.tier === 'premium' ? 'meeting_premium' : 'meeting_standard';
+    try {
+      await this.creditService.deduct(req.user.userId, {
+        action: creditAction as any,
+        description: `AI 회의실 (${body.tier === 'premium' ? '프리미엄' : '스탠다드'})`,
+      });
+    } catch (err: any) {
+      // 크레딧 부족 시 JSON 응답 (SSE 시작 전이므로 일반 에러)
+      const parsed = (() => { try { return JSON.parse(err.message); } catch { return null; } })();
+      if (parsed?.code === 'INSUFFICIENT_CREDITS') {
+        res.status(403).json({ code: 'INSUFFICIENT_CREDITS', required: parsed.required, current: parsed.current, message: parsed.message });
+      } else {
+        res.status(500).json({ message: '크레딧 처리 중 오류가 발생했습니다' });
+      }
+      return;
+    }
+
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
@@ -341,6 +367,23 @@ export class AiController {
       tier: 'standard' | 'premium';
     },
   ) {
+    // 크레딧 선차감
+    const creditAction = body.tier === 'premium' ? 'smart_analysis_premium' : 'smart_analysis_standard';
+    try {
+      await this.creditService.deduct(req.user.userId, {
+        action: creditAction as any,
+        description: `스마트 분석 (${body.tier === 'premium' ? '프리미엄' : '스탠다드'})`,
+      });
+    } catch (err: any) {
+      const parsed = (() => { try { return JSON.parse(err.message); } catch { return null; } })();
+      if (parsed?.code === 'INSUFFICIENT_CREDITS') {
+        res.status(403).json({ code: 'INSUFFICIENT_CREDITS', required: parsed.required, current: parsed.current, message: parsed.message });
+      } else {
+        res.status(500).json({ message: '크레딧 처리 중 오류가 발생했습니다' });
+      }
+      return;
+    }
+
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
@@ -360,7 +403,7 @@ export class AiController {
 
   // ── AI 이미지 생성 ───────────────────────────────────
   @Post('generate-image')
-  generateImage(
+  async generateImage(
     @Req() req: any,
     @Body() body: {
       prompt: string;
@@ -368,6 +411,12 @@ export class AiController {
       projectId?: string;
     },
   ) {
+    // 크레딧 선차감
+    await this.creditService.deduct(req.user.userId, {
+      action: 'image_generate',
+      projectId: body.projectId,
+      description: 'AI 이미지 생성',
+    });
     return this.imageService.generateImage(body.prompt, body.style, body.projectId);
   }
 }

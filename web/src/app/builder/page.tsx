@@ -614,69 +614,77 @@ function BuilderContent() {
         complete: '✅ 완료',
       };
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
 
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          try {
-            const data = JSON.parse(line.slice(6));
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const data = JSON.parse(line.slice(6));
 
-            if (data.type === 'progress') {
-              const label = stepLabels[data.step] || data.step;
-              const msg = data.detail ? `${label}: ${data.detail}` : `${label} (${data.progress})`;
-              setGenerateProgress(prev => [...prev, msg]);
-              setGenerateStep(data.step);
-              if (data.fileCount) setGenFileCount(data.fileCount);
-              if (data.totalFiles) setGenTotalFiles(data.totalFiles);
+              if (data.type === 'progress') {
+                const label = stepLabels[data.step] || data.step;
+                const msg = data.detail ? `${label}: ${data.detail}` : `${label} (${data.progress})`;
+                setGenerateProgress(prev => [...prev, msg]);
+                setGenerateStep(data.step);
+                if (data.fileCount) setGenFileCount(data.fileCount);
+                if (data.totalFiles) setGenTotalFiles(data.totalFiles);
 
-              // 실시간 미리보기: SSE에서 생성된 파일을 LivePreview에 즉시 반영
-              if (data.generatedFiles && Array.isArray(data.generatedFiles)) {
-                setStreamingFiles(prev => {
-                  const updated = [...prev];
-                  for (const newFile of data.generatedFiles) {
-                    const idx = updated.findIndex(f => f.path === newFile.path);
-                    if (idx >= 0) {
-                      updated[idx] = newFile;
-                    } else {
-                      updated.push(newFile);
+                // 실시간 미리보기: SSE에서 생성된 파일을 LivePreview에 즉시 반영
+                if (data.generatedFiles && Array.isArray(data.generatedFiles)) {
+                  setStreamingFiles(prev => {
+                    const updated = [...prev];
+                    for (const newFile of data.generatedFiles) {
+                      const idx = updated.findIndex(f => f.path === newFile.path);
+                      if (idx >= 0) {
+                        updated[idx] = newFile;
+                      } else {
+                        updated.push(newFile);
+                      }
                     }
-                  }
-                  return updated;
-                });
+                    return updated;
+                  });
+                }
+
+                // 상태 메시지 업데이트
+                const fileInfo = data.fileCount ? ` — ${data.fileCount}개 파일` : '';
+                setMessages(prev => prev.map(m =>
+                  m.id === statusMsgId
+                    ? { ...m, content: `🚀 **AI가 앱을 생성합니다** (${selectedModelTier.toUpperCase()} 모델)\n\n${label} 중...${fileInfo}\n\n${data.message || ''}` }
+                    : m
+                ));
               }
 
-              // 상태 메시지 업데이트
-              const fileInfo = data.fileCount ? ` — ${data.fileCount}개 파일` : '';
-              setMessages(prev => prev.map(m =>
-                m.id === statusMsgId
-                  ? { ...m, content: `🚀 **AI가 앱을 생성합니다** (${selectedModelTier.toUpperCase()} 모델)\n\n${label} 중...${fileInfo}\n\n${data.message || ''}` }
-                  : m
-              ));
-            }
+              if (data.type === 'done') {
+                handleGenerateComplete(data);
+              }
 
-            if (data.type === 'done') {
-              handleGenerateComplete(data);
-            }
-
-            if (data.type === 'error') {
-              setBuildPhase('designing');
-              setMessages(prev => [...prev, {
-                id: Date.now().toString(), role: 'assistant',
-                content: `생성 실패: ${data.message}\n\n다시 시도해주세요.`,
-                timestamp: new Date().toISOString(), type: 'text',
-              }]);
-            }
-          } catch { /* JSON 파싱 실패 무시 */ }
+              if (data.type === 'error') {
+                setBuildPhase('designing');
+                setMessages(prev => [...prev, {
+                  id: Date.now().toString(), role: 'assistant',
+                  content: `생성 실패: ${data.message}\n\n다시 시도해주세요.`,
+                  timestamp: new Date().toISOString(), type: 'text',
+                }]);
+              }
+            } catch { /* JSON 파싱 실패 무시 */ }
+          }
         }
+      } finally {
+        // SSE 버퍼 정리 (메모리 누수 방지)
+        buffer = '';
+        reader.releaseLock();
       }
     } catch {
       setBuildPhase('designing');
+      setGenerateProgress([]);
+      setStreamingFiles([]);
       setMessages(prev => [...prev, {
         id: Date.now().toString(), role: 'assistant',
         content: '네트워크 오류가 발생했습니다. 다시 시도해주세요.',

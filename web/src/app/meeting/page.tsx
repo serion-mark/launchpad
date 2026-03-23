@@ -187,6 +187,10 @@ export default function MeetingPage() {
           window.location.href = '/login';
           return;
         }
+        // 크레딧 부족 시 명확한 안내
+        if (res.status === 403 && errBody.code === 'INSUFFICIENT_CREDITS') {
+          throw new Error(`크레딧이 부족합니다 (필요: ${errBody.required?.toLocaleString()}cr, 잔액: ${errBody.current?.toLocaleString()}cr). 충전 후 다시 시도해주세요.`);
+        }
         const friendlyMessages: Record<number, string> = {
           400: '입력 형식이 잘못되었습니다',
           403: '권한이 없습니다',
@@ -201,21 +205,26 @@ export default function MeetingPage() {
       const decoder = new TextDecoder();
       let buffer = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
 
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          try {
-            const event = JSON.parse(line.slice(6));
-            handleEvent(event);
-          } catch { /* skip malformed */ }
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const event = JSON.parse(line.slice(6));
+              handleEvent(event);
+            } catch { /* skip malformed */ }
+          }
         }
+      } finally {
+        buffer = '';
+        reader.releaseLock();
       }
 
       setPhase('done');

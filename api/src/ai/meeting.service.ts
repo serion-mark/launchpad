@@ -120,7 +120,7 @@ export class MeetingService {
       // 원본 자료 컨텍스트 (각 AI에게 직접 전달)
       const rawContext = `[주제]\n${topic}\n\n[분석 유형]\n${presetPrompt}${preAnswerContext}${trimmedFile ? `\n\n[원본 자료]\n${trimmedFile}` : ''}`;
 
-      // 2-1: Gemini (원본 자료 직접 분석, 실패 시 건너뛰기)
+      // 2-1: Gemini (원본 자료 직접 분석, 실패 시 GPT+Claude만 진행)
       let geminiAnalysis = '';
       try {
         geminiAnalysis = await this.llmRouter.callGoogle(
@@ -132,6 +132,8 @@ export class MeetingService {
         yield { phase: 'analysis', ai: 'Gemini', role: AI_ROLES.gemini.role, content: geminiAnalysis };
       } catch (err: any) {
         this.logger.warn(`[Gemini 패스] ${err.message}`);
+        // 사용자에게 Gemini 건너뛰기 알림
+        yield { phase: 'analysis', ai: 'Gemini', role: AI_ROLES.gemini.role, content: '⚠️ Gemini 분석을 건너뛰었습니다 (API 제한). GPT와 Claude가 더 깊이 분석합니다.' };
       }
 
       // 2-2: GPT 2차 분석 (원본 + Gemini 누적)

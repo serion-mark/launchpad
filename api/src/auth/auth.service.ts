@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcryptjs';
@@ -13,6 +13,15 @@ export class AuthService {
   ) {}
 
   async signup(email: string, password: string, name?: string) {
+    // 이메일 형식 검증
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new BadRequestException('유효한 이메일 주소를 입력해주세요');
+    }
+    // 비밀번호 길이 검증
+    if (!password || password.length < 6) {
+      throw new BadRequestException('비밀번호는 6자 이상이어야 합니다');
+    }
+
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) throw new ConflictException('이미 가입된 이메일입니다');
 
@@ -49,11 +58,17 @@ export class AuthService {
 
   /** 약관 동의 처리 */
   async agreeTerms(userId: string, body: { terms: boolean; privacy: boolean; refund: boolean; marketing?: boolean }) {
+    // 필수 약관 동의 검증
+    if (!body.terms || !body.privacy || !body.refund) {
+      throw new BadRequestException('이용약관, 개인정보처리방침, 환불정책은 필수 동의 항목입니다');
+    }
+
     const now = new Date();
-    const data: any = {};
-    if (body.terms) data.termsAgreedAt = now;
-    if (body.privacy) data.privacyAgreedAt = now;
-    if (body.refund) data.refundAgreedAt = now;
+    const data: any = {
+      termsAgreedAt: now,
+      privacyAgreedAt: now,
+      refundAgreedAt: now,
+    };
     if (body.marketing) data.marketingAgreedAt = now;
 
     const user = await this.prisma.user.update({ where: { id: userId }, data });
