@@ -278,7 +278,7 @@ export class AiController {
   // ── AI 회의실 사전 질문 ─────────────────────────────
   @Post('meeting-pre-question')
   async meetingPreQuestion(
-    @Body() body: { topic: string; preset?: MeetingPreset },
+    @Body() body: { topic: string; preset?: MeetingPreset; fileLength?: number },
   ) {
     const questions = await this.meetingService.generatePreQuestions(body);
     return { questions };

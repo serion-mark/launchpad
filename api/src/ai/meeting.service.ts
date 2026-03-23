@@ -55,9 +55,14 @@ export class MeetingService {
   async generatePreQuestions(params: {
     topic: string;
     preset?: MeetingPreset;
+    fileLength?: number;
   }): Promise<string> {
-    const { topic, preset = 'free' } = params;
+    const { topic, preset = 'free', fileLength = 0 } = params;
     const presetPrompt = PRESET_PROMPTS[preset];
+
+    const fileSizeWarning = fileLength > 8000
+      ? `\n\n⚠️ 첨부 자료가 큰 편입니다 (${(fileLength / 1000).toFixed(0)}K자). 앞부분 8,000자를 중심으로 분석되며, 크레딧 소모가 다소 높을 수 있습니다.`
+      : '';
 
     const result = await this.llmRouter.callAnthropic(
       `당신은 전문 퍼실리테이터입니다. 사용자가 요청한 분석 주제를 보고, 더 나은 회의를 위해 2~3개의 확인 질문을 한국어로 만드세요.
@@ -68,7 +73,7 @@ export class MeetingService {
       1024,
     );
 
-    return result;
+    return result + fileSizeWarning;
   }
 
   /**

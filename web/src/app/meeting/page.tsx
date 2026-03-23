@@ -144,7 +144,7 @@ export default function MeetingPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ topic: topic.trim(), preset }),
+        body: JSON.stringify({ topic: topic.trim(), preset, fileLength: file.length || 0 }),
       });
       if (!res.ok) throw new Error('사전 질문 생성 실패');
       const data = await res.json();
