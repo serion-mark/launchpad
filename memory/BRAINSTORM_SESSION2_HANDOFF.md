@@ -145,6 +145,116 @@ GPT, Gemini한테 Foundry 소개 후 피드백 받음.
 
 ---
 
+---
+
+## 3/23 저녁~밤 추가 진행 사항 (Phase 12~13 완료!)
+
+### Phase 12 완료 (17:24~20:00, 약 3시간!)
+```
+Day 1: Critical 3개 (CSS/DB/온보딩)
+  + 테스트 7차!!! (1~7차, 매번 버그 발견→수정→재테스트)
+  + 긴급 수정 세션 (버그 5개)
+Day 2: Major 6개 (마크다운/존칭/기술용어/Turbopack)
+Day 3~5: 21개 항목 완료 (크레딧UI/모두의창업/독립/이용약관/환불/가격동기화)
++ deploy.sh npm install 추가 (502 방지)
+
+= Phase 12: 21/21 완료 (100%)
+```
+
+### QA 3라운드 점수 변화
+```
+Round 1: 6.5/10 (기본 작동 확인)
+Round 2: 5.1 → 8.0 (보안/결제/법적 심화, 수정 8건)
+Round 3: 8.4 → 9.1!!! (보안 Critical 4건 수정)
+```
+
+### Phase 13 완료 (22:00~23:00, 약 1시간!)
+```
+보안 수정 4건:
+- 크레딧 Race Condition → DB 레벨 잔액 보장
+- Path Traversal → 경로 검증
+- CORS 전체 개방 → foundry.ai.kr 화이트리스트
+- 결제금액 미검증 → 패키지 가격 매칭 강제
+
+빌드 큐 시스템:
+- 동시 빌드 최대 2개 제한
+- 대기열 메시지: "앞에 N개 작업 중, 약 N분 소요"
+- Redis 없이 in-memory (심플!)
+
+메모리/핑퐁UI/보고서채팅:
+- 이전 Phase에서 이미 완료되어 있었음 ㅋㅋ
+```
+
+### 발견한 핵심 버그들 (테스트 7차 + QA 3라운드로 발견)
+```
+1. NODE_ENV=production → npm install이 tailwind 설치 안 함 (CSS 깨짐 근본 원인!)
+2. Supabase API: statements가 아니라 query 파라미터 (DB 안 만들어짐!)
+3. INSERT에서 user_id NOT NULL 위반 → 전체 롤백 (DDL/DML 분리 필요!)
+4. callModifyFiles() 후 setProject() 미호출 (수정해도 미리보기 안 바뀜!)
+5. fire-and-forget 패턴 → 크레딧 이중 차감 (돈만 나가고 결과 없음!)
+6. Claude 모델 ID 오타 3곳 (404 에러!)
+7. 회의실 크레딧 차감 누락 (무한 무료 사용!)
+8. 호스팅 가격 9,900원/29,000원 혼재 (법적 문제!)
+9. deploy.sh에 web npm install 누락 (502 재발!)
+```
+
+### 토스페이먼츠 현황
+```
+MID 1: bill_serioi8u1 (빌링/자동결제) — 심사 중 (3/20 접수)
+MID 2: serionjq7k (전자결제/일반결제) — 결제 대기 (33만원)
+→ 내일 1544-7772 전화: 기존 MID에 전자결제 추가 가능한지 확인!
+→ 가능하면 33만원 절약!
+→ 4/22까지 여유 있으니 급하지 않음
+```
+
+### Snowflake 해커톤 2026 신청 완료!
+```
+참가 신청: ✅ 완료
+과제 제출: 4/1~4/12
+결선: 4/29
+전략: 비즈니스 트랙 + Foundry AI 회의실 시연
+     + Snowflake 데이터 연동
+```
+
+### 개발 규칙 추가 (모든 Phase에 적용!)
+```
+## 개발 규칙 (필수)
+- 매 Phase 시작 = QA Round 먼저!
+- QA 점수 보고 → Critical 수정 → Phase 작업
+- Phase 끝 = QA Round 다시!
+- 오류찾기게임 = 품질의 비결!
+- 120%가 기본!
+```
+
+### 특허 4호 변리사 피드백
+```
+변리사 의견:
+- 선행기술 없음 (긍정적!)
+- "AI 활용"으로만 보이면 거절 위험
+- 세리온 특허처럼 "산업분야 + 알고리즘"이면 가능
+
+대응:
+- "AI" → "분석 모듈"로 전면 교체
+- 순차 누적 = 데이터 처리 알고리즘
+- 공감/반박 분류 = 자연어 분류 알고리즘
+- 쟁점 추출 = 패턴 매칭 알고리즘
+- 범용 유지 + 실시예로만 산업 적용 보여주기
+- 기술설명서 수정 명령어 별도 작성 완료
+```
+
+### 마케팅 전략 저장 완료
+```
+/Users/mark/Desktop/세리온 전략/Foundry_마케팅.md
+- 인스타 카드형 4장 (DLNL 카피캣 스타일)
+- 스토리형 본문 (카페/브런치용)
+- 숏폼 영상 대본 (15초/60초)
+- 타겟 채널 3단계
+- 마케팅 카피 모음
+- 실행 조건: 특허 출원번호 나오면 시작!
+```
+
+---
+
 ## 아직 논의 필요한 것 (다음 브레인스토밍에서)
 
 1. 첫 유료 고객 확보 전략 구체화
@@ -152,6 +262,10 @@ GPT, Gemini한테 Foundry 소개 후 피드백 받음.
 3. AI 회의실 독립 서비스 분리 시점
 4. CHAIN-G IR 발표 준비 (4/3 마감)
 5. 세리온 POS 이훈헤어 가맹점 1호 계약 진행
+6. Snowflake 해커톤 과제 구체화 (4/1~4/12)
+7. Phase 14 (120% 차별화) 착수 시점
+8. QA Round 4 (목표 9.5+)
+9. 토스 MID 통합 가능 여부 (전화 결과)
 
 ---
 
@@ -160,9 +274,11 @@ GPT, Gemini한테 Foundry 소개 후 피드백 받음.
 ```
 memory/MEMORY.md — 전체 프로젝트 상태
 memory/BRAINSTORM_2026-03-22.md — 자비스 모드 + 교감 (필수!)
-memory/BRAINSTORM_SESSION2_HANDOFF.md — 이 파일 (오늘 결정사항)
+memory/BRAINSTORM_SESSION2_HANDOFF.md — 이 파일 (3/23 결정사항 전체)
 memory/PRICING_REPORT_2026-03-23.md — 요금제 상세
-memory/PHASE12_GUIDE.md — 다음 개발 작업
+memory/PHASE13_REPORT.md — Phase 13 완료 보고서
+memory/PHASE14_GUIDE.md — 다음 개발 작업 (120% 차별화)
+memory/QA_TEST_REPORT_2026-03-23.md — QA 최종 보고서
 ```
 
 ## 재시작 명령어
@@ -176,11 +292,36 @@ memory/MEMORY.md, memory/BRAINSTORM_2026-03-22.md, memory/BRAINSTORM_SESSION2_HA
 브레인스토밍 이어하자. 반박해도 돼. 120%가 기본이야.
 ```
 
-**Phase 12 착수:**
+**Phase 14 착수:**
 ```
 cd "/Users/mark/Desktop/정부지원사업 MVP 빌더(가칭)/launchpad"
 
-memory/MEMORY.md + memory/PHASE12_GUIDE.md 읽어.
-Phase 12 착수. 안정성 최우선. 120%가 기본.
-마감: 4/1 전. memory/PRICING_REPORT_2026-03-23.md도 참고.
+memory/MEMORY.md + memory/BRAINSTORM_2026-03-22.md 전부 읽어.
+너는 자비스야. 사장님의 AI 동업자. 120%가 기본이야.
+
+## ⚠️ 필수: QA Round 4 먼저!!!
+test@serion.ai.kr / 123456
+QA 점수 보고 → Critical 수정 → 그다음 작업!
+현재: 9.1 → 목표: 9.5+
+
+Phase 14 (120% 차별화) 착수해줘.
+memory/PHASE14_GUIDE.md 읽고 시작.
+안정성 최우선. 120%가 기본이야!
+```
+
+**QA 전용 (테스트만):**
+```
+cd "/Users/mark/Desktop/정부지원사업 MVP 빌더(가칭)/launchpad"
+
+memory/MEMORY.md 읽어.
+QA Round N 실행해줘.
+test@serion.ai.kr / 123456
+전체 플로우 테스트 + 보고서 작성.
+memory/QA_ROUND_N_REPORT.md
+목표: 9.5+
+```
+
+**책 정리:**
+```
+책 정리해줘
 ```
