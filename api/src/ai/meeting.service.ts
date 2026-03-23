@@ -145,17 +145,34 @@ export class MeetingService {
       );
       yield { phase: 'analysis', ai: 'GPT', role: AI_ROLES.gpt.role, content: gptAnalysis };
 
-      // 2-3: Claude (원본 자료 + 다른 AI 분석 종합)
-      const claudeInput = geminiAnalysis
-        ? `${rawContext}\n\n[Gemini ${AI_ROLES.gemini.role}]\n${geminiAnalysis}\n\n[GPT ${AI_ROLES.gpt.role}]\n${gptAnalysis}`
-        : `${rawContext}\n\n[GPT ${AI_ROLES.gpt.role}]\n${gptAnalysis}`;
+      // 2-3: Claude 독립 분석 (원본만 보고 자기 관점으로)
       const claudeAnalysis = await this.llmRouter.callAnthropic(
-        `당신은 ${AI_ROLES.claude.role}입니다. ${AI_ROLES.claude.instruction} 한국어로 분석하세요.`,
-        claudeInput,
+        `당신은 ${AI_ROLES.claude.role}입니다. 다른 AI의 분석을 보지 말고, 원본 자료만 보고 독립적으로 분석하세요. ${AI_ROLES.claude.instruction} 한국어로 분석하세요.`,
+        rawContext,
         models.claude,
         4096,
       );
-      yield { phase: 'analysis', ai: 'Claude', role: AI_ROLES.claude.role, content: claudeAnalysis };
+      yield { phase: 'analysis', ai: 'Claude', role: '독립 분석', content: claudeAnalysis };
+
+      // 2-4: Claude 종합 (전체 AI 분석을 읽고 최종 종합)
+      const allAnalyses = [
+        geminiAnalysis ? `[Gemini ${AI_ROLES.gemini.role}]\n${geminiAnalysis}` : '',
+        `[GPT ${AI_ROLES.gpt.role}]\n${gptAnalysis}`,
+        `[Claude 독립 분석]\n${claudeAnalysis}`,
+      ].filter(Boolean).join('\n\n');
+
+      const claudeSynthesis = await this.llmRouter.callAnthropic(
+        `당신은 최종 종합 담당입니다. 3개 AI(Gemini/GPT/Claude)의 분석을 모두 읽고:
+1. 공통된 의견 (합의점)
+2. 의견이 갈리는 부분 (쟁점)
+3. 놓친 관점 보완
+4. 최종 결론 및 액션 아이템
+을 정리하세요. 한국어로, 간결하게.`,
+        `${rawContext}\n\n${allAnalyses}`,
+        models.claude,
+        4096,
+      );
+      yield { phase: 'analysis', ai: 'Claude', role: '최종 종합', content: claudeSynthesis };
 
       // ── Phase 3: 쟁점 핑퐁 (프리미엄만) ──────────────
       if (tier === 'premium') {
