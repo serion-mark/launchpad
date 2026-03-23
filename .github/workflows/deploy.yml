@@ -27,12 +27,14 @@ jobs:
             npx prisma db push --skip-generate 2>&1 || echo "prisma db push skipped"
             npx prisma generate 2>&1
 
-            # ── API 빌드 + 재시작 ──
+            # ── API 의존성 설치 + 빌드 + 재시작 ──
+            npm install
             npm run build
             pm2 restart launchpad-api
 
-            # ── Web 빌드 + 재시작 ──
+            # ── Web 의존성 설치 + 빌드 + 재시작 ──
             cd ../web
+            npm install
             npm run build
             pm2 restart launchpad-web
 
