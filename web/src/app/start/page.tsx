@@ -877,17 +877,23 @@ function StartPage() {
     setStep('generating');
     try {
       const selectedFeatureIds = Array.from(selectedFeatures);
+      const smartAnalysisText = smartAnalysis.results.optimization
+        ? `\n\n[스마트 분석 결과]\n시장분석: ${smartAnalysis.results.market || ''}\n벤치마크: ${smartAnalysis.results.benchmark || ''}\n설계최적화: ${smartAnalysis.results.optimization}`
+        : '';
       const res = await authFetch('/projects', {
         method: 'POST',
         body: JSON.stringify({
           name: projectName,
           template: selectedTemplate!.id,
           theme: selectedTheme.id,
-          features: { selected: selectedFeatureIds, themeId: selectedTheme.id },
-          description: [
-            customRequirements,
-            smartAnalysis.results.optimization ? `\n\n[스마트 분석 결과]\n시장분석: ${smartAnalysis.results.market || ''}\n벤치마크: ${smartAnalysis.results.benchmark || ''}\n설계최적화: ${smartAnalysis.results.optimization}` : '',
-          ].filter(Boolean).join('') || undefined,
+          features: {
+            selected: selectedFeatureIds,
+            themeId: selectedTheme.id,
+            answers,                              // 질문지 답변 전달!
+            readyToGenerate: true,                // /builder에서 질문지 스킵 신호
+            smartAnalysisResults: smartAnalysis.results.optimization ? smartAnalysis.results : null,
+          },
+          description: [customRequirements, smartAnalysisText].filter(Boolean).join('') || undefined,
         }),
       });
 

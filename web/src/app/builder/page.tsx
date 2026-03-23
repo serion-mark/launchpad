@@ -169,6 +169,7 @@ function BuilderContent() {
   const [showCostModal, setShowCostModal] = useState<'deploy' | 'download' | null>(null);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [autoGenerate, setAutoGenerate] = useState(false); // /start에서 넘어온 경우 자동 생성
   const [previewMode, setPreviewMode] = useState<'mobile' | 'desktop'>('mobile');
   const [projectFeatures, setProjectFeatures] = useState<string[]>([]); // 랜딩에서 선택한 기능
   const [activeMenu, setActiveMenu] = useState<string>('dashboard'); // 미리보기 활성 메뉴
@@ -225,8 +226,19 @@ function BuilderContent() {
             } else {
               setBuildPhase('designing');
             }
+          } else if (data.features?.readyToGenerate && data.features?.answers) {
+            // /start에서 질문지 완료 + 바로 코드 생성!
+            setMessages([{
+              id: '1', role: 'assistant',
+              content: `**${data.name}** 프로젝트 코드 생성을 시작합니다!${data.features?.smartAnalysisResults ? '\n\n🧠 스마트 분석 결과가 반영됩니다.' : ''}`,
+              timestamp: new Date().toISOString(), type: 'text',
+            }]);
+            setAnswers(data.features.answers);
+            setProjectFeatures(data.features.selected || []);
+            // 자동 생성 플래그 세팅 (useEffect에서 처리)
+            setAutoGenerate(true);
           } else {
-            // 질문지 시작
+            // 질문지 시작 (answers 없는 경우만)
             const tmpl = data.template || 'beauty-salon';
             const qs = QUESTIONNAIRES[tmpl] || QUESTIONNAIRES['beauty-salon'];
             const firstQ = qs[0];
@@ -247,6 +259,14 @@ function BuilderContent() {
       } catch { /* */ }
     })();
   }, [projectId]);
+
+  // /start에서 넘어온 경우: answers 세팅 후 자동 코드 생성
+  useEffect(() => {
+    if (autoGenerate && Object.keys(answers).length > 0 && projectId) {
+      setAutoGenerate(false);
+      handleGenerate();
+    }
+  }, [autoGenerate, answers, projectId]);
 
   const saveChatHistory = (msgs: Message[], showToast = false) => {
     if (!projectId || msgs.length === 0) return;
