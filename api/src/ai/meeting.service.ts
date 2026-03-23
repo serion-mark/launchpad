@@ -253,7 +253,35 @@ export class MeetingService {
   }
 
   /**
-   * 추가 채팅: 방향 확인 질문 생성 — Claude가 이전 대화를 요약하고 방향을 물어봄
+   * 일반 채팅: Claude가 자연스럽게 대화 (분석 모드 아님)
+   */
+  async simpleChat(params: {
+    question: string;
+    context: string;
+    history?: { role: string; content: string }[];
+  }): Promise<string> {
+    const { question, context, history = [] } = params;
+
+    const historyText = history.length > 0
+      ? history.slice(-6).map(h => `${h.role}: ${h.content}`).join('\n\n')
+      : '';
+
+    return this.llmRouter.callAnthropic(
+      `당신은 친절한 비즈니스 어시스턴트입니다. 아래 회의 결과를 참고하여 사용자와 자연스럽게 대화하세요.
+- 질문에 직접적으로 답변하세요 (확인 질문이나 방향 질문 하지 마세요)
+- 간결하고 실용적으로 답변하세요
+- 한국어로 작성하세요
+
+[회의 결과 참고]
+${context.slice(0, 4000)}`,
+      `${historyText ? `[이전 대화]\n${historyText}\n\n` : ''}${question}`,
+      'claude-haiku-4-5-20251001',
+      2048,
+    );
+  }
+
+  /**
+   * 추가 분석: 의도 확인 질문 생성 — Claude가 이전 대화를 정리하고 분석 방향을 물어봄
    */
   async generateFollowUpDirection(params: {
     question: string;

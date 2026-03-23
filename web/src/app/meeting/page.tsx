@@ -286,7 +286,7 @@ export default function MeetingPage() {
     return '';
   }).filter(Boolean).join('\n\n');
 
-  // ── 일반 채팅: Claude만 빠르게 ──────────────────────
+  // ── 일반 채팅: Claude와 자연스러운 대화 ──────────────
   const sendChat = async () => {
     if (!chatInput.trim() || chatLoading) return;
     const token = getToken();
@@ -299,14 +299,14 @@ export default function MeetingPage() {
     scrollToBottom();
 
     try {
-      const res = await fetch(`${API_BASE}/ai/meeting-chat-direction`, {
+      const res = await fetch(`${API_BASE}/ai/meeting-chat-simple`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ question, context: getMeetingContext(), history: chatMessages.slice(-6) }),
       });
       if (!res.ok) throw new Error('답변 생성 실패');
       const data = await res.json();
-      setChatMessages(prev => [...prev, { role: 'AI', content: data.direction, ai: 'Claude' }]);
+      setChatMessages(prev => [...prev, { role: 'AI', content: data.reply, ai: 'Claude' }]);
     } catch {
       setChatMessages(prev => [...prev, { role: 'AI', content: '답변 생성에 실패했습니다. 다시 시도해주세요.' }]);
     }

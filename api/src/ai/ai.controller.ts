@@ -257,7 +257,16 @@ export class AiController {
     }
   }
 
-  // ── AI 회의실 추가 채팅: 방향 확인 ──────────────────
+  // ── AI 회의실 채팅: Claude 일반 대화 ─────────────────
+  @Post('meeting-chat-simple')
+  async meetingChatSimple(
+    @Body() body: { question: string; context: string; history?: { role: string; content: string }[] },
+  ) {
+    const reply = await this.meetingService.simpleChat(body);
+    return { reply };
+  }
+
+  // ── AI 회의실 추가 분석: 의도 확인 ─────────────────
   @Post('meeting-chat-direction')
   async meetingChatDirection(
     @Body() body: { question: string; context: string; history?: { role: string; content: string }[] },
@@ -266,7 +275,7 @@ export class AiController {
     return { direction };
   }
 
-  // ── AI 회의실 추가 채팅: 3AI 답변 ──────────────────
+  // ── AI 회의실 추가 분석: 3AI 핑퐁 ─────────────────
   @Post('meeting-chat')
   async meetingChat(
     @Body() body: { question: string; context: string; direction?: string; history?: { role: string; content: string }[] },
