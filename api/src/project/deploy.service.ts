@@ -559,47 +559,48 @@ export default nextConfig;
       // CSS 파일 존재 확인 — 없으면 globals.css 인라인 주입
       const cssDir = path.join(outDir, '_next', 'static', 'css');
       const hasCSS = fs.existsSync(cssDir) && fs.readdirSync(cssDir).some(f => f.endsWith('.css'));
-      if (!hasCSS) {
-        appendLog('⚠️ CSS 빌드 결과물 없음 — HTML에 인라인 스타일 주입');
-        // globals.css에서 CSS 변수 읽어서 인라인 주입
-        const globalsCssPath = path.join(outputDir, 'src', 'app', 'globals.css');
-        if (fs.existsSync(globalsCssPath)) {
-          const cssContent = fs.readFileSync(globalsCssPath, 'utf-8');
-          // @import "tailwindcss" 제거하고 순수 CSS만 추출
-          const pureCss = cssContent.replace(/@import\s+["']tailwindcss["'];?/g, '').trim();
-          if (pureCss) {
-            // @theme inline 블록도 제거 (순수 CSS만 남기기)
-            const inlineCss = pureCss
-              .replace(/@theme\s+inline\s*\{[^}]*\}/g, '')
-              .trim();
-            // 모든 HTML 파일에 인라인 <style> 주입
-            const htmlFiles: string[] = [];
-            const findHtml = (dir: string) => {
-              for (const f of fs.readdirSync(dir, { withFileTypes: true })) {
-                const fp = path.join(dir, f.name);
-                if (f.isDirectory()) findHtml(fp);
-                else if (f.name.endsWith('.html')) htmlFiles.push(fp);
-              }
-            };
-            findHtml(outDir);
-            for (const htmlFile of htmlFiles) {
-              let html = fs.readFileSync(htmlFile, 'utf-8');
-              if (!html.includes(':root')) {
-                // Next.js 16 static export는 </head> 없을 수 있음 — 맨 앞에 주입
-                if (html.includes('</head>')) {
-                  html = html.replace('</head>', `<style>${inlineCss}</style>\n</head>`);
-                } else {
-                  html = `<style>${inlineCss}</style>\n${html}`;
-                }
-                fs.writeFileSync(htmlFile, html, 'utf-8');
-              }
-            }
-            appendLog(`CSS 인라인 주입 완료 (${htmlFiles.length}개 HTML)`);
-          }
-        }
-      } else {
-        appendLog('CSS 빌드 정상 확인');
+      // Tailwind CSS 빌드 결과 확인 + CDN fallback
+      const globalsCssPath = path.join(outputDir, 'src', 'app', 'globals.css');
+      let cssVars = '';
+      if (fs.existsSync(globalsCssPath)) {
+        const cssContent = fs.readFileSync(globalsCssPath, 'utf-8');
+        cssVars = cssContent
+          .replace(/@import\s+["']tailwindcss["'];?/g, '')
+          .replace(/@theme\s+inline\s*\{[^}]*\}/g, '')
+          .trim();
       }
+
+      // 모든 HTML 파일에 Tailwind CDN + CSS 변수 주입
+      // Tailwind 빌드 성공 여부와 무관하게 CDN을 넣으면 확실하게 동작
+      const tailwindTag = '<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>';
+      const styleTag = cssVars ? `<style type="text/tailwindcss">\n@import "tailwindcss";\n${cssVars}\n</style>` : '';
+      const injection = `${tailwindTag}\n${styleTag}`;
+
+      const htmlFiles: string[] = [];
+      const findHtml = (dir: string) => {
+        for (const f of fs.readdirSync(dir, { withFileTypes: true })) {
+          const fp = path.join(dir, f.name);
+          if (f.isDirectory()) findHtml(fp);
+          else if (f.name.endsWith('.html')) htmlFiles.push(fp);
+        }
+      };
+      findHtml(outDir);
+      for (const htmlFile of htmlFiles) {
+        let html = fs.readFileSync(htmlFile, 'utf-8');
+        if (!html.includes('tailwindcss/browser')) {
+          if (html.includes('</head>')) {
+            html = html.replace('</head>', `${injection}\n</head>`);
+          } else if (html.includes('<head>')) {
+            html = html.replace('<head>', `<head>\n${injection}`);
+          } else {
+            html = `${injection}\n${html}`;
+          }
+          fs.writeFileSync(htmlFile, html, 'utf-8');
+        }
+      }
+      appendLog(hasCSS
+        ? `CSS 빌드 정상 + Tailwind CDN 백업 주입 (${htmlFiles.length}개 HTML)`
+        : `⚠️ CSS 빌드 없음 → Tailwind CDN + CSS 변수 주입 (${htmlFiles.length}개 HTML)`);
 
       // ── Step 4: out/ 디렉토리를 DEPLOY_DIR/{subdomain}/ 으로 복사 ──
 
