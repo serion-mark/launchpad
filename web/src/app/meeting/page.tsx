@@ -807,14 +807,14 @@ export default function MeetingPage() {
                         disabled={!chatInput.trim() || chatLoading}
                         className="rounded-lg bg-[#3182f6] px-4 py-2.5 text-sm font-bold text-white hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
                       >
-                        💬 채팅
+                        💬 채팅 (Claude)
                       </button>
                       <button
                         onClick={startAnalysis}
                         disabled={!chatInput.trim() || chatLoading}
                         className="rounded-lg bg-gradient-to-r from-[#f59e0b] to-[#ef4444] px-4 py-2.5 text-sm font-bold text-white hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
                       >
-                        🔍 추가 분석
+                        🔍 추가 분석 (AI 3개)
                       </button>
                     </div>
                   )}
