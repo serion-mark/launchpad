@@ -65,6 +65,7 @@
 3. 크레딧 잔액 부족 시 "크레딧 충전" 안내 자동 표시
 **파일**: `web/src/app/credits/page.tsx` + `api/src/credit/credit.service.ts`
 **이유**: 모두의 창업 프로젝트 창업자가 한도(월 100만원) 내에서 유연하게 조합 가능
+**⭐ 상세 설계**: `memory/PRICING_REPORT_2026-03-23.md` 참고 (요금제 전체 구조 + UI 가이드 + DB 스키마 + API + 구현 순서 포함)
 
 ---
 
