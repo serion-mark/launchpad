@@ -1,26 +1,63 @@
-# Phase 12: 120% 차별화 — 개발 가이드 (5~6월)
+# Phase 12: 120% 차별화 — 개발 가이드
 # Phase 13: 유니콘 — 방향 가이드 (7월~)
 
 > Phase 12 완료 시 마일스톤: "Lovable이 못 하는 걸 한다" = 120%
 
 ---
 
-## UX 버그 수정 (Phase 11에서 이관)
+## Phase 11.5에서 이미 완료된 것 (Phase 12에서 제외)
 
-### Foundry 로고 클릭 시 메인 이동 안 됨
-**현재 문제**: /start 문답 페이지에서 좌측 상단 "Foundry" 로고 클릭 시 메인 페이지(/)로 이동하지 않음
-
-**수정**: 로고에 `<Link href="/">` 적용. 모든 페이지에서 로고 클릭 → 메인 이동 보장
-
-**파일**: `web/src/app/start/page.tsx` 또는 공통 헤더 컴포넌트 — 로고 Link href 확인
+```
+✅ AI 회의실 사전 질문 단계 — Haiku가 방향 확인 질문, preAnswers 브리핑 주입
+✅ 핑퐁 과정 단계별 표시 — Gemini→GPT→Claude 프로그레스 바 + ping 애니메이션
+✅ 보고서 후 채팅 이어가기 — 💬 채팅(Claude) / 🔍 추가 분석(3AI 핑퐁)
+✅ Gemini 429 graceful fallback — 실패 시 조용히 건너뛰고 GPT+Claude로 완료
+✅ 공감/반박/새관점 형식 강제 — ✅/❌/💡 명시적 구분
+✅ 브리핑 편향 제거 — Haiku는 요약만, 각 AI가 원본 직접 분석
+✅ 특허 순차누적형 구조 전체 구현 (S100~S700 전부 ✅)
+✅ PDF 파서 서버사이드 (poppler pdftotext)
+✅ React hydration #418 수정
+✅ 에러 메시지 한글화
+✅ Claude 모델 ID 수정 (claude-sonnet-4)
+✅ 모델 선택 UI 제거 → Smart 고정 (Phase 9에서 완료)
+```
 
 ---
 
-## 나중에 필요할 때만 (급하지 않음, Phase 12 범위 아님)
+## Phase 12 착수 전 수정 (즉시, 간단한 것들)
+
+### 1. Foundry 로고 클릭 시 메인 이동 안 됨
+**현재 문제**: /start 등에서 좌측 상단 "Foundry" 로고 클릭 시 메인(/)로 이동 안 됨
+**수정**: 로고에 `<Link href="/">` 적용. 모든 페이지에서 로고 클릭 → 메인 이동 보장
+**파일**: `web/src/app/start/page.tsx` 또는 공통 헤더 컴포넌트
+
+### 2. 마크다운 렌더링 개선
+**현재**: AI 회의실 보고서가 whitespace-pre-wrap (원본 텍스트)
+**개선**: react-markdown 적용 → 볼드, 리스트, 테이블 등 깔끔하게 렌더링
+**파일**: `web/src/app/meeting/page.tsx`
+
+### 3. 토스 실키 교체 (심사 완료 후)
+**현재**: 테스트키로 결제 연동 완료
+**작업**: TOSS_SECRET_KEY 서버 .env 설정 → 실결제 가능
+**의존**: 토스페이먼츠 심사 완료 대기 중
+
+### 4. 호스팅 방문자 카운터 nginx 연동
+**현재**: DB에 viewCount 필드만 있음
+**작업**: nginx access_log 파싱 또는 프론트에서 API 호출로 카운트
+**파일**: nginx 설정 + `api/src/deploy/deploy.service.ts`
+
+### 5. 호스팅 플랜 결제 연동
+**현재**: 호스팅 API만 있고 결제 연동 안 됨
+**작업**: 토스빌링 연결 → 월 과금 MRR 시작
+**의존**: 토스 심사 완료 후
+
+---
+
+## 나중에 필요할 때만 (급하지 않음)
 
 - DALL-E → Gemini Imagen 전환: 비용 이슈 생기면 그때
-- premium 모델 Sonnet → Opus: 토스 결제 실연동 후 크레딧 여유 생기면
-- Grok API: 안 넣음. 삭제.
+- premium 모델 Sonnet → Opus: 크레딧 여유 생기면
+- Gemini 유료 전환 후 대용량 파일 확대 (maxFileLen 8000→50000)
 
 ---
 
