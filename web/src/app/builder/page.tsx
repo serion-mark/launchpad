@@ -30,6 +30,7 @@ type BuildPhase = 'idle' | 'questionnaire' | 'designing' | 'generating' | 'done'
 type ProjectData = {
   id: string;
   name: string;
+  description?: string;
   template: string;
   theme: string;
   features: any;
@@ -393,8 +394,68 @@ function BuilderContent() {
   };
 
   // ── 자유 대화 (AI 연동) ────────────────────────────
+  // 생성 중 왼쪽 채팅에서 질문 보내기 (대기 채팅 통합)
+  const sendGeneratingChat = async (question?: string) => {
+    const q = (question || input).trim();
+    if (!q || isTyping) return;
+    setInput('');
+
+    const userMsg: Message = {
+      id: Date.now().toString(), role: 'user',
+      content: q, timestamp: new Date().toISOString(), type: 'text',
+    };
+    setMessages(prev => [...prev, userMsg]);
+    setIsTyping(true);
+
+    try {
+      const token = getToken();
+      // 프로젝트 정보를 풍부하게 전달
+      const projectContext = [
+        `[현재 프로젝트 정보]`,
+        `프로젝트명: ${project?.name || ''}`,
+        `앱 설명: ${project?.description || answers?.description || ''}`,
+        answers && Object.keys(answers).length > 0 ? `질문지 답변: ${JSON.stringify(answers)}` : '',
+        project?.features?.smartAnalysisResults ? `스마트 분석 결과: ${typeof project.features.smartAnalysisResults === 'string' ? project.features.smartAnalysisResults.slice(0, 2000) : JSON.stringify(project.features.smartAnalysisResults).slice(0, 2000)}` : '',
+        projectFeatures.length > 0 ? `선택된 기능: ${projectFeatures.join(', ')}` : '',
+        `템플릿: ${project?.template || ''}`,
+        `테마: ${project?.theme || ''}`,
+        `현재 상태: 앱 코드 생성 중`,
+        `\n이 정보를 기반으로 사용자의 질문에 답변하세요. 수익모델, 마케팅 전략, 타겟 사용자 등을 조언해주세요.`,
+        `'이전 대화를 모른다'고 하지 마세요. 위 프로젝트 정보가 있습니다.`,
+      ].filter(Boolean).join('\n');
+
+      const res = await fetch(`${API_BASE}/ai/meeting-chat-simple`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          question: q,
+          context: projectContext,
+          history: messages.filter(m => m.role !== 'system').slice(-6).map(m => ({ role: m.role === 'assistant' ? 'ai' : m.role, content: m.content })),
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(), role: 'assistant' as const,
+        content: data.reply, timestamp: new Date().toISOString(), type: 'text' as const,
+      }]);
+    } catch {
+      setMessages(prev => [...prev, {
+        id: Date.now().toString(), role: 'assistant' as const,
+        content: '답변 생성에 실패했습니다. 다시 시도해주세요.', timestamp: new Date().toISOString(), type: 'text' as const,
+      }]);
+    }
+    setIsTyping(false);
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || isTyping || !projectId) return;
+
+    // 생성 중일 때 왼쪽 채팅으로 대기 AI 상담 (통합)
+    if (buildPhase === 'generating') {
+      sendGeneratingChat();
+      return;
+    }
 
     // 질문지 모드에서 직접 입력
     if (buildPhase === 'questionnaire') {
@@ -567,12 +628,27 @@ function BuilderContent() {
     setTimeout(() => waitChatRef.current?.scrollTo({ top: waitChatRef.current.scrollHeight, behavior: 'smooth' }), 100);
     try {
       const token = getToken();
+      // 프로젝트 정보를 풍부하게 전달하여 AI가 맥락을 이해하도록
+      const projectContext = [
+        `[현재 프로젝트 정보]`,
+        `프로젝트명: ${project?.name || ''}`,
+        `앱 설명: ${project?.description || answers?.description || ''}`,
+        answers && Object.keys(answers).length > 0 ? `질문지 답변: ${JSON.stringify(answers)}` : '',
+        project?.features?.smartAnalysisResults ? `스마트 분석 결과: ${typeof project.features.smartAnalysisResults === 'string' ? project.features.smartAnalysisResults.slice(0, 2000) : JSON.stringify(project.features.smartAnalysisResults).slice(0, 2000)}` : '',
+        projectFeatures.length > 0 ? `선택된 기능: ${projectFeatures.join(', ')}` : '',
+        `템플릿: ${project?.template || ''}`,
+        `테마: ${project?.theme || ''}`,
+        `현재 상태: 앱 코드 생성 중`,
+        `\n이 정보를 기반으로 사용자의 질문에 답변하세요. 수익모델, 마케팅 전략, 타겟 사용자 등을 조언해주세요.`,
+        `'이전 대화를 모른다'고 하지 마세요. 위 프로젝트 정보가 있습니다.`,
+      ].filter(Boolean).join('\n');
+
       const res = await fetch(`${API_BASE}/ai/meeting-chat-simple`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
           question: q,
-          context: `프로젝트: ${project?.name || ''}, 템플릿: ${project?.template || ''}, 테마: ${project?.theme || ''}`,
+          context: projectContext,
           history: waitChatMessages.slice(-6),
         }),
       });
@@ -754,6 +830,13 @@ function BuilderContent() {
       if (d) setCreditBalance(d.balance);
     }).catch(() => {});
 
+    // 프로젝트 데이터 갱신 (generatedCode 포함)
+    if (projectId) {
+      authFetch(`/projects/${projectId}`).then(r => r.ok ? r.json() : null).then(d => {
+        if (d) setProject(d);
+      }).catch(() => {});
+    }
+
     setBuildPhase('done');
     const arch = result.architecture;
     const assess = result.assessment || { confidence: 80, incompleteFeatures: [], suggestions: [] };
@@ -772,9 +855,9 @@ function BuilderContent() {
     if (result.totalCredits > 0) completionMsg += `- 사용 크레딧: ${result.totalCredits.toLocaleString()} cr\n`;
     completionMsg += `\n`;
 
-    completionMsg += `🤖 **AI 품질 평가:** ${assess.confidence}점/100점\n`;
-    if (assess.incompleteFeatures.length > 0) {
-      completionMsg += `\n⚠️ **추가 작업 필요:**\n`;
+    completionMsg += `✨ **기본 구조 완성!** 채팅으로 기능을 추가하거나 수정할 수 있습니다.\n`;
+    if (assess.incompleteFeatures && assess.incompleteFeatures.length > 0) {
+      completionMsg += `\n💡 **추천 개선사항:**\n`;
       completionMsg += assess.incompleteFeatures.map((f: string) => `  - ${f}`).join('\n') + '\n';
     }
     completionMsg += `\n수정이 필요하면 채팅으로 말씀해주세요.\n`;
@@ -1098,10 +1181,17 @@ function BuilderContent() {
   const currentQ = buildPhase === 'questionnaire' ? questions[questionIndex] : null;
 
   // 생성된 코드 파일 추출 (LivePreview용)
-  // generating 중에는 streamingFiles, 완료 후에는 project.generatedCode 사용
+  // generating 중에는 streamingFiles, 완료 후에는 project.generatedCode 또는 streamingFiles(생성 직후) 사용
   const generatedFiles = useMemo(() => {
     if (buildPhase === 'generating' && streamingFiles.length > 0) {
       return streamingFiles;
+    }
+    // done인데 project.generatedCode가 아직 없으면 streamingFiles fallback (생성 직후)
+    if (buildPhase === 'done') {
+      if (project?.generatedCode && Array.isArray(project.generatedCode) && project.generatedCode.length > 0) {
+        return project.generatedCode as { path: string; content: string }[];
+      }
+      if (streamingFiles.length > 0) return streamingFiles;
     }
     if (!project?.generatedCode || !Array.isArray(project.generatedCode)) return [];
     return project.generatedCode as { path: string; content: string }[];
@@ -1316,6 +1406,21 @@ function BuilderContent() {
               </div>
             )}
 
+            {/* 생성 중 추천 질문 (왼쪽 채팅 통합) */}
+            {buildPhase === 'generating' && !isTyping && (
+              <div className="space-y-2 pl-2">
+                <div className="flex items-center gap-2 text-xs text-[#6b7684]">
+                  <span>💬</span>
+                  <span className="font-medium">생성 중에도 질문할 수 있어요!</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {['이 앱의 수익모델은?', '타겟 사용자 분석', '출시 후 마케팅 전략', '정부지원사업 정산 방법'].map(q => (
+                    <button key={q} onClick={() => sendGeneratingChat(q)} className="text-[11px] px-2.5 py-1.5 rounded-full border border-[#3182f6]/30 text-[#93c5fd] hover:bg-[#3182f6]/10 transition-colors">{q}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {isTyping && (
               <div className="flex justify-start">
                 <div className="rounded-2xl bg-[#1b1b21] border border-[#2c2c35] px-5 py-3.5">
@@ -1398,7 +1503,7 @@ function BuilderContent() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && sendMessage()}
-              placeholder={buildPhase === 'questionnaire' ? '직접 입력하거나 보기를 클릭...' : buildPhase === 'done' ? '"버튼 색 바꿔줘", "로그인 추가해줘"...' : '수정사항을 말씀해주세요...'}
+              placeholder={buildPhase === 'questionnaire' ? '직접 입력하거나 보기를 클릭...' : buildPhase === 'generating' ? '생성 중 궁금한 점을 물어보세요...' : buildPhase === 'done' ? '"버튼 색 바꿔줘", "로그인 추가해줘"...' : '수정사항을 말씀해주세요...'}
               className="flex-1 rounded-xl border border-[#1e1e28] bg-[#1a1a24] px-4 py-3 text-sm text-[#f2f4f6] placeholder-[#4e5968] outline-none focus:border-[#3182f6]/50 transition-colors"
               disabled={isTyping}
             />
@@ -1458,9 +1563,18 @@ function BuilderContent() {
           </div>
           <div className="flex items-center gap-2">
             {buildPhase === 'done' && project && (
-              <a href={`https://${(project.name || 'app').toLowerCase().replace(/\s+/g, '-')}.foundry.ai.kr`} target="_blank" rel="noopener noreferrer" className="rounded-md bg-[#1e1e28] px-2.5 py-1 text-[10px] text-[#8b95a1] hover:text-[#f2f4f6] transition-colors">
-                외부에서 보기 ↗
-              </a>
+              project.status === 'deployed' && project.deployedUrl ? (
+                <a href={project.deployedUrl} target="_blank" rel="noopener noreferrer" className="rounded-md bg-[#1e1e28] px-2.5 py-1 text-[10px] text-[#8b95a1] hover:text-[#f2f4f6] transition-colors">
+                  외부에서 보기 ↗
+                </a>
+              ) : (
+                <button
+                  onClick={() => alert('배포 후 확인 가능합니다. 아래 [배포] 버튼을 먼저 눌러주세요!')}
+                  className="rounded-md bg-[#1e1e28] px-2.5 py-1 text-[10px] text-[#4e5968] cursor-not-allowed"
+                >
+                  외부에서 보기 (배포 후 가능)
+                </button>
+              )
             )}
           </div>
         </div>
@@ -1483,16 +1597,10 @@ function BuilderContent() {
                   const stepOrder = ['architecture', 'schema', 'supabase', 'frontend', 'config', 'quality'];
                   const currentIdx = stepOrder.indexOf(generateStep);
                   const pct = currentIdx >= 0 ? Math.round(((currentIdx + 1) / stepOrder.length) * 100) : 0;
-                  const elapsed = genStartTime ? Math.round((Date.now() - genStartTime) / 1000) : 0;
-                  const perStep = currentIdx > 0 ? elapsed / (currentIdx + 1) : 15;
-                  const remaining = Math.max(0, Math.round(perStep * (stepOrder.length - currentIdx - 1)));
                   return (
                     <div className="mb-6">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-medium text-[#f2f4f6]">{pct}%</span>
-                        <span className="text-xs text-[#6b7684]">
-                          {remaining > 60 ? `약 ${Math.ceil(remaining / 60)}분 남음` : remaining > 0 ? `약 ${remaining}초 남음` : '거의 완료...'}
-                        </span>
                       </div>
                       <div className="h-2 rounded-full bg-[#2c2c35] overflow-hidden">
                         <div className="h-full rounded-full bg-gradient-to-r from-[#3182f6] to-[#a855f7] transition-all duration-700 ease-out" style={{ width: `${pct}%` }} />
@@ -1522,51 +1630,10 @@ function BuilderContent() {
                   })}
                 </div>
 
-                {/* 대기 중 AI 채팅 */}
+                {/* 왼쪽 채팅에서 질문 가능 안내 */}
                 <div className="mt-6 w-full max-w-md">
-                  <div className="rounded-xl border border-[#2c2c35] bg-[#1b1b21] p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <span>💬</span>
-                      <span className="text-xs font-bold text-[#f2f4f6]">대기 중 AI 상담</span>
-                      <span className="text-[10px] text-[#6b7684]">생성 중에도 질문 가능!</span>
-                    </div>
-
-                    {/* 추천 질문 */}
-                    {waitChatMessages.length === 0 && (
-                      <div className="flex flex-wrap gap-1.5 mb-3">
-                        {['이 앱의 수익모델은?', '타겟 사용자 분석', '출시 후 마케팅 전략', '정부지원사업 정산 방법'].map(q => (
-                          <button key={q} onClick={() => sendWaitChat(q)} className="text-[11px] px-2.5 py-1 rounded-full border border-[#3182f6]/30 text-[#93c5fd] hover:bg-[#3182f6]/10 transition-colors">{q}</button>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* 대화 목록 */}
-                    {waitChatMessages.length > 0 && (
-                      <div ref={waitChatRef} className="space-y-2 mb-3 max-h-[200px] overflow-y-auto pr-1">
-                        {waitChatMessages.map((msg, i) => (
-                          <div key={i} className={`rounded-lg p-2.5 text-xs ${msg.role === 'user' ? 'bg-[#3182f6]/10 border border-[#3182f6]/20 ml-6 text-[#93c5fd]' : 'bg-[#2c2c35] mr-6 text-[#d1d5db]'}`}>
-                            {msg.role === 'ai' ? <MarkdownRenderer content={msg.content} /> : msg.content}
-                          </div>
-                        ))}
-                        {waitChatLoading && (
-                          <div className="flex items-center gap-1.5 text-xs text-[#6b7684] p-2">
-                            <div className="h-1.5 w-1.5 rounded-full bg-[#3182f6] animate-pulse" />답변 생성 중...
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* 입력 */}
-                    <div className="flex gap-2">
-                      <input
-                        value={waitChatInput}
-                        onChange={e => setWaitChatInput(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendWaitChat(); }}}
-                        placeholder="궁금한 점을 물어보세요"
-                        className="flex-1 rounded-lg border border-[#2c2c35] bg-[#17171c] px-3 py-2 text-xs placeholder-[#4e5968] outline-none focus:border-[#3182f6] transition-colors"
-                      />
-                      <button onClick={() => sendWaitChat()} disabled={waitChatLoading || !waitChatInput.trim()} className="rounded-lg bg-[#3182f6] px-3 py-2 text-xs font-bold text-white hover:bg-[#1b64da] disabled:opacity-40 transition-colors">전송</button>
-                    </div>
+                  <div className="rounded-xl border border-[#2c2c35]/50 bg-[#1b1b21]/50 p-3 text-center">
+                    <span className="text-xs text-[#6b7684]">💬 왼쪽 채팅에서 궁금한 점을 물어보세요!</span>
                   </div>
                 </div>
               </div>
@@ -1589,17 +1656,6 @@ function BuilderContent() {
                   </span>
                   <span className="ml-auto text-xs font-medium text-[#3182f6]">
                     {streamingFiles.length}개 파일
-                    {(() => {
-                      if (!genStartTime || streamingFiles.length < 2) return '';
-                      const elapsed = (Date.now() - genStartTime) / 1000;
-                      const avgPerFile = elapsed / streamingFiles.length;
-                      const totalEstimate = genFileCount || streamingFiles.length + 5;
-                      const remaining = Math.max(0, Math.round(avgPerFile * (totalEstimate - streamingFiles.length) * 1.3));
-                      if (remaining <= 0) return '';
-                      const min = Math.floor(remaining / 60);
-                      const sec = remaining % 60;
-                      return ` · 약 ${min > 0 ? `${min}분 ` : ''}${sec}초 남음`;
-                    })()}
                   </span>
                 </div>
                 {(() => {
@@ -1660,8 +1716,8 @@ function BuilderContent() {
             </>
           )}
 
-          {/* 설계 중 → 인터랙티브 미리보기 */}
-          {!showLivePreview && buildPhase !== 'generating' && previewTemplate && (
+          {/* 설계 중 → 인터랙티브 미리보기 (done 상태에서는 표시하지 않음) */}
+          {!showLivePreview && buildPhase !== 'generating' && buildPhase !== 'done' && previewTemplate && (
             <div className="flex flex-col items-center gap-3 p-5">
               {(projectFeatures.length > 0 || Object.keys(answers).length >= 3) && (
                 <div className="flex items-center gap-2 rounded-xl bg-[#3182f6]/8 border border-[#3182f6]/15 px-3 py-2 text-xs">
@@ -1691,13 +1747,13 @@ function BuilderContent() {
             </div>
           )}
 
-          {/* 빈 상태 */}
-          {!showLivePreview && buildPhase !== 'generating' && !previewTemplate && (
+          {/* 빈 상태: done이면서 LivePreview 없는 경우 or 설계 전 */}
+          {!showLivePreview && buildPhase !== 'generating' && (buildPhase === 'done' || !previewTemplate) && !(buildPhase !== 'done' && previewTemplate) && (
             <div className="flex h-full items-center justify-center text-center text-[#4e5968]">
               <div>
-                <div className="mb-4 text-5xl opacity-60">📱</div>
-                <p className="text-sm font-medium">앱을 설명하면</p>
-                <p className="text-xs mt-1">여기서 실시간으로 미리볼 수 있습니다</p>
+                <div className="mb-4 text-5xl opacity-60">{buildPhase === 'done' ? '⏳' : '📱'}</div>
+                <p className="text-sm font-medium">{buildPhase === 'done' ? '미리보기를 불러오는 중...' : '앱을 설명하면'}</p>
+                <p className="text-xs mt-1">{buildPhase === 'done' ? '잠시만 기다려주세요' : '여기서 실시간으로 미리볼 수 있습니다'}</p>
               </div>
             </div>
           )}

@@ -304,14 +304,27 @@ ${AI_ROLES.gpt.instruction} 한국어로.`
       ? history.slice(-6).map(h => `${h.role}: ${h.content}`).join('\n\n')
       : '';
 
-    return this.llmRouter.callAnthropic(
-      `당신은 친절한 비즈니스 어시스턴트입니다. 아래 회의 결과를 참고하여 사용자와 자연스럽게 대화하세요.
+    // 빌더 대기 채팅과 회의실 채팅 구분
+    const isBuilderChat = context.includes('[현재 프로젝트 정보]');
+    const systemPrompt = isBuilderChat
+      ? `당신은 Foundry AI 어시스턴트입니다. 사용자가 앱을 생성하는 중입니다.
+아래 프로젝트 정보를 숙지하고 답변하세요.
+- 질문에 직접적으로 답변하세요
+- 간결하고 실용적으로 답변하세요
+- 한국어로 작성하세요
+- '이전 대화를 모릅니다' 또는 '확인할 수 없습니다'라고 하지 마세요. 아래 프로젝트 정보가 있습니다!
+
+${context.slice(0, 4000)}`
+      : `당신은 친절한 비즈니스 어시스턴트입니다. 아래 회의 결과를 참고하여 사용자와 자연스럽게 대화하세요.
 - 질문에 직접적으로 답변하세요 (확인 질문이나 방향 질문 하지 마세요)
 - 간결하고 실용적으로 답변하세요
 - 한국어로 작성하세요
 
 [회의 결과 참고]
-${context.slice(0, 4000)}`,
+${context.slice(0, 4000)}`;
+
+    return this.llmRouter.callAnthropic(
+      systemPrompt,
       `${historyText ? `[이전 대화]\n${historyText}\n\n` : ''}${question}`,
       'claude-haiku-4-5-20251001',
       2048,
