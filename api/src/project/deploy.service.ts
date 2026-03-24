@@ -609,7 +609,7 @@ export default nextConfig;
         this.ensureNextConfig(outputDir);
         appendLog(attempt === 0 ? 'next build 시작...' : `next build 재시도 (${attempt}/${MAX_BUILD_FIX_ATTEMPTS})...`);
         try {
-          execSync('npx next build --no-turbopack 2>&1', {
+          execSync('npx next build 2>&1', {
             cwd: outputDir,
             timeout: BUILD_TIMEOUT,
             env: { ...process.env, NODE_ENV: 'production', ...supabaseEnv },
