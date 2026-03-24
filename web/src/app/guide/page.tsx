@@ -12,7 +12,7 @@ const TABS = [
 ];
 
 const FAQ_LIST = [
-  { q: '무료로 사용할 수 있나요?', a: '회원가입 시 1,000 크레딧이 무료 제공됩니다. 질문지 답변과 미리보기는 무료이며, 앱 생성(6,800cr)이나 AI 수정(100~500cr) 시 크레딧이 차감됩니다.' },
+  { q: '무료로 사용할 수 있나요?', a: '회원가입 시 1,000 크레딧이 무료 제공됩니다. AI와 대화하는 것은 무료이며, 앱 생성(6,800cr)이나 AI 수정(100~500cr) 시 크레딧이 차감됩니다.' },
   { q: '생성된 코드의 소유권은?', a: '100% 사용자 소유입니다. 다운로드(ZIP)하면 프론트엔드+백엔드+DB 전체 소스코드를 받을 수 있고, 자유롭게 수정/배포할 수 있습니다.' },
   { q: '배포 후 수정이 가능한가요?', a: '네! 배포 후에도 빌더에서 채팅으로 수정 요청하면 AI가 코드를 업데이트합니다. 수정할 때마다 소량의 크레딧이 소모됩니다.' },
   { q: '어떤 기술 스택으로 만들어지나요?', a: 'Next.js 16 (프론트) + NestJS (백엔드) + PostgreSQL (DB) + Prisma ORM으로 생성됩니다. 업계 표준 풀스택 구성입니다.' },
@@ -44,28 +44,80 @@ export default function GuidePage() {
           <div className="space-y-8">
             <div>
               <h1 className="mb-2 text-3xl font-black">Foundry 시작하기</h1>
-              <p className="text-[#8b95a1]">3단계로 나만의 앱을 만들어보세요</p>
+              <p className="text-[#8b95a1]">3가지 방법으로 나만의 앱을 만들어보세요</p>
             </div>
-            <div className="grid gap-6 md:grid-cols-3">
-              {[
-                { step: '1', title: '업종 선택', desc: '미용실, 쇼핑몰, 예약, O2O, 에듀테크, 관리업체 중 선택', color: '#3182f6' },
-                { step: '2', title: '질문지 답변', desc: '6가지 질문에 답하면 AI가 맞춤 앱을 설계합니다', color: '#30d158' },
-                { step: '3', title: '앱 생성', desc: 'AI가 프론트+백엔드+DB를 자동 생성. 바로 배포 가능!', color: '#a855f7' },
-              ].map(s => (
-                <div key={s.step} className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6">
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl text-xl font-black text-white" style={{ background: s.color }}>{s.step}</div>
-                  <h3 className="mb-2 text-lg font-bold">{s.title}</h3>
-                  <p className="text-sm text-[#8b95a1] leading-relaxed">{s.desc}</p>
+
+            {/* 방법 1: AI 대화 */}
+            <div className="rounded-2xl border border-[#3182f6]/30 bg-[#3182f6]/5 p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#3182f6] text-xl font-black text-white">💬</div>
+                <div className="flex-1">
+                  <h3 className="mb-1 text-lg font-bold">방법 1. AI 대화로 시작하기</h3>
+                  <p className="mb-3 text-sm text-[#8b95a1] leading-relaxed">
+                    만들고 싶은 앱을 자유롭게 설명하세요. AI가 기능과 구조를 자동 설계하고, 풀스택 코드를 생성합니다.
+                  </p>
+                  <div className="mb-3 space-y-1 text-xs text-[#6b7684]">
+                    <p>1. &quot;반려동물 돌봄 매칭 앱 만들어줘&quot; 처럼 자유롭게 입력</p>
+                    <p>2. AI가 기능/구조를 설계 → [이 기획으로 앱 만들기] 클릭</p>
+                    <p>3. 풀스택 코드 자동 생성 + 24시간 무료 체험 배포</p>
+                  </div>
+                  <a href="/start" className="inline-block rounded-xl bg-[#3182f6] px-6 py-2.5 text-sm font-bold text-white hover:bg-[#1b64da] transition-colors">
+                    바로 시작 →
+                  </a>
                 </div>
-              ))}
+              </div>
             </div>
-            <div className="rounded-2xl border border-[#ffd60a]/20 bg-[#ffd60a]/5 p-6">
-              <h3 className="mb-2 font-bold text-[#ffd60a]">꿀팁</h3>
+
+            {/* 방법 2: AI 회의실 */}
+            <div className="rounded-2xl border border-[#a855f7]/30 bg-[#a855f7]/5 p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#a855f7] text-xl font-black text-white">🧠</div>
+                <div className="flex-1">
+                  <h3 className="mb-1 text-lg font-bold">방법 2. AI 회의실로 전략 수립 후 생성</h3>
+                  <p className="mb-3 text-sm text-[#8b95a1] leading-relaxed">
+                    3개의 AI(GPT·Gemini·Claude)가 사업 아이디어를 토론합니다. 전략 보고서를 바탕으로 앱을 만들면 완성도가 올라갑니다.
+                  </p>
+                  <div className="mb-3 space-y-1 text-xs text-[#6b7684]">
+                    <p>1. 사업 아이디어 입력 → 3 AI가 분석·토론·보고서 생성</p>
+                    <p>2. 보고서 확인 → [앱 만들러 가기] 클릭</p>
+                    <p>3. 보고서 기반으로 앱 자동 설계 + 생성</p>
+                  </div>
+                  <a href="/meeting" className="inline-block rounded-xl border-2 border-[#a855f7] px-6 py-2.5 text-sm font-bold text-[#a855f7] hover:bg-[#a855f7]/10 transition-colors">
+                    회의 시작 →
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* 방법 3: 사업계획서 */}
+            <div className="rounded-2xl border border-[#ffd60a]/30 bg-[#ffd60a]/5 p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#ffd60a] text-xl font-black text-[#17171c]">📄</div>
+                <div className="flex-1">
+                  <h3 className="mb-1 text-lg font-bold">방법 3. 사업계획서로 신청하기</h3>
+                  <p className="mb-3 text-sm text-[#8b95a1] leading-relaxed">
+                    이미 사업계획서가 있다면 PDF를 업로드하세요. AI가 핵심 기능을 추출하고 앱을 자동으로 설계합니다.
+                  </p>
+                  <div className="mb-3 space-y-1 text-xs text-[#6b7684]">
+                    <p>1. 사업계획서 PDF 업로드</p>
+                    <p>2. AI가 핵심 기능 추출 → 앱 기획서 자동 생성</p>
+                    <p>3. 기획 확인 후 앱 생성</p>
+                  </div>
+                  <a href="/start" className="inline-block rounded-xl border-2 border-[#ffd60a] px-6 py-2.5 text-sm font-bold text-[#ffd60a] hover:bg-[#ffd60a]/10 transition-colors">
+                    사업계획서로 시작 →
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* 꿀팁 */}
+            <div className="rounded-2xl border border-[#30d158]/20 bg-[#30d158]/5 p-6">
+              <h3 className="mb-2 font-bold text-[#30d158]">꿀팁</h3>
               <ul className="space-y-1 text-sm text-[#8b95a1]">
-                <li>- 질문지 답변과 미리보기는 <b className="text-[#30d158]">완전 무료</b>입니다</li>
-                <li>- 미리보기에서 메뉴를 클릭하면 각 화면을 체험할 수 있어요</li>
-                <li>- 채팅으로 &quot;포인트 기능 추가해줘&quot; 같이 수정 요청이 가능합니다</li>
-                <li>- 만족하면 &quot;앱 생성하기&quot; 버튼으로 실제 코드를 만드세요</li>
+                <li>- AI와 대화하는 것은 <b className="text-[#30d158]">완전 무료</b>입니다</li>
+                <li>- 생성 완료 후 24시간 무료 체험 배포가 자동 제공됩니다</li>
+                <li>- 생성 후에도 채팅으로 수정 가능합니다 (단순 100cr, 복잡 500cr)</li>
+                <li>- AI 회의실에서 먼저 토론하면 더 완성도 높은 앱을 만들 수 있어요</li>
               </ul>
             </div>
           </div>
