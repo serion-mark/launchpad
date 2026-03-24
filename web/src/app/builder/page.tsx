@@ -526,59 +526,75 @@ function BuilderContent() {
       }
     }
 
-    // ── Sprint 3: done 상태에서는 코드 수정 API 호출 ────
+    // ── Sprint 3: done 상태에서는 코드 수정 또는 일반 대화 ────
     if (buildPhase === 'done' && projectId) {
-      const modifyResult = await callModifyFiles({
-        projectId,
-        message: userMsg.content,
-        modelTier: selectedModelTier,
-      });
+      // 일반 대화인지 수정 요청인지 간단 판별 (수정 키워드 포함 여부)
+      const modifyKeywords = ['수정', '변경', '바꿔', '바꾸', '추가', '삭제', '제거', '고쳐', '고치', '색상', '색깔', '텍스트', '문구', '버튼', '이미지', '크기', '위치', '레이아웃', 'fix', 'change', 'add', 'remove', 'update', 'modify'];
+      const isModifyRequest = modifyKeywords.some(kw => userMsg.content.toLowerCase().includes(kw));
 
-      // 크레딧 잔액 새로고침
-      authFetch('/credits/balance').then(r => r.ok ? r.json() : null).then(d => {
-        if (d) setCreditBalance(d.balance);
-      }).catch(() => {});
+      if (isModifyRequest) {
+        const modifyResult = await callModifyFiles({
+          projectId,
+          message: userMsg.content,
+          modelTier: selectedModelTier,
+        });
 
-      if (modifyResult) {
-        // 수정된 파일을 기존 generatedCode에 merge하여 미리보기 즉시 갱신
-        if (project && modifyResult.modifiedFiles.length > 0) {
-          const existingFiles = Array.isArray(project.generatedCode) ? [...project.generatedCode] : [];
-          for (const mod of modifyResult.modifiedFiles) {
-            const idx = existingFiles.findIndex((f: any) => f.path === mod.path);
-            if (idx >= 0) existingFiles[idx] = mod;
-            else existingFiles.push(mod);
+        // 크레딧 잔액 새로고침
+        authFetch('/credits/balance').then(r => r.ok ? r.json() : null).then(d => {
+          if (d) setCreditBalance(d.balance);
+        }).catch(() => {});
+
+        if (modifyResult && modifyResult.modifiedFiles.length > 0) {
+          // 수정된 파일을 기존 generatedCode에 merge하여 미리보기 즉시 갱신
+          if (project) {
+            const existingFiles = Array.isArray(project.generatedCode) ? [...project.generatedCode] : [];
+            for (const mod of modifyResult.modifiedFiles) {
+              const idx = existingFiles.findIndex((f: any) => f.path === mod.path);
+              if (idx >= 0) existingFiles[idx] = mod;
+              else existingFiles.push(mod);
+            }
+            setProject({ ...project, generatedCode: existingFiles });
           }
-          setProject({ ...project, generatedCode: existingFiles });
-        }
 
-        const paths = modifyResult.modifiedFiles.map(f => f.path).join(', ');
-        let replyContent = `✅ **코드 수정 완료!**\n\n`;
-        replyContent += `수정된 파일 (${modifyResult.modifiedFiles.length}개): ${paths}\n`;
-        if (modifyResult.totalCredits > 0) replyContent += `사용 크레딧: ${modifyResult.totalCredits} cr\n`;
-        if (modifyResult.fellBack) replyContent += `⚠️ Flash 모델로 자동 전환됨\n`;
-        if (modifyResult.suggestHealthCheck) {
-          replyContent += `\n🩺 **코드 건강 검진을 권장합니다!** (${modifyResult.totalModifications}회 수정)\n왼쪽 패널의 "코드 헬스체크"를 실행해보세요.\n`;
-        }
-        replyContent += `\n추가 수정이 필요하면 말씀해주세요!`;
+          const paths = modifyResult.modifiedFiles.map(f => f.path).join(', ');
+          let replyContent = `✅ **코드 수정 완료!**\n\n`;
+          replyContent += `수정된 파일 (${modifyResult.modifiedFiles.length}개): ${paths}\n`;
+          if (modifyResult.totalCredits > 0) replyContent += `사용 크레딧: ${modifyResult.totalCredits} cr\n`;
+          if (modifyResult.fellBack) replyContent += `⚠️ Flash 모델로 자동 전환됨\n`;
+          if (modifyResult.suggestHealthCheck) {
+            replyContent += `\n🩺 **코드 건강 검진을 권장합니다!** (${modifyResult.totalModifications}회 수정)\n왼쪽 패널의 "코드 헬스체크"를 실행해보세요.\n`;
+          }
+          replyContent += `\n추가 수정이 필요하면 말씀해주세요!`;
 
-        const aiMsg: Message = {
-          id: (Date.now() + 1).toString(), role: 'assistant',
-          content: replyContent, timestamp: new Date().toISOString(), type: 'text',
-        };
-        const updatedMessages = [...newMessages, aiMsg];
-        setMessages(updatedMessages);
-        setIsTyping(false);
-        saveChatHistory(updatedMessages);
-      } else {
-        const aiMsg: Message = {
-          id: (Date.now() + 1).toString(), role: 'assistant',
-          content: '수정에 실패했습니다. 크레딧을 확인하고 다시 시도해주세요.',
-          timestamp: new Date().toISOString(), type: 'text',
-        };
-        setMessages([...newMessages, aiMsg]);
-        setIsTyping(false);
+          const aiMsg: Message = {
+            id: (Date.now() + 1).toString(), role: 'assistant',
+            content: replyContent, timestamp: new Date().toISOString(), type: 'text',
+          };
+          const updatedMessages = [...newMessages, aiMsg];
+          setMessages(updatedMessages);
+          setIsTyping(false);
+          saveChatHistory(updatedMessages);
+        } else if (modifyResult) {
+          // API 성공했지만 수정할 파일이 없음
+          const aiMsg: Message = {
+            id: (Date.now() + 1).toString(), role: 'assistant',
+            content: '요청을 분석했지만 수정할 코드를 찾지 못했습니다. 좀 더 구체적으로 말씀해주세요.\n\n예: "메인 페이지 배경색을 파란색으로 바꿔줘"',
+            timestamp: new Date().toISOString(), type: 'text',
+          };
+          setMessages([...newMessages, aiMsg]);
+          setIsTyping(false);
+        } else {
+          const aiMsg: Message = {
+            id: (Date.now() + 1).toString(), role: 'assistant',
+            content: '수정에 실패했습니다. 크레딧을 확인하고 다시 시도해주세요.',
+            timestamp: new Date().toISOString(), type: 'text',
+          };
+          setMessages([...newMessages, aiMsg]);
+          setIsTyping(false);
+        }
+        return;
       }
-      return;
+      // 일반 대화는 아래 AI 채팅 로직으로 fall through
     }
 
     // ── designing 상태: AI 채팅 ─────────────────────────
@@ -1261,11 +1277,13 @@ function BuilderContent() {
     return () => window.removeEventListener('message', handler);
   }, [visualEditMode]);
 
-  // done이면 generatedFiles 없어도 3초 간격으로 프로젝트 re-fetch (generatedCode 가져오기)
+  // done이면 generatedFiles 없어도 2초 간격으로 프로젝트 re-fetch (generatedCode 가져오기)
   useEffect(() => {
-    if (buildPhase !== 'done' || !projectId || generatedFiles.length > 0) return;
+    if (buildPhase !== 'done' || !projectId) return;
+    // 이미 파일이 있으면 skip
+    if (generatedFiles.length > 0) return;
     let attempts = 0;
-    const maxAttempts = 10; // 최대 30초 대기
+    const maxAttempts = 30; // 최대 60초 대기 (2초 × 30)
     const interval = setInterval(() => {
       attempts++;
       authFetch(`/projects/${projectId}`).then(r => r.ok ? r.json() : null).then(d => {
@@ -1275,13 +1293,14 @@ function BuilderContent() {
         }
       }).catch(() => {});
       if (attempts >= maxAttempts) clearInterval(interval);
-    }, 3000);
+    }, 2000);
     return () => clearInterval(interval);
   }, [buildPhase, projectId, generatedFiles.length]);
 
   // generating 중 streamingFiles가 있으면 미리보기 표시
   // done이면 generatedFiles 없어도 true (빈 상태 표시 대신 "로딩" 또는 streamingFiles fallback)
-  const showLivePreview = (buildPhase === 'done' && (generatedFiles.length > 0 || streamingFiles.length > 0)) || (buildPhase === 'generating' && streamingFiles.length > 0);
+  // done이면 파일 유무 관계없이 true (파일 없으면 로딩/안내 fallback 표시)
+  const showLivePreview = buildPhase === 'done' || (buildPhase === 'generating' && streamingFiles.length > 0);
 
   // 레이아웃: done 시 Lovable처럼 미리보기 중심 (왼쪽 채팅 좁게 + 오른쪽 미리보기 넓게)
   const isPreviewFocused = showLivePreview || buildPhase === 'generating';
@@ -1566,10 +1585,16 @@ function BuilderContent() {
                         content: `✅ **대화 내용 반영 완료!** ${result.modifiedFiles.length}개 파일 수정됨\n\n미리보기가 업데이트됩니다.`,
                         timestamp: new Date().toISOString(), type: 'text' as const,
                       }]);
+                    } else if (result) {
+                      setMessages(prev => [...prev, {
+                        id: Date.now().toString(), role: 'assistant' as const,
+                        content: '대화 내용을 분석했지만 코드에 반영할 수정 사항을 찾지 못했습니다. 채팅으로 구체적인 수정을 요청해주세요.',
+                        timestamp: new Date().toISOString(), type: 'text' as const,
+                      }]);
                     } else {
                       setMessages(prev => [...prev, {
                         id: Date.now().toString(), role: 'assistant' as const,
-                        content: '반영에 실패했습니다. 채팅으로 직접 요청해주세요.',
+                        content: '반영에 실패했습니다. 크레딧을 확인하고 다시 시도해주세요.',
                         timestamp: new Date().toISOString(), type: 'text' as const,
                       }]);
                     }
@@ -1791,7 +1816,7 @@ function BuilderContent() {
             </div>
           )}
 
-          {/* 생성 완료 → 배포됐으면 iframe, 아니면 LivePreview */}
+          {/* 생성 완료 → 배포됐으면 iframe, 파일 있으면 LivePreview, 없으면 로딩 */}
           {showLivePreview && buildPhase !== 'generating' && (
             <>
               {project?.status === 'deployed' && project?.deployedUrl ? (
@@ -1807,8 +1832,22 @@ function BuilderContent() {
                     <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />LIVE
                   </div>
                 </div>
-              ) : (
+              ) : (generatedFiles.length > 0 || streamingFiles.length > 0) ? (
                 <LivePreview files={generatedFiles.length > 0 ? generatedFiles : streamingFiles} previewMode={previewMode} visualEditMode={visualEditMode} />
+              ) : (
+                <div className="flex h-full items-center justify-center text-center">
+                  <div className="max-w-[300px]">
+                    <div className="mb-4 text-4xl animate-spin">⏳</div>
+                    <p className="text-sm font-medium text-[#f2f4f6]">미리보기를 불러오는 중...</p>
+                    <p className="text-xs mt-2 text-[#6b7684]">생성된 코드를 가져오고 있습니다</p>
+                    <button
+                      onClick={() => { if (projectId) authFetch(`/projects/${projectId}`).then(r => r.ok ? r.json() : null).then(d => { if (d) setProject(d); }); }}
+                      className="mt-4 rounded-lg bg-[#2c2c35] px-4 py-2 text-xs font-medium text-[#8b95a1] hover:bg-[#3a3a45]"
+                    >
+                      새로고침
+                    </button>
+                  </div>
+                </div>
               )}
               {/* Visual Edit 팝업 (LivePreview 모드에서만) */}
               {!((project?.status === 'deployed') && project?.deployedUrl) && selectedElement && visualEditMode && projectId && (
@@ -1835,8 +1874,8 @@ function BuilderContent() {
             </>
           )}
 
-          {/* 설계 중 → 인터랙티브 미리보기 (done/에러 상태에서는 표시하지 않음) */}
-          {!showLivePreview && buildPhase !== 'generating' && buildPhase !== 'done' && !hasError && previewTemplate && (
+          {/* 설계 중 → 인터랙티브 미리보기 (done/generating/에러 상태에서는 표시하지 않음) */}
+          {!showLivePreview && buildPhase !== 'generating' && !hasError && previewTemplate && (
             <div className="flex flex-col items-center gap-3 p-5">
               {(projectFeatures.length > 0 || Object.keys(answers).length >= 3) && (
                 <div className="flex items-center gap-2 rounded-xl bg-[#3182f6]/8 border border-[#3182f6]/15 px-3 py-2 text-xs">
@@ -1881,7 +1920,7 @@ function BuilderContent() {
           )}
 
           {/* 빈 상태: 설계 전 */}
-          {!showLivePreview && buildPhase !== 'generating' && buildPhase !== 'done' && !hasError && !previewTemplate && (
+          {!showLivePreview && buildPhase !== 'generating' && !hasError && !previewTemplate && (
             <div className="flex h-full items-center justify-center text-center text-[#4e5968]">
               <div>
                 <div className="mb-4 text-5xl opacity-60">📱</div>
@@ -1890,16 +1929,7 @@ function BuilderContent() {
               </div>
             </div>
           )}
-          {/* done인데 LivePreview 없는 경우 — 프로젝트 로딩 중 */}
-          {!showLivePreview && buildPhase === 'done' && (
-            <div className="flex h-full items-center justify-center text-center text-[#4e5968]">
-              <div>
-                <div className="mb-4 text-4xl animate-spin">⏳</div>
-                <p className="text-sm font-medium">미리보기를 불러오는 중...</p>
-                <p className="text-xs mt-1">생성된 코드를 가져오고 있습니다</p>
-              </div>
-            </div>
-          )}
+          {/* (done + showLivePreview=true이므로 위 블록에서 처리됨) */}
         </div>
 
         {/* 하단: 버전 히스토리 + 코드 헬스 (done 상태에서만) */}
@@ -1961,14 +1991,14 @@ function BuilderContent() {
                 <h3 className="text-lg font-bold text-[#f2f4f6] mb-1">🚀 배포하기</h3>
                 <p className="text-sm text-[#8b95a1] mb-4">Foundry 서버에 앱을 배포하면 바로 사용할 수 있습니다.</p>
                 <div className="rounded-xl bg-[#2c2c35] p-4 mb-4 space-y-3">
-                  <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">호스팅 비용</span><span className="text-[#ffd60a] font-bold">월 9,900원</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">서브도메인</span><span className="text-[#f2f4f6]">{project?.name || 'myapp'}.foundry.kr</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">배포 후 수정</span><span className="text-[#30d158]">✅ 채팅으로 언제든 수정 가능</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">호스팅 비용</span><span className="text-[#ffd60a] font-bold">월 29,000원</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">서브도메인</span><span className="text-[#f2f4f6]">{project?.name || 'myapp'}.foundry.ai.kr</span></div>
                   <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">SSL/HTTPS</span><span className="text-[#30d158]">✅ 자동 적용</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">배포 후 수정</span><span className="text-[#30d158]">✅ 가능</span></div>
                 </div>
                 <div className="flex gap-3">
                   <button onClick={() => setShowCostModal(null)} className="flex-1 rounded-xl bg-[#2c2c35] py-3 text-sm font-medium text-[#8b95a1] hover:bg-[#3a3a45]">취소</button>
-                  <button onClick={() => { setShowCostModal(null); handleDeploy(); }} className="flex-1 rounded-xl bg-[#3182f6] py-3 text-sm font-bold text-white hover:bg-[#1b64da]">월 9,900원 배포하기</button>
+                  <button onClick={() => { setShowCostModal(null); handleDeploy(); }} className="flex-1 rounded-xl bg-[#3182f6] py-3 text-sm font-bold text-white hover:bg-[#1b64da]">월 29,000원 배포하기</button>
                 </div>
               </>
             ) : (
@@ -1982,7 +2012,7 @@ function BuilderContent() {
                   <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">코드 소유권</span><span className="text-[#30d158]">✅ 100% 사용자 소유</span></div>
                 </div>
                 <div className="rounded-xl bg-[#ffd60a]/10 border border-[#ffd60a]/20 p-3 mb-4">
-                  <p className="text-xs text-[#ffd60a]">💡 <b>절약 팁:</b> 배포(월 9,900원)로 먼저 사용해보고, 만족하면 다운로드하세요. 배포 중에도 수정이 가능합니다!</p>
+                  <p className="text-xs text-[#ffd60a]">💡 <b>절약 팁:</b> 배포(월 29,000원)로 먼저 사용해보고, 만족하면 다운로드하세요. 배포 중에도 수정이 가능합니다!</p>
                 </div>
                 {creditBalance !== null && creditBalance < 3000 && (
                   <div className="rounded-xl bg-[#f43f5e]/10 border border-[#f43f5e]/20 p-3 mb-4">
@@ -1996,21 +2026,9 @@ function BuilderContent() {
               </>
             )}
 
-            {/* 다중 앱 비용 안내 */}
+            {/* 크레딧 충전 안내 */}
             <div className="mt-4 pt-4 border-t border-[#2c2c35]">
-              <p className="text-xs text-[#6b7684] mb-2">💼 여러 앱이 필요하신가요?</p>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="rounded-lg bg-[#2c2c35] p-3">
-                  <div className="font-bold text-[#f2f4f6] mb-1">프로 플랜</div>
-                  <div className="text-[#ffd60a] font-bold">₩99,000/월</div>
-                  <div className="text-[#8b95a1]">앱 5개 + 10,000 크레딧</div>
-                </div>
-                <div className="rounded-lg bg-[#2c2c35] p-3">
-                  <div className="font-bold text-[#f2f4f6] mb-1">엔터프라이즈</div>
-                  <div className="text-[#ffd60a] font-bold">₩249,000/월</div>
-                  <div className="text-[#8b95a1]">무제한 앱 + 50,000 크레딧</div>
-                </div>
-              </div>
+              <p className="text-xs text-[#6b7684]">💡 크레딧이 부족하신가요? <a href="/credits" className="text-[#3182f6] font-medium hover:underline">크레딧 충전하기 →</a></p>
             </div>
           </div>
         </div>

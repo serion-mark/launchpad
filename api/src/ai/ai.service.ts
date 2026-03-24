@@ -1213,6 +1213,7 @@ ${smartAnalysisContext ? `\n${smartAnalysisContext}\n위 분석을 참고하여 
           projectId: params.projectId,
           taskType: 'generate_full_app',
           description: `앱 생성: ${architecture.appName || params.template} (${fileCount}파일, ${actualTier})`,
+          minCost: 3000, // 앱 생성 최소 3,000cr 보장 (역마진 방지)
         });
         totalCredits = creditResult.cost;
       }

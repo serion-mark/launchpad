@@ -18,11 +18,11 @@ const PORTFOLIO_ITEMS: {
   { name: '취미모아', category: '소셜/매칭', icon: '💕', desc: '취미 기반 동호회 매칭 + 모임 관리', time: '~30분', features: ['프로필매칭', '그룹채팅', '모임일정'], badge: '테크', mockup: 'social' },
 ];
 
-// ── 가격 패키지 ──
+// ── 크레딧 충전 패키지 ──
 const PRICING_PLANS = [
-  { name: '스타터', price: '49,000', credits: '5,000', desc: '작은 MVP 1개 생성', highlight: false },
-  { name: '프로', price: '99,000', credits: '12,000', desc: '풀 MVP + 수정 여유', highlight: true },
-  { name: '엔터프라이즈', price: '249,000', credits: '35,000', desc: '복잡한 서비스 + 무제한 수정', highlight: false },
+  { name: '1,000cr', price: '12,000', credits: '1,000', desc: '체험용 크레딧', highlight: false },
+  { name: '5,000cr', price: '49,000', credits: '5,000', desc: 'MVP 1개 + 수정 여유', highlight: true },
+  { name: '50,000cr', price: '249,000', credits: '50,000', desc: '대규모 프로젝트', highlight: false },
 ];
 
 export default function LandingPage() {

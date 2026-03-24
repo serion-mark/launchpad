@@ -143,8 +143,8 @@ export class ProjectService {
 
   static readonly HOSTING_PLANS = {
     free: { price: 0, visitorLimit: 1000, label: '무료', features: ['foundry.ai.kr 서브도메인', '월 1,000명 방문자'] },
-    basic: { price: 9900, visitorLimit: -1, label: 'Basic ₩9,900/월', features: ['무제한 방문자', '빠른 응답 속도'] },
-    pro: { price: 29900, visitorLimit: -1, label: 'Pro ₩29,900/월', features: ['무제한 방문자', '커스텀 도메인 안내', '우선 지원'] },
+    basic: { price: 29000, visitorLimit: -1, label: '호스팅 ₩29,000/월', features: ['무제한 방문자', 'SSL 자동 적용', '빠른 응답 속도'] },
+    pro: { price: 29000, visitorLimit: -1, label: '호스팅 ₩29,000/월', features: ['무제한 방문자', 'SSL 자동 적용', '우선 지원'] },
   } as const;
 
   async updateHostingPlan(id: string, userId: string, plan: 'free' | 'basic' | 'pro') {

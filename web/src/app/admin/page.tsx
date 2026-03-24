@@ -65,8 +65,8 @@ const TEMPLATE_NAMES: Record<string, string> = {
 
 const PLAN_NAMES: Record<string, string> = {
   free: '무료',
-  starter: '스타터 (49,000)',
-  pro: '프로 (99,000)',
+  starter: '크레딧 충전',
+  pro: '크레딧 충전',
 };
 
 const TYPE_COLORS: Record<string, string> = {

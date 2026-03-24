@@ -45,6 +45,12 @@ export function calculateModelCost(tier: ModelTier, fileCount: number): number {
   return costs.base + (costs.perFile * fileCount);
 }
 
+/** 앱 생성용 크레딧 계산 — 최소 3,000cr 보장 (역마진 방지) */
+export function calculateAppGenerateCost(tier: ModelTier, fileCount: number): number {
+  const dynamicCost = calculateModelCost(tier, fileCount);
+  return Math.max(dynamicCost, CREDIT_COSTS.app_generate);
+}
+
 const SIGNUP_BONUS = 500;    // 회원가입 보너스 크레딧
 
 @Injectable()
@@ -202,8 +208,10 @@ export class CreditService {
     projectId?: string;
     taskType?: string;
     description?: string;
+    minCost?: number;
   }) {
-    const cost = calculateModelCost(params.tier, params.fileCount);
+    const baseCost = calculateModelCost(params.tier, params.fileCount);
+    const cost = params.minCost ? Math.max(baseCost, params.minCost) : baseCost;
     const bal = await this.getBalance(userId);
 
     if (bal.balance < cost) {
