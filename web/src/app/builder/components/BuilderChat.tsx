@@ -123,6 +123,7 @@ interface BuilderChatProps {
   lastSaved: string;
   showCostModal: 'deploy' | 'download' | 'generate' | null;
   setShowCostModal: (m: 'deploy' | 'download' | 'generate' | null) => void;
+  onModifyComplete: () => void; // 수정 완료 후 자동 재배포 트리거
 }
 
 export default function BuilderChat({
@@ -143,6 +144,7 @@ export default function BuilderChat({
   saveChatHistory, handleGenerate, handleDeploy, handleDownload,
   handleManualSave, saving, lastSaved,
   showCostModal, setShowCostModal,
+  onModifyComplete,
 }: BuilderChatProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -403,14 +405,14 @@ export default function BuilderChat({
           }
 
           const paths = modifyResult.modifiedFiles.map(f => f.path).join(', ');
-          let replyContent = `✅ **코드 수정 완료!**\n\n`;
+          let replyContent = `✅ **코드 수정 완료!** 재배포 중...\n\n`;
           replyContent += `수정된 파일 (${modifyResult.modifiedFiles.length}개): ${paths}\n`;
           if (modifyResult.totalCredits > 0) replyContent += `✅ ${modifyResult.totalCredits}cr 사용 | 잔액: ${creditBalance !== null ? (creditBalance - modifyResult.totalCredits).toLocaleString() : '?'}cr\n`;
           if (modifyResult.fellBack) replyContent += `⚠️ Flash 모델로 자동 전환됨\n`;
-          if (modifyResult.suggestHealthCheck) {
-            replyContent += `\n🩺 **코드 건강 검진을 권장합니다!** (${modifyResult.totalModifications}회 수정)\n왼쪽 패널의 "코드 헬스체크"를 실행해보세요.\n`;
-          }
-          replyContent += `\n추가 수정이 필요하면 말씀해주세요!`;
+          replyContent += `\n🔄 미리보기에 반영 중입니다. (약 2~3분)\n추가 수정이 필요하면 말씀해주세요!`;
+
+          // 자동 재배포 트리거
+          onModifyComplete();
 
           const aiMsg: Message = {
             id: (Date.now() + 1).toString(), role: 'assistant',
@@ -734,9 +736,10 @@ export default function BuilderChat({
                       else existingFiles.push(mod);
                     }
                     setProject({ ...project, generatedCode: existingFiles });
+                    onModifyComplete(); // 자동 재배포
                     setMessages(prev => [...prev, {
                       id: Date.now().toString(), role: 'assistant' as const,
-                      content: `✅ **대화 내용 반영 완료!** ${result.modifiedFiles.length}개 파일 수정됨\n\n미리보기가 업데이트됩니다.`,
+                      content: `✅ **대화 내용 반영 완료!** ${result.modifiedFiles.length}개 파일 수정됨\n\n🔄 재배포 중... 미리보기가 약 2~3분 후 업데이트됩니다.`,
                       timestamp: new Date().toISOString(), type: 'text' as const,
                     }]);
                   } else if (result) {

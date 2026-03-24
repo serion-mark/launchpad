@@ -86,6 +86,9 @@ function BuilderContent() {
   const [genFileCount, setGenFileCount] = useState(0);
   const [genTotalFiles, setGenTotalFiles] = useState(0);
   const [streamingFiles, setStreamingFiles] = useState<{ path: string; content: string }[]>([]);
+  // ── iframe 리로드 + 재배포 상태 ──────────────────
+  const [iframeKey, setIframeKey] = useState(Date.now());
+  const [isRedeploying, setIsRedeploying] = useState(false);
 
   const selectedModelTier: AppModelTier = 'smart';
   const templateId = project?.template || 'custom';
@@ -501,6 +504,53 @@ function BuilderContent() {
     } catch { /* */ }
   };
 
+  // ── 수정 완료 후 자동 재배포 ──────────────────────
+  const handleModifyComplete = async () => {
+    if (!projectId) return;
+    setIsRedeploying(true);
+    try {
+      const res = await authFetch(`/projects/${projectId}/deploy`, { method: 'POST' });
+      if (!res.ok) {
+        setIsRedeploying(false);
+        return;
+      }
+      // 빌드 완료 대기 (폴링)
+      const maxAttempts = 100;
+      for (let i = 0; i < maxAttempts; i++) {
+        await new Promise(r => setTimeout(r, 3000));
+        try {
+          const statusRes = await authFetch(`/projects/${projectId}/build-status`);
+          if (!statusRes.ok) continue;
+          const status = await statusRes.json();
+          if (status.buildStatus === 'done') {
+            // 프로젝트 갱신 + iframe 리로드
+            const projRes = await authFetch(`/projects/${projectId}`);
+            if (projRes.ok) {
+              const projData = await projRes.json();
+              setProject(projData);
+            }
+            setIframeKey(Date.now());
+            setMessages(prev => [...prev, {
+              id: Date.now().toString(), role: 'assistant' as const,
+              content: '🎉 **미리보기가 업데이트되었습니다!**',
+              timestamp: new Date().toISOString(), type: 'text' as const,
+            }]);
+            break;
+          }
+          if (status.buildStatus === 'failed') {
+            setMessages(prev => [...prev, {
+              id: Date.now().toString(), role: 'assistant' as const,
+              content: '⚠️ 빌드 에러 발생. 자동 수정을 시도합니다.\n\n다시 수정을 요청하거나 잠시 후 시도해주세요.',
+              timestamp: new Date().toISOString(), type: 'text' as const,
+            }]);
+            break;
+          }
+        } catch { /* 폴링 계속 */ }
+      }
+    } catch { /* */ }
+    setIsRedeploying(false);
+  };
+
   // ── generatedFiles 계산 ──────────────────────────
   const generatedFiles = useMemo(() => {
     if (buildPhase === 'generating' && streamingFiles.length > 0) {
@@ -567,6 +617,7 @@ function BuilderContent() {
         lastSaved={lastSaved}
         showCostModal={showCostModal}
         setShowCostModal={setShowCostModal}
+        onModifyComplete={handleModifyComplete}
       />
 
       {/* 오른쪽: 미리보기 */}
@@ -591,6 +642,8 @@ function BuilderContent() {
         saveChatHistory={saveChatHistory}
         answers={answers}
         projectFeatures={projectFeatures}
+        iframeKey={iframeKey}
+        isRedeploying={isRedeploying}
       />
 
       {/* 저장 완료 토스트 */}

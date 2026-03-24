@@ -3,10 +3,8 @@
 import { useState, useEffect } from 'react';
 import { authFetch } from '@/lib/api';
 import LivePreview from './LivePreview';
-import VisualEditPopup from './VisualEditPopup';
 import VersionHistory from './VersionHistory';
 import CodeHealthPanel from './CodeHealthPanel';
-import { callModifyFiles } from './BuilderChat';
 import type { Message, BuildPhase, ProjectData } from './BuilderChat';
 
 type AppModelTier = 'flash' | 'smart' | 'pro';
@@ -30,9 +28,12 @@ interface BuilderPreviewProps {
   creditBalance: number | null;
   setCreditBalance: (b: number | null) => void;
   saveChatHistory: (msgs: Message[], showToast?: boolean) => void;
-  // designing 상태에서의 구조 시각화용
   answers: Record<string, string>;
   projectFeatures: string[];
+  // iframe 리로드용
+  iframeKey: number;
+  // 재배포 상태
+  isRedeploying: boolean;
 }
 
 export default function BuilderPreview({
@@ -47,63 +48,48 @@ export default function BuilderPreview({
   creditBalance, setCreditBalance,
   saveChatHistory,
   answers, projectFeatures,
+  iframeKey, isRedeploying,
 }: BuilderPreviewProps) {
-  const [visualEditMode, setVisualEditMode] = useState(false);
-  const [selectedElement, setSelectedElement] = useState<{
-    tagName: string;
-    className: string;
-    textContent: string;
-    component: string | null;
-    rect: { x: number; y: number; width: number; height: number };
-  } | null>(null);
 
-  const showLivePreview = buildPhase === 'done' || (buildPhase === 'generating' && streamingFiles.length > 0);
-  const isPreviewFocused = showLivePreview || buildPhase === 'generating';
+  const isPreviewFocused = buildPhase === 'done' || buildPhase === 'generating';
 
-  // Visual Edit 클릭 수신
-  useEffect(() => {
-    const handler = (e: MessageEvent) => {
-      if (e.data?.type === 'element-clicked' && visualEditMode) {
-        setSelectedElement(e.data.element);
-      }
-    };
-    window.addEventListener('message', handler);
-    return () => window.removeEventListener('message', handler);
-  }, [visualEditMode]);
+  // done 상태 배포 URL 결정
+  const deployedUrl = project?.deployedUrl || null;
 
-  // done이면 generatedFiles 없어도 2초 간격으로 프로젝트 re-fetch
+  // done이면 deployedUrl 없어도 3초 간격으로 프로젝트 re-fetch (체험 배포 완료 대기)
   useEffect(() => {
     if (buildPhase !== 'done' || !projectId) return;
-    if (generatedFiles.length > 0) return;
+    if (deployedUrl && project?.status === 'deployed') return; // 이미 배포됨
     let attempts = 0;
-    const maxAttempts = 30;
+    const maxAttempts = 60; // 최대 3분 대기 (3초 × 60)
     const interval = setInterval(() => {
       attempts++;
       authFetch(`/projects/${projectId}`).then(r => r.ok ? r.json() : null).then(d => {
-        if (d && d.generatedCode && Array.isArray(d.generatedCode) && d.generatedCode.length > 0) {
+        if (d) {
           setProject(d);
-          clearInterval(interval);
+          if (d.deployedUrl && d.status === 'deployed') {
+            clearInterval(interval);
+          }
         }
       }).catch(() => {});
       if (attempts >= maxAttempts) clearInterval(interval);
-    }, 2000);
+    }, 3000);
     return () => clearInterval(interval);
-  }, [buildPhase, projectId, generatedFiles.length]);
+  }, [buildPhase, projectId, deployedUrl, project?.status]);
 
   return (
     <div className={`hidden lg:flex flex-col border-l border-[#1e1e28] bg-[#0c0c12] transition-all duration-500 ease-in-out ${isPreviewFocused ? 'flex-1' : 'w-[45%]'}`}>
       {/* 미리보기 헤더 */}
       <div className="flex items-center justify-between border-b border-[#1e1e28] bg-[#13131a] px-4 py-2.5">
         <div className="flex items-center gap-2.5">
-          <span className="text-[11px] font-medium text-[#6b7684]">{showLivePreview ? '실시간 미리보기' : '미리보기'}</span>
-          {buildPhase === 'done' && (
-            <button
-              onClick={() => { setVisualEditMode(!visualEditMode); setSelectedElement(null); }}
-              className={`rounded px-2 py-1 text-[10px] font-medium transition-colors ${visualEditMode ? 'bg-[#f59e0b] text-white' : 'bg-[#1e1e28] text-[#6b7684] hover:text-[#f2f4f6]'}`}
-              title="Visual Edit 모드"
-            >
-              {visualEditMode ? '✏️ 편집 중' : '✏️ 편집'}
-            </button>
+          <span className="text-[11px] font-medium text-[#6b7684]">
+            {buildPhase === 'done' ? (deployedUrl ? '실시간 미리보기' : '배포 준비 중') : '미리보기'}
+          </span>
+          {buildPhase === 'done' && isRedeploying && (
+            <span className="flex items-center gap-1 text-[10px] text-[#ffd60a]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#ffd60a] animate-pulse" />
+              재배포 중...
+            </span>
           )}
           <div className="flex rounded-md bg-[#1e1e28] p-0.5">
             <button onClick={() => setPreviewMode('mobile')} className={`rounded px-2.5 py-1 text-[10px] font-medium transition-colors ${previewMode === 'mobile' ? 'bg-[#3182f6] text-white' : 'text-[#6b7684] hover:text-[#f2f4f6]'}`}>📱</button>
@@ -111,31 +97,21 @@ export default function BuilderPreview({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {buildPhase === 'done' && project && (
-            project.status === 'deployed' && project.deployedUrl ? (
-              <a href={project.deployedUrl} target="_blank" rel="noopener noreferrer" className="rounded-md bg-[#1e1e28] px-2.5 py-1 text-[10px] text-[#8b95a1] hover:text-[#f2f4f6] transition-colors">
-                외부에서 보기 ↗
-              </a>
-            ) : (
-              <button
-                onClick={() => alert('배포 후 확인 가능합니다. 아래 [배포] 버튼을 먼저 눌러주세요!')}
-                className="rounded-md bg-[#1e1e28] px-2.5 py-1 text-[10px] text-[#4e5968] cursor-not-allowed"
-              >
-                외부에서 보기 (배포 후 가능)
-              </button>
-            )
+          {buildPhase === 'done' && deployedUrl && (
+            <a href={deployedUrl} target="_blank" rel="noopener noreferrer" className="rounded-md bg-[#1e1e28] px-2.5 py-1 text-[10px] text-[#8b95a1] hover:text-[#f2f4f6] transition-colors">
+              외부에서 보기 ↗
+            </a>
           )}
         </div>
       </div>
 
       {/* 미리보기 영역 */}
       <div className="flex-1 overflow-auto">
-        {/* 생성 중 → streamingFiles 없으면 프로그레스 */}
+        {/* ── generating: 프로그레스 뷰 ── */}
         {buildPhase === 'generating' && streamingFiles.length === 0 && (
           <GeneratingProgress generateStep={generateStep} genFileCount={genFileCount} genTotalFiles={genTotalFiles} />
         )}
 
-        {/* 생성 중 + streamingFiles → 실시간 LivePreview + 미니 프로그레스 */}
         {buildPhase === 'generating' && streamingFiles.length > 0 && (
           <div className="relative h-full">
             <LivePreview files={streamingFiles} previewMode={previewMode} visualEditMode={false} />
@@ -143,66 +119,47 @@ export default function BuilderPreview({
           </div>
         )}
 
-        {/* 생성 완료 → 배포 iframe / LivePreview / 로딩 */}
-        {showLivePreview && buildPhase !== 'generating' && (
-          <>
-            {project?.status === 'deployed' && project?.deployedUrl ? (
-              <div className="relative h-full w-full">
-                <iframe
-                  src={project?.deployedUrl}
-                  className="h-full w-full border-0 rounded-lg bg-white"
-                  style={{ maxWidth: previewMode === 'mobile' ? '375px' : '100%', margin: previewMode === 'mobile' ? '0 auto' : undefined }}
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                  title="앱 미리보기"
-                />
-                <div className="absolute top-2 right-2 flex items-center gap-1.5 rounded-full bg-emerald-600/90 px-2.5 py-1 text-[10px] font-bold text-white shadow-lg">
-                  <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />LIVE
-                </div>
-              </div>
-            ) : (generatedFiles.length > 0 || streamingFiles.length > 0) ? (
-              <LivePreview files={generatedFiles.length > 0 ? generatedFiles : streamingFiles} previewMode={previewMode} visualEditMode={visualEditMode} />
-            ) : (
-              <div className="flex h-full items-center justify-center text-center">
-                <div className="max-w-[300px]">
-                  <div className="mb-4 text-4xl animate-spin">⏳</div>
-                  <p className="text-sm font-medium text-[#f2f4f6]">미리보기를 불러오는 중...</p>
-                  <p className="text-xs mt-2 text-[#6b7684]">생성된 코드를 가져오고 있습니다</p>
-                  <button
-                    onClick={() => { if (projectId) authFetch(`/projects/${projectId}`).then(r => r.ok ? r.json() : null).then(d => { if (d) setProject(d); }); }}
-                    className="mt-4 rounded-lg bg-[#2c2c35] px-4 py-2 text-xs font-medium text-[#8b95a1] hover:bg-[#3a3a45]"
-                  >
-                    새로고침
-                  </button>
-                </div>
-              </div>
-            )}
-            {/* Visual Edit 팝업 */}
-            {!((project?.status === 'deployed') && project?.deployedUrl) && selectedElement && visualEditMode && projectId && (
-              <VisualEditPopup
-                element={selectedElement}
-                projectId={projectId}
-                modelTier={selectedModelTier}
-                onAiEdit={async (message) => {
-                  const result = await callModifyFiles({ projectId, message, modelTier: selectedModelTier });
-                  if (result && project && result.modifiedFiles.length > 0) {
-                    const existingFiles = Array.isArray(project.generatedCode) ? [...project.generatedCode] : [];
-                    for (const mod of result.modifiedFiles) {
-                      const idx = existingFiles.findIndex((f: any) => f.path === mod.path);
-                      if (idx >= 0) existingFiles[idx] = mod;
-                      else existingFiles.push(mod);
-                    }
-                    setProject({ ...project, generatedCode: existingFiles });
-                  }
-                  setSelectedElement(null);
-                }}
-                onClose={() => setSelectedElement(null)}
+        {/* ── done: 배포 URL iframe (핵심!!) ── */}
+        {buildPhase === 'done' && deployedUrl && (
+          <div className="relative h-full w-full flex items-center justify-center">
+            <div
+              className={`h-full overflow-hidden ${previewMode === 'mobile' ? 'w-[375px]' : 'w-full'}`}
+              style={previewMode === 'mobile' ? { maxWidth: '375px' } : undefined}
+            >
+              <iframe
+                key={iframeKey}
+                src={deployedUrl}
+                className="h-full w-full border-0 bg-white"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                title="앱 미리보기"
               />
-            )}
-          </>
+            </div>
+            <div className="absolute top-2 right-2 flex items-center gap-1.5 rounded-full bg-emerald-600/90 px-2.5 py-1 text-[10px] font-bold text-white shadow-lg">
+              <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />LIVE
+            </div>
+          </div>
         )}
 
-        {/* designing → 구조 시각화 */}
-        {!showLivePreview && buildPhase !== 'generating' && !hasError && (buildPhase === 'designing' || buildPhase === 'questionnaire') && (
+        {/* ── done: 배포 URL 없음 → 배포 준비 중 ── */}
+        {buildPhase === 'done' && !deployedUrl && (
+          <div className="flex h-full items-center justify-center text-center">
+            <div className="max-w-[300px]">
+              <div className="mb-4 text-4xl animate-spin">⏳</div>
+              <p className="text-sm font-medium text-[#f2f4f6]">배포 준비 중...</p>
+              <p className="text-xs mt-2 text-[#6b7684]">24시간 체험 배포를 진행하고 있습니다</p>
+              <p className="text-xs mt-1 text-[#4e5968]">약 2~5분 소요됩니다</p>
+              <button
+                onClick={() => { if (projectId) authFetch(`/projects/${projectId}`).then(r => r.ok ? r.json() : null).then(d => { if (d) setProject(d); }); }}
+                className="mt-4 rounded-lg bg-[#2c2c35] px-4 py-2 text-xs font-medium text-[#8b95a1] hover:bg-[#3a3a45]"
+              >
+                새로고침
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── designing/questionnaire: 구조 시각화 ── */}
+        {buildPhase !== 'done' && buildPhase !== 'generating' && !hasError && (buildPhase === 'designing' || buildPhase === 'questionnaire') && (
           <StructureVisualization answers={answers} projectFeatures={projectFeatures} project={project} />
         )}
 
@@ -221,7 +178,7 @@ export default function BuilderPreview({
         )}
 
         {/* idle 빈 상태 */}
-        {!showLivePreview && buildPhase === 'idle' && !hasError && (
+        {buildPhase === 'idle' && !hasError && (
           <div className="flex h-full items-center justify-center text-center text-[#4e5968]">
             <div>
               <div className="mb-4 text-5xl opacity-60">📱</div>
@@ -287,13 +244,7 @@ function StructureVisualization({ answers, projectFeatures, project }: {
   const features = projectFeatures.length > 0 ? projectFeatures : [];
   const answerFeatures = (answers.features || '').split(', ').filter(Boolean);
   const displayFeatures = answerFeatures.length > 0 ? answerFeatures : features;
-
-  // 페이지 목록 추출
   const pages = ['홈', ...displayFeatures.filter(f => f.length > 1).slice(0, 8)];
-  if (answers.app_description) {
-    // custom 템플릿에서 설명으로부터 페이지 추론
-  }
-
   const hasContent = Object.keys(answers).length > 0 || projectFeatures.length > 0;
 
   if (!hasContent) {
@@ -318,8 +269,6 @@ function StructureVisualization({ answers, projectFeatures, project }: {
             <p className="text-[10px] text-[#6b7684]">앱 구조</p>
           </div>
         </div>
-
-        {/* 페이지 목록 */}
         <div className="mb-4">
           <h4 className="mb-2 text-[11px] font-semibold text-[#8b95a1] uppercase tracking-wider">📄 페이지</h4>
           <div className="space-y-1.5">
@@ -331,8 +280,6 @@ function StructureVisualization({ answers, projectFeatures, project }: {
             ))}
           </div>
         </div>
-
-        {/* 기능 목록 */}
         {displayFeatures.length > 0 && (
           <div>
             <h4 className="mb-2 text-[11px] font-semibold text-[#8b95a1] uppercase tracking-wider">🔧 기능</h4>
@@ -346,8 +293,6 @@ function StructureVisualization({ answers, projectFeatures, project }: {
             </div>
           </div>
         )}
-
-        {/* 답변 요약 */}
         {Object.keys(answers).length > 1 && (
           <div className="mt-4 border-t border-[#1e1e28] pt-3">
             <h4 className="mb-2 text-[11px] font-semibold text-[#8b95a1] uppercase tracking-wider">📝 설정</h4>
@@ -450,4 +395,3 @@ function MiniProgress({ generateStep, streamingFiles }: {
     </div>
   );
 }
-
