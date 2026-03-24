@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getUser, logout } from '@/lib/api';
 
 const NAV_LINKS = [
@@ -14,12 +14,25 @@ const NAV_LINKS = [
 export default function LandingNav() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
   const user = getUser();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // 프로필 드롭다운 외부 클릭 닫기
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
   return (
@@ -50,9 +63,35 @@ export default function LandingNav() {
               <a href="/dashboard" className="rounded-xl bg-[#2c2c35] px-4 py-2.5 text-sm font-semibold text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">
                 내 프로젝트
               </a>
-              <button onClick={logout} className="text-sm text-[#6b7684] hover:text-[#8b95a1] transition-colors">
-                로그아웃
-              </button>
+              {/* 프로필 드롭다운 */}
+              <div className="relative" ref={profileRef}>
+                <button
+                  onClick={() => setProfileOpen(!profileOpen)}
+                  className="flex items-center justify-center h-9 w-9 rounded-full bg-[#3182f6]/20 text-[#3182f6] text-sm font-bold hover:bg-[#3182f6]/30 transition-colors"
+                  title="마이페이지"
+                >
+                  {user.email.charAt(0).toUpperCase()}
+                </button>
+                {profileOpen && (
+                  <div className="absolute right-0 top-12 w-48 rounded-xl bg-[#1b1b21] border border-[#2c2c35] shadow-xl py-2 z-50">
+                    <p className="px-4 py-2 text-xs text-[#6b7684] truncate border-b border-[#2c2c35] mb-1">{user.email}</p>
+                    <a href="/mypage" className="block px-4 py-2.5 text-sm text-[#f2f4f6] hover:bg-[#2c2c35] transition-colors">
+                      마이페이지
+                    </a>
+                    <a href="/mypage#credit" className="block px-4 py-2.5 text-sm text-[#f2f4f6] hover:bg-[#2c2c35] transition-colors">
+                      크레딧 관리
+                    </a>
+                    <a href="/mypage#billing" className="block px-4 py-2.5 text-sm text-[#f2f4f6] hover:bg-[#2c2c35] transition-colors">
+                      정산
+                    </a>
+                    <div className="border-t border-[#2c2c35] mt-1 pt-1">
+                      <button onClick={logout} className="block w-full text-left px-4 py-2.5 text-sm text-[#f45452] hover:bg-[#2c2c35] transition-colors">
+                        로그아웃
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </>
           ) : (
             <>
@@ -95,6 +134,7 @@ export default function LandingNav() {
             {user ? (
               <>
                 <a href="/dashboard" className="block rounded-xl bg-[#2c2c35] px-4 py-3 text-sm font-semibold text-center text-[#f2f4f6]">내 프로젝트</a>
+                <a href="/mypage" className="block rounded-xl bg-[#2c2c35] px-4 py-3 text-sm font-semibold text-center text-[#f2f4f6]">마이페이지</a>
                 <button onClick={logout} className="block w-full text-sm text-[#6b7684] py-2">로그아웃</button>
               </>
             ) : (

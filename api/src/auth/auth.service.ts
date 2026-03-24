@@ -49,11 +49,67 @@ export class AuthService {
       select: {
         id: true, email: true, name: true, avatar: true, provider: true,
         plan: true, planExpiresAt: true, createdAt: true,
+        company: true,
+        businessName: true, businessNumber: true, representative: true,
+        businessAddress: true, businessPhone: true,
         termsAgreedAt: true, privacyAgreedAt: true, refundAgreedAt: true, marketingAgreedAt: true,
       },
     });
     if (!user) throw new UnauthorizedException();
     return user;
+  }
+
+  /** 프로필 수정 (이름, 회사명) */
+  async updateProfile(userId: string, data: { name?: string; company?: string }) {
+    const updateData: any = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.company !== undefined) updateData.company = data.company;
+    const user = await this.prisma.user.update({ where: { id: userId }, data: updateData });
+    return { success: true, name: user.name, company: user.company };
+  }
+
+  /** 비밀번호 변경 */
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    if (!newPassword || newPassword.length < 8) {
+      throw new BadRequestException('새 비밀번호는 8자 이상이어야 합니다');
+    }
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+    if (!user.password) {
+      throw new BadRequestException('소셜 로그인 계정은 비밀번호를 변경할 수 없습니다');
+    }
+    const valid = await bcrypt.compare(currentPassword, user.password);
+    if (!valid) throw new BadRequestException('현재 비밀번호가 올바르지 않습니다');
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({ where: { id: userId }, data: { password: hashed } });
+    return { success: true };
+  }
+
+  /** 사업자 정보 조회 */
+  async getBusinessInfo(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        businessName: true, businessNumber: true, representative: true,
+        businessAddress: true, businessPhone: true,
+      },
+    });
+    if (!user) throw new UnauthorizedException();
+    return user;
+  }
+
+  /** 사업자 정보 수정 */
+  async updateBusinessInfo(userId: string, data: {
+    businessName?: string; businessNumber?: string; representative?: string;
+    businessAddress?: string; businessPhone?: string;
+  }) {
+    const user = await this.prisma.user.update({ where: { id: userId }, data });
+    return {
+      success: true,
+      businessName: user.businessName, businessNumber: user.businessNumber,
+      representative: user.representative, businessAddress: user.businessAddress,
+      businessPhone: user.businessPhone,
+    };
   }
 
   /** 약관 동의 처리 */

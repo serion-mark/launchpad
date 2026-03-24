@@ -132,4 +132,36 @@ export class CreditController {
       limit ? parseInt(limit, 10) : 30,
     );
   }
+
+  // ── 기간별 히스토리 (충전+사용 통합, 날짜 필터) ──
+  @Get('history')
+  getHistory(
+    @Req() req: any,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.creditService.getHistory(req.user.userId, {
+      from, to,
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 20,
+    });
+  }
+
+  // ── 충전 내역만 ─────────────────────────────────
+  @Get('charges')
+  getCharges(@Req() req: any) {
+    return this.creditService.getCharges(req.user.userId);
+  }
+
+  // ── 이용내역서 리포트 데이터 (PDF 생성용) ────────
+  @Get('report')
+  getReport(
+    @Req() req: any,
+    @Query('month') month?: string,
+  ) {
+    const m = month || new Date().toISOString().slice(0, 7);
+    return this.creditService.getReportData(req.user.userId, m);
+  }
 }

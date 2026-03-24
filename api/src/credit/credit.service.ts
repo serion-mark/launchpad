@@ -290,6 +290,166 @@ export class CreditService {
     });
   }
 
+  // ── 기간별 크레딧 히스토리 (충전+사용 통합) ────────
+  async getHistory(userId: string, params: { from?: string; to?: string; page?: number; limit?: number }) {
+    const page = params.page || 1;
+    const limit = params.limit || 20;
+    const where: any = { userId };
+
+    if (params.from || params.to) {
+      where.createdAt = {};
+      if (params.from) where.createdAt.gte = new Date(params.from);
+      if (params.to) where.createdAt.lte = new Date(params.to + 'T23:59:59.999Z');
+    }
+
+    const [logs, total] = await Promise.all([
+      this.prisma.creditTransaction.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.creditTransaction.count({ where }),
+    ]);
+
+    // 기간 합계
+    const chargeWhere = { ...where, type: { in: ['CHARGE', 'SIGNUP_BONUS'] } };
+    const useWhere = { ...where, type: 'USE' };
+    const [chargeAgg, useAgg] = await Promise.all([
+      this.prisma.creditTransaction.aggregate({ where: chargeWhere, _sum: { amount: true } }),
+      this.prisma.creditTransaction.aggregate({ where: useWhere, _sum: { amount: true } }),
+    ]);
+
+    // 충전 원화 합계 (CHARGE 타입만)
+    const chargeTransactions = await this.prisma.creditTransaction.findMany({
+      where: { ...where, type: 'CHARGE' },
+      select: { description: true, amount: true },
+    });
+    let chargedAmount = 0;
+    for (const ct of chargeTransactions) {
+      // description: "라이트팩 구매 (₩49,000)" 에서 가격 추출
+      const match = ct.description?.match(/₩([\d,]+)/);
+      if (match) chargedAmount += parseInt(match[1].replace(/,/g, ''), 10);
+    }
+
+    const bal = await this.getBalance(userId);
+
+    return {
+      balance: bal.balance,
+      logs,
+      summary: {
+        totalCharged: chargeAgg._sum.amount || 0,
+        totalUsed: Math.abs(useAgg._sum.amount || 0),
+        chargedAmount,
+      },
+      pagination: { page, limit, total },
+    };
+  }
+
+  // ── 충전 내역만 조회 ──────────────────────────────
+  async getCharges(userId: string) {
+    const charges = await this.prisma.creditTransaction.findMany({
+      where: { userId, type: { in: ['CHARGE', 'SIGNUP_BONUS'] } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return {
+      charges: charges.map(c => {
+        // 패키지명과 가격 추출
+        let packageName = '회원가입 보너스';
+        let price = 0;
+        let method = '무료';
+
+        if (c.type === 'CHARGE') {
+          const descMatch = c.description?.match(/^(.+?)\s*구매/);
+          packageName = descMatch ? descMatch[1] : c.description || '크레딧 충전';
+          const priceMatch = c.description?.match(/₩([\d,]+)/);
+          price = priceMatch ? parseInt(priceMatch[1].replace(/,/g, ''), 10) : 0;
+          method = '카드결제';
+        }
+
+        return {
+          date: c.createdAt,
+          packageName,
+          credits: c.amount,
+          price,
+          method,
+          paymentRefId: c.paymentRefId,
+        };
+      }),
+    };
+  }
+
+  // ── 이용내역서 데이터 생성 (PDF용) ─────────────────
+  async getReportData(userId: string, month: string) {
+    const [year, mon] = month.split('-').map(Number);
+    const from = new Date(year, mon - 1, 1);
+    const to = new Date(year, mon, 0, 23, 59, 59, 999);
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        email: true, name: true, company: true,
+        businessName: true, businessNumber: true, representative: true,
+        businessAddress: true, businessPhone: true,
+      },
+    });
+
+    const where = { userId, createdAt: { gte: from, lte: to } };
+
+    // 충전 내역
+    const charges = await this.prisma.creditTransaction.findMany({
+      where: { ...where, type: { in: ['CHARGE', 'SIGNUP_BONUS'] } },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // 사용 내역
+    const usages = await this.prisma.creditTransaction.findMany({
+      where: { ...where, type: 'USE' },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // 기능별 요약
+    const featureSummary: Record<string, { count: number; credits: number }> = {};
+    for (const u of usages) {
+      const feature = u.taskType || u.description || '기타';
+      if (!featureSummary[feature]) featureSummary[feature] = { count: 0, credits: 0 };
+      featureSummary[feature].count++;
+      featureSummary[feature].credits += Math.abs(u.amount);
+    }
+
+    // 충전 원화 합계
+    let totalChargedAmount = 0;
+    for (const c of charges) {
+      const match = c.description?.match(/₩([\d,]+)/);
+      if (match) totalChargedAmount += parseInt(match[1].replace(/,/g, ''), 10);
+    }
+
+    return {
+      user,
+      month,
+      period: { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) },
+      charges: charges.map(c => ({
+        date: c.createdAt,
+        description: c.description,
+        credits: c.amount,
+      })),
+      usages: usages.map(u => ({
+        date: u.createdAt,
+        description: u.description,
+        taskType: u.taskType,
+        projectId: u.projectId,
+        credits: u.amount,
+      })),
+      featureSummary,
+      totals: {
+        totalCharged: charges.reduce((sum, c) => sum + c.amount, 0),
+        totalUsed: usages.reduce((sum, u) => sum + Math.abs(u.amount), 0),
+        totalChargedAmount,
+      },
+    };
+  }
+
   // ── 패키지 목록 조회 ────────────────────────────────
   getPackages() {
     return CREDIT_PACKAGES;

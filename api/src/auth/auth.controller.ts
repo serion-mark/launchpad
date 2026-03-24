@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Query, Res, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Query, Res, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import type { Response } from 'express';
@@ -25,6 +25,33 @@ export class AuthController {
   @UseGuards(AuthGuard('jwt'))
   getProfile(@Req() req: any) {
     return this.auth.getProfile(req.user.userId);
+  }
+
+  @Patch('profile')
+  @UseGuards(AuthGuard('jwt'))
+  updateProfile(@Req() req: any, @Body() body: { name?: string; company?: string }) {
+    return this.auth.updateProfile(req.user.userId, body);
+  }
+
+  @Patch('change-password')
+  @UseGuards(AuthGuard('jwt'))
+  changePassword(@Req() req: any, @Body() body: { currentPassword: string; newPassword: string }) {
+    return this.auth.changePassword(req.user.userId, body.currentPassword, body.newPassword);
+  }
+
+  @Get('business-info')
+  @UseGuards(AuthGuard('jwt'))
+  getBusinessInfo(@Req() req: any) {
+    return this.auth.getBusinessInfo(req.user.userId);
+  }
+
+  @Patch('business-info')
+  @UseGuards(AuthGuard('jwt'))
+  updateBusinessInfo(@Req() req: any, @Body() body: {
+    businessName?: string; businessNumber?: string; representative?: string;
+    businessAddress?: string; businessPhone?: string;
+  }) {
+    return this.auth.updateBusinessInfo(req.user.userId, body);
   }
 
   @Post('agree')
