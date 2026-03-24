@@ -718,10 +718,14 @@ function BuilderContent() {
         if (result) {
           handleGenerateComplete(result);
         } else {
-          setBuildPhase('designing');
+          // 에러 시: 이미 생성된 코드가 있으면 done 유지, 없으면 designing
+          const hasCode = project?.generatedCode && Array.isArray(project.generatedCode) && project.generatedCode.length > 0;
+          setBuildPhase(hasCode ? 'done' : 'designing');
           setMessages(prev => [...prev, {
             id: Date.now().toString(), role: 'assistant',
-            content: '크레딧이 부족하거나 생성에 실패했습니다.\n\n[크레딧 충전하기 →](/credits)',
+            content: hasCode
+              ? '추가 생성에 실패했습니다. 기존 앱은 유지됩니다.\n\n채팅으로 수정하거나 [배포] 버튼을 이용하세요.'
+              : '크레딧이 부족하거나 생성에 실패했습니다.\n\n[크레딧 충전하기 →](/credits)',
             timestamp: new Date().toISOString(), type: 'text',
           }]);
         }
@@ -796,10 +800,14 @@ function BuilderContent() {
               }
 
               if (data.type === 'error') {
-                setBuildPhase('designing');
+                // 이미 생성된 코드가 있으면 done 유지
+                const hasCode = streamingFiles.length > 0 || (project?.generatedCode && Array.isArray(project.generatedCode) && project.generatedCode.length > 0);
+                setBuildPhase(hasCode ? 'done' : 'designing');
                 setMessages(prev => [...prev, {
                   id: Date.now().toString(), role: 'assistant',
-                  content: `생성 실패: ${data.message}\n\n다시 시도해주세요.`,
+                  content: hasCode
+                    ? `생성 중 오류: ${data.message}\n\n생성된 파일은 유지됩니다. 채팅으로 수정하거나 [배포] 버튼을 이용하세요.`
+                    : `생성 실패: ${data.message}\n\n다시 시도해주세요.`,
                   timestamp: new Date().toISOString(), type: 'text',
                 }]);
               }
@@ -812,12 +820,18 @@ function BuilderContent() {
         reader.releaseLock();
       }
     } catch {
-      setBuildPhase('designing');
-      setGenerateProgress([]);
-      setStreamingFiles([]);
+      // 이미 생성된 코드가 있으면 done 유지
+      const hasCode = streamingFiles.length > 0 || (project?.generatedCode && Array.isArray(project.generatedCode) && project.generatedCode.length > 0);
+      setBuildPhase(hasCode ? 'done' : 'designing');
+      if (!hasCode) {
+        setGenerateProgress([]);
+        setStreamingFiles([]);
+      }
       setMessages(prev => [...prev, {
         id: Date.now().toString(), role: 'assistant',
-        content: '네트워크 오류가 발생했습니다. 다시 시도해주세요.',
+        content: hasCode
+          ? '네트워크 오류가 발생했습니다. 생성된 파일은 유지됩니다.'
+          : '네트워크 오류가 발생했습니다. 다시 시도해주세요.',
         timestamp: new Date().toISOString(), type: 'text',
       }]);
     }
@@ -1228,8 +1242,27 @@ function BuilderContent() {
     return () => window.removeEventListener('message', handler);
   }, [visualEditMode]);
 
+  // done이면 generatedFiles 없어도 3초 간격으로 프로젝트 re-fetch (generatedCode 가져오기)
+  useEffect(() => {
+    if (buildPhase !== 'done' || !projectId || generatedFiles.length > 0) return;
+    let attempts = 0;
+    const maxAttempts = 10; // 최대 30초 대기
+    const interval = setInterval(() => {
+      attempts++;
+      authFetch(`/projects/${projectId}`).then(r => r.ok ? r.json() : null).then(d => {
+        if (d && d.generatedCode && Array.isArray(d.generatedCode) && d.generatedCode.length > 0) {
+          setProject(d);
+          clearInterval(interval);
+        }
+      }).catch(() => {});
+      if (attempts >= maxAttempts) clearInterval(interval);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [buildPhase, projectId, generatedFiles.length]);
+
   // generating 중 streamingFiles가 있으면 미리보기 표시
-  const showLivePreview = (buildPhase === 'done' && generatedFiles.length > 0) || (buildPhase === 'generating' && streamingFiles.length > 0);
+  // done이면 generatedFiles 없어도 true (빈 상태 표시 대신 "로딩" 또는 streamingFiles fallback)
+  const showLivePreview = (buildPhase === 'done' && (generatedFiles.length > 0 || streamingFiles.length > 0)) || (buildPhase === 'generating' && streamingFiles.length > 0);
 
   // 레이아웃: done 시 Lovable처럼 미리보기 중심 (왼쪽 채팅 좁게 + 오른쪽 미리보기 넓게)
   const isPreviewFocused = showLivePreview || buildPhase === 'generating';
@@ -1706,7 +1739,7 @@ function BuilderContent() {
                   </div>
                 </div>
               ) : (
-                <LivePreview files={generatedFiles} previewMode={previewMode} visualEditMode={visualEditMode} />
+                <LivePreview files={generatedFiles.length > 0 ? generatedFiles : streamingFiles} previewMode={previewMode} visualEditMode={visualEditMode} />
               )}
               {/* Visual Edit 팝업 (LivePreview 모드에서만) */}
               {!((project?.status === 'deployed') && project?.deployedUrl) && selectedElement && visualEditMode && projectId && (
@@ -1764,13 +1797,23 @@ function BuilderContent() {
             </div>
           )}
 
-          {/* 빈 상태: done이면서 LivePreview 없는 경우 or 설계 전 */}
-          {!showLivePreview && buildPhase !== 'generating' && (buildPhase === 'done' || !previewTemplate) && !(buildPhase !== 'done' && previewTemplate) && (
+          {/* 빈 상태: 설계 전 */}
+          {!showLivePreview && buildPhase !== 'generating' && buildPhase !== 'done' && !previewTemplate && (
             <div className="flex h-full items-center justify-center text-center text-[#4e5968]">
               <div>
-                <div className="mb-4 text-5xl opacity-60">{buildPhase === 'done' ? '⏳' : '📱'}</div>
-                <p className="text-sm font-medium">{buildPhase === 'done' ? '미리보기를 불러오는 중...' : '앱을 설명하면'}</p>
-                <p className="text-xs mt-1">{buildPhase === 'done' ? '잠시만 기다려주세요' : '여기서 실시간으로 미리볼 수 있습니다'}</p>
+                <div className="mb-4 text-5xl opacity-60">📱</div>
+                <p className="text-sm font-medium">앱을 설명하면</p>
+                <p className="text-xs mt-1">여기서 실시간으로 미리볼 수 있습니다</p>
+              </div>
+            </div>
+          )}
+          {/* done인데 LivePreview 없는 경우 — 프로젝트 로딩 중 */}
+          {!showLivePreview && buildPhase === 'done' && (
+            <div className="flex h-full items-center justify-center text-center text-[#4e5968]">
+              <div>
+                <div className="mb-4 text-4xl animate-spin">⏳</div>
+                <p className="text-sm font-medium">미리보기를 불러오는 중...</p>
+                <p className="text-xs mt-1">생성된 코드를 가져오고 있습니다</p>
               </div>
             </div>
           )}
