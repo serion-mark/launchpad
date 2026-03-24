@@ -220,22 +220,52 @@ function extractCssVariables(css: string): string {
  * JSX 코드를 정적 HTML로 간이 변환
  * - React hooks, state, useEffect 등을 제거하고 UI 부분만 추출
  * - Tailwind 클래스는 CDN으로 처리
+ * - Supabase/인증 코드 자동 제거 (미리보기에선 불필요)
  */
 function convertJsxToStaticHtml(code: string, appName: string): string {
   try {
-    // return (...) 블록 추출
-    let jsx = '';
+    // Step 1: import문 + 로직부 제거, JSX(return) 블록만 추출
+    let cleanCode = code;
 
-    // return ( ... ) 패턴 찾기 — 가장 바깥쪽 return문
-    const returnMatch = code.match(/return\s*\(\s*([\s\S]*)\s*\)\s*;?\s*\}?\s*$/);
-    if (returnMatch) {
-      jsx = returnMatch[1];
-    } else {
-      // return <div... 패턴
-      const returnSimple = code.match(/return\s+(<[\s\S]*>)\s*;?\s*\}?\s*$/);
-      if (returnSimple) {
-        jsx = returnSimple[1];
+    // 'use client' 제거
+    cleanCode = cleanCode.replace(/['"]use client['"];?\s*/g, '');
+
+    // import문 전체 제거
+    cleanCode = cleanCode.replace(/^import\s+.*$/gm, '');
+    cleanCode = cleanCode.replace(/^import\s*\{[\s\S]*?\}\s*from\s*['"][^'"]+['"];?\s*$/gm, '');
+    cleanCode = cleanCode.replace(/^import\s[\s\S]*?from\s*['"][^'"]+['"];?\s*$/gm, '');
+
+    // 타입/인터페이스 선언 제거
+    cleanCode = cleanCode.replace(/^(type|interface)\s+\w+[\s\S]*?^}/gm, '');
+
+    // return (...) 블록 추출 — 괄호 매칭으로 정확히 추출
+    let jsx = '';
+    const returnIdx = cleanCode.lastIndexOf('return (');
+    if (returnIdx !== -1) {
+      let depth = 0;
+      let start = -1;
+      for (let i = returnIdx + 7; i < cleanCode.length; i++) {
+        if (cleanCode[i] === '(') {
+          if (depth === 0) start = i + 1;
+          depth++;
+        } else if (cleanCode[i] === ')') {
+          depth--;
+          if (depth === 0) {
+            jsx = cleanCode.slice(start, i);
+            break;
+          }
+        }
       }
+    }
+
+    // fallback: 단순 정규식
+    if (!jsx) {
+      const returnMatch = cleanCode.match(/return\s*\(\s*([\s\S]*)\s*\)\s*;?\s*\}?\s*$/);
+      if (returnMatch) jsx = returnMatch[1];
+    }
+    if (!jsx) {
+      const returnSimple = cleanCode.match(/return\s+(<[\s\S]*>)\s*;?\s*\}?\s*$/);
+      if (returnSimple) jsx = returnSimple[1];
     }
 
     if (!jsx) {
@@ -245,23 +275,26 @@ function convertJsxToStaticHtml(code: string, appName: string): string {
       </div>`;
     }
 
-    // JSX → HTML 변환
+    // Step 2: JSX → HTML 변환
     let html = jsx;
+
+    // 프래그먼트 → div
+    html = html.replace(/<>/g, '<div>').replace(/<\/>/g, '</div>');
 
     // className → class
     html = html.replace(/className=/g, 'class=');
 
-    // {변수} 표현식 → 플레이스홀더 치환
-    // {loading ? '...' : '...'} → 두 번째 값
-    html = html.replace(/\{(\w+)\s*\?\s*['"](.+?)['"]\s*:\s*['"](.+?)['"]\s*\}/g, '$3');
-    html = html.replace(/\{(\w+)\s*\?\s*['"](.+?)['"]\s*:\s*(.+?)\}/g, '$3');
+    // {변수 ? '...' : '...'} → 두 번째 값 (기본 상태 표시)
+    html = html.replace(/\{[\w.!]+\s*\?\s*['"]([^'"]*)['"]\s*:\s*['"]([^'"]*)['"]\s*\}/g, '$2');
+    html = html.replace(/\{[\w.!]+\s*\?\s*['"]([^'"]*)['"]\s*:\s*([^}]+)\}/g, '$2');
+    // {변수 ? (<JSX>) : (<JSX>)} → 두 번째 JSX
+    html = html.replace(/\{[\w.!]+\s*\?\s*\([^)]*\)\s*:\s*\(([\s\S]*?)\)\s*\}/g, '$1');
 
     // {`텍스트 ${변수}`} → 텍스트 ...
     html = html.replace(/\{`([^`]*)\$\{[^}]+\}([^`]*)`\}/g, '$1...$2');
 
     // {변수.map(...)} → 내부 JSX를 3개 샘플로 렌더링
     html = html.replace(/\{[\w.]+\.map\(\s*\([^)]*\)\s*=>\s*\(([\s\S]*?)\)\s*\)\}/g, (_match, inner) => {
-      // 내부 JSX에서 변수 참조를 샘플 텍스트로 치환
       let sample = inner
         .replace(/\{[\w.]+\.name\}/g, '샘플 항목')
         .replace(/\{[\w.]+\.title\}/g, '샘플 제목')
@@ -277,7 +310,12 @@ function convertJsxToStaticHtml(code: string, appName: string): string {
         .replace(/className=/g, 'class=');
       return sample + sample + sample;
     });
-    // 나머지 단순 map 패턴도 처리
+    // 단순 map + 단일 JSX return (화살표 후 바로 태그)
+    html = html.replace(/\{[\w.]+\.map\(\s*\([^)]*\)\s*=>\s*(<[\s\S]*?>[\s\S]*?<\/[\s\S]*?>)\s*\)\}/g, (_match, inner) => {
+      let sample = inner.replace(/\{[\w.[\]?]+\}/g, '...').replace(/key=\{[^}]+\}/g, '').replace(/className=/g, 'class=');
+      return sample + sample + sample;
+    });
+    // 남은 map 제거
     html = html.replace(/\{[\w.]+\.map\([^]*?\)\}/g, '');
 
     // {조건 && (...)} → 내용 표시
@@ -287,22 +325,27 @@ function convertJsxToStaticHtml(code: string, appName: string): string {
     // 남은 {변수} → 빈 문자열 또는 플레이스홀더
     html = html.replace(/\{error\}/g, '');
     html = html.replace(/\{[\w.[\]]+\.toLocaleString\(\)\}/g, '0');
-    html = html.replace(/\{[\w.[\]?]+\}/g, '');
+    html = html.replace(/\{[\w.[\]]+\.toFixed\(\d+\)\}/g, '0');
+    // 여러 단어 표현식 (함수 호출 등) 제거
+    html = html.replace(/\{[^}]*\}/g, '');
 
     // onClick, onChange, onSubmit 등 이벤트 핸들러 제거
-    html = html.replace(/\s+on[A-Z]\w+=[{"].*?[}"]/g, '');
     html = html.replace(/\s+on[A-Z]\w+=\{[^}]*\}/g, '');
 
     // disabled={...} → disabled
     html = html.replace(/disabled=\{[^}]+\}/g, 'disabled');
 
     // value={변수} → value="" placeholder 유지
-    html = html.replace(/value=\{[\w.]+\}/g, 'value=""');
+    html = html.replace(/value=\{[^}]+\}/g, 'value=""');
+    html = html.replace(/defaultValue=\{[^}]+\}/g, '');
+
+    // ref={...} 제거
+    html = html.replace(/\s+ref=\{[^}]+\}/g, '');
 
     // style={{...}} → style="..."
     html = html.replace(/style=\{\{([^}]+)\}\}/g, (_, styles) => {
       const cssStr = styles
-        .replace(/(\w+):/g, (m: string, p: string) => p.replace(/([A-Z])/g, '-$1').toLowerCase() + ':')
+        .replace(/(\w+):/g, (_m: string, p: string) => p.replace(/([A-Z])/g, '-$1').toLowerCase() + ':')
         .replace(/,\s*/g, ';')
         .replace(/'/g, '');
       return `style="${cssStr}"`;
@@ -318,8 +361,20 @@ function convertJsxToStaticHtml(code: string, appName: string): string {
     // Link → a
     html = html.replace(/<Link\s/g, '<a ');
     html = html.replace(/<\/Link>/g, '</a>');
-    html = html.replace(/\s+href=\{/g, ' href="');
-    html = html.replace(/\}\s*class=/g, '" class=');
+    html = html.replace(/\s+href=\{(['"][^'"]+['"])\}/g, ' href=$1');
+    html = html.replace(/\s+href=\{[^}]+\}/g, ' href="#"');
+
+    // 커스텀 컴포넌트 태그를 div로 치환 (대문자로 시작하는 태그)
+    // 단, HTML 내장 태그와 특별한 컴포넌트는 제외
+    const htmlTags = new Set(['a','abbr','address','area','article','aside','audio','b','base','bdi','bdo','blockquote','body','br','button','canvas','caption','cite','code','col','colgroup','data','datalist','dd','del','details','dfn','dialog','div','dl','dt','em','embed','fieldset','figcaption','figure','footer','form','h1','h2','h3','h4','h5','h6','head','header','hgroup','hr','html','i','iframe','img','input','ins','kbd','label','legend','li','link','main','map','mark','menu','meta','meter','nav','noscript','object','ol','optgroup','option','output','p','param','picture','pre','progress','q','rp','rt','ruby','s','samp','script','section','select','slot','small','source','span','strong','style','sub','summary','sup','table','tbody','td','template','textarea','tfoot','th','thead','time','title','tr','track','u','ul','var','video','wbr','svg','path','circle','rect','line','polyline','polygon','g','text','defs','clipPath','use','symbol','mask','pattern','image','foreignObject','stop','linearGradient','radialGradient']);
+    html = html.replace(/<([A-Z]\w+)(\s|>|\/)/g, (match, tag, after) => {
+      if (htmlTags.has(tag.toLowerCase())) return match;
+      return `<div data-component="${tag}"${after}`;
+    });
+    html = html.replace(/<\/([A-Z]\w+)>/g, (match, tag) => {
+      if (htmlTags.has(tag.toLowerCase())) return match;
+      return '</div>';
+    });
 
     return html;
   } catch {

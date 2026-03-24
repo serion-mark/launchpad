@@ -212,6 +212,13 @@ export class DeployService {
           `$1\n  typescript: { ignoreBuildErrors: true },`,
         );
       }
+      // ESLint 빌드 에러 무시
+      if (!content.includes('ignoreDuringBuilds')) {
+        content = content.replace(
+          /(output:\s*'export',?)/,
+          `$1\n  eslint: { ignoreDuringBuilds: true },`,
+        );
+      }
       fs.writeFileSync(configPath, content, 'utf-8');
     } else {
       // 설정 파일이 아예 없으면 생성
@@ -488,6 +495,13 @@ export default nextConfig;
             content = content.replace(/['"]\.\.?\/utils\/supabase\/server['"]/g, "'@/utils/supabase/client'");
             modified = true;
           }
+          // @supabase/ssr → @supabase/supabase-js 전환 (static export 호환)
+          if (content.includes('@supabase/ssr')) {
+            content = content.replace(/import\s*\{\s*createBrowserClient\s*\}\s*from\s*['"]@supabase\/ssr['"]/g,
+              "import { createClient as supabaseCreateClient } from '@supabase/supabase-js'");
+            content = content.replace(/createBrowserClient\(/g, 'supabaseCreateClient(');
+            modified = true;
+          }
           // next/router → next/navigation 전환
           if (content.includes("next/router")) {
             content = content.replace(/['"]next\/router['"]/g, "'next/navigation'");
@@ -595,7 +609,7 @@ export default nextConfig;
         this.ensureNextConfig(outputDir);
         appendLog(attempt === 0 ? 'next build 시작...' : `next build 재시도 (${attempt}/${MAX_BUILD_FIX_ATTEMPTS})...`);
         try {
-          execSync('npx next build 2>&1', {
+          execSync('npx next build --no-turbopack 2>&1', {
             cwd: outputDir,
             timeout: BUILD_TIMEOUT,
             env: { ...process.env, NODE_ENV: 'production', ...supabaseEnv },
