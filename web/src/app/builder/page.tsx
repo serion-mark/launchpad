@@ -1502,7 +1502,7 @@ function BuilderContent() {
               ref={inputRef}
               value={input}
               onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && sendMessage()}
+              onKeyDown={e => e.key === 'Enter' && !e.nativeEvent.isComposing && sendMessage()}
               placeholder={buildPhase === 'questionnaire' ? '직접 입력하거나 보기를 클릭...' : buildPhase === 'generating' ? '생성 중 궁금한 점을 물어보세요...' : buildPhase === 'done' ? '"버튼 색 바꿔줘", "로그인 추가해줘"...' : '수정사항을 말씀해주세요...'}
               className="flex-1 rounded-xl border border-[#1e1e28] bg-[#1a1a24] px-4 py-3 text-sm text-[#f2f4f6] placeholder-[#4e5968] outline-none focus:border-[#3182f6]/50 transition-colors"
               disabled={isTyping}

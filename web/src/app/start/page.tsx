@@ -1063,7 +1063,7 @@ function StartPage() {
                       value={chatMessages.length > 0 ? chatInput : freeInput}
                       onChange={e => chatMessages.length > 0 ? setChatInput(e.target.value) : setFreeInput(e.target.value)}
                       onKeyDown={e => {
-                        if (e.key !== 'Enter') return;
+                        if (e.key !== 'Enter' || e.nativeEvent.isComposing) return;
                         if (chatMessages.length > 0) sendChatMessage();
                         else if (freeInput.trim()) {
                           // 첫 입력은 채팅 모드로 전환
