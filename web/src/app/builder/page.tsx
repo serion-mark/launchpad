@@ -190,6 +190,8 @@ function BuilderContent() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  // 생성 중 사용자 요청 수집 (완료 후 "반영할까요?" 제안용)
+  const [pendingRequests, setPendingRequests] = useState<string[]>([]);
 
   const templateId = previewTemplate || project?.template || 'beauty-salon';
   const questions = QUESTIONNAIRES[templateId] || QUESTIONNAIRES['beauty-salon'];
@@ -399,6 +401,12 @@ function BuilderContent() {
     const q = (question || input).trim();
     if (!q || isTyping) return;
     setInput('');
+
+    // 수정/기능 요청 키워드 감지 → 완료 후 반영 제안용으로 수집
+    const isFeatureRequest = /추가|만들어|넣어|바꿔|변경|수정|기능|페이지|화면|버튼|디자인|색|레이아웃/.test(q);
+    if (isFeatureRequest) {
+      setPendingRequests(prev => [...prev, q]);
+    }
 
     const userMsg: Message = {
       id: Date.now().toString(), role: 'user',
@@ -877,14 +885,19 @@ function BuilderContent() {
     completionMsg += `\n수정이 필요하면 채팅으로 말씀해주세요.\n`;
     completionMsg += `완료되면 **"다운로드"** 또는 **"배포"** 버튼을 이용하세요!`;
 
+    // 생성 중 수집된 요청이 있으면 반영 제안 메시지 추가
+    const pendingMsg = pendingRequests.length > 0
+      ? `\n\n💬 **생성 중 요청하신 내용이 있습니다:**\n${pendingRequests.map((r, i) => `  ${i + 1}. ${r}`).join('\n')}\n\n아래 **"대화 내용 반영하기"** 버튼을 누르면 위 내용을 앱에 적용합니다!`
+      : '';
+
     setMessages(prev => {
-      const final = [...prev, {
+      const msgs = [...prev, {
         id: Date.now().toString(), role: 'assistant' as const,
-        content: completionMsg,
+        content: completionMsg + pendingMsg,
         timestamp: new Date().toISOString(), type: 'text' as const,
       }];
-      saveChatHistory(final);
-      return final;
+      saveChatHistory(msgs);
+      return msgs;
     });
   };
 
@@ -1510,6 +1523,46 @@ function BuilderContent() {
               {buildPhase === 'designing' && (
                 <button onClick={handleGenerate} className="flex-1 rounded-xl bg-gradient-to-r from-[#30d158] to-[#28c840] px-4 py-2.5 text-sm font-bold text-white hover:shadow-lg hover:shadow-[#30d158]/20 transition-all">
                   앱 생성하기
+                </button>
+              )}
+              {buildPhase === 'done' && pendingRequests.length > 0 && (
+                <button
+                  onClick={async () => {
+                    if (!projectId) return;
+                    const combinedRequest = pendingRequests.join('\n');
+                    setIsTyping(true);
+                    setMessages(prev => [...prev, {
+                      id: Date.now().toString(), role: 'assistant' as const,
+                      content: `🔄 생성 중 요청하신 내용을 반영하고 있습니다...\n\n${pendingRequests.map((r, i) => `${i + 1}. ${r}`).join('\n')}`,
+                      timestamp: new Date().toISOString(), type: 'text' as const,
+                    }]);
+                    const result = await callModifyFiles({ projectId, message: combinedRequest, modelTier: 'smart' as AppModelTier });
+                    if (result && project && result.modifiedFiles.length > 0) {
+                      const existingFiles = Array.isArray(project.generatedCode) ? [...project.generatedCode] : [];
+                      for (const mod of result.modifiedFiles) {
+                        const idx = existingFiles.findIndex((f: any) => f.path === mod.path);
+                        if (idx >= 0) existingFiles[idx] = mod;
+                        else existingFiles.push(mod);
+                      }
+                      setProject({ ...project, generatedCode: existingFiles });
+                      setMessages(prev => [...prev, {
+                        id: Date.now().toString(), role: 'assistant' as const,
+                        content: `✅ **대화 내용 반영 완료!** ${result.modifiedFiles.length}개 파일 수정됨\n\n미리보기가 업데이트됩니다.`,
+                        timestamp: new Date().toISOString(), type: 'text' as const,
+                      }]);
+                    } else {
+                      setMessages(prev => [...prev, {
+                        id: Date.now().toString(), role: 'assistant' as const,
+                        content: '반영에 실패했습니다. 채팅으로 직접 요청해주세요.',
+                        timestamp: new Date().toISOString(), type: 'text' as const,
+                      }]);
+                    }
+                    setPendingRequests([]);
+                    setIsTyping(false);
+                  }}
+                  className="flex-1 rounded-xl bg-gradient-to-r from-[#f59e0b] to-[#d97706] px-3 py-2.5 text-sm font-bold text-white hover:shadow-lg hover:shadow-[#f59e0b]/20 transition-all animate-pulse"
+                >
+                  💬 대화 내용 반영하기 ({pendingRequests.length}건)
                 </button>
               )}
               {buildPhase === 'done' && (
