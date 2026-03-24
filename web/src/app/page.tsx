@@ -22,7 +22,7 @@ const PORTFOLIO_ITEMS: {
 const PRICING_PLANS = [
   { name: '라이트', price: '49,000', credits: '5,000', desc: '회의실 10회 + 분석 6회', highlight: false },
   { name: '스탠다드', price: '149,000', credits: '20,000', desc: '앱 1개 + 수정 10회', highlight: true },
-  { name: '프로', price: '299,000', credits: '50,000', desc: '앱 3개 + 수정 무제한급', highlight: false },
+  { name: '프로', price: '299,000', credits: '50,000', desc: '앱 3개 이상 + 충분한 수정', highlight: false },
 ];
 
 export default function LandingPage() {

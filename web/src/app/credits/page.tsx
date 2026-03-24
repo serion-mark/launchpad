@@ -14,13 +14,13 @@ const MAIN_PACKAGES = [
   },
   {
     id: 'standard', credits: 20000, price: 149000, label: '20,000',
-    perCredit: '7.5원', discount: '24% 할인', highlight: true,
-    desc: '앱 1개 + 수정 10회 + 회의실 10회', badge: '인기',
+    perCredit: '7.5원', discount: '', highlight: true,
+    desc: '앱 1개 + 수정 여유', badge: '인기',
   },
   {
     id: 'pro', credits: 50000, price: 299000, label: '50,000',
-    perCredit: '6.0원', discount: '40% 할인', highlight: false,
-    desc: '앱 3개 + 수정 30회 + 회의실 무제한급', badge: '⭐ BEST',
+    perCredit: '6.0원', discount: '', highlight: false,
+    desc: '앱 3개 이상 + 충분한 수정', badge: '⭐ BEST',
   },
 ];
 
@@ -36,7 +36,6 @@ const CREDIT_USAGE = [
   { icon: '🏆', action: 'AI 회의실', cost: '1,000', note: '프리미엄' },
   { icon: '📊', action: '스마트 분석', cost: '300', note: '1회' },
   { icon: '🖼️', action: 'AI 이미지', cost: '200', note: '1장' },
-  { icon: '📦', action: '코드 다운로드', cost: '5,000', note: '1회' },
 ];
 
 // ── 모두의 창업 패키지 ─────────────────────────────────
@@ -45,7 +44,7 @@ const MODU_PACKAGES = [
     tier: 'light', label: '🥉 라이트', price: 490000,
     features: [
       '크레딧 50,000 지급',
-      '호스팅 1개월 포함',
+      '호스팅 3개월 포함',
       'AI 회의실 프리미엄 3회',
       '세금계산서 발행 가능',
     ],
@@ -54,8 +53,8 @@ const MODU_PACKAGES = [
     tier: 'standard', label: '🥈 스탠다드', price: 990000,
     features: [
       '크레딧 100,000 지급',
-      '호스팅 1개월 포함',
-      'AI 회의실 프리미엄 5회',
+      '호스팅 6개월 포함',
+      'AI 회의실 프리미엄 무제한',
       '📦 코드팩 독립 포함!',
       '세금계산서 발행 가능',
     ],
@@ -408,7 +407,7 @@ export default function CreditsPage() {
               {MODU_PACKAGES.map(pkg => (
                 <div key={pkg.tier} className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6">
                   <h3 className="text-xl font-bold mb-2">{pkg.label}</h3>
-                  <p className="text-3xl font-bold text-[#ffd60a] mb-4">{(pkg.price / 10000).toFixed(0)}만원<span className="text-sm text-[#8b95a1] ml-1">/월</span></p>
+                  <p className="text-3xl font-bold text-[#ffd60a] mb-4">{(pkg.price / 10000).toFixed(0)}만원</p>
                   <ul className="space-y-2 mb-6">
                     {pkg.features.map((f, i) => (
                       <li key={i} className="flex items-center gap-2 text-sm">
@@ -442,7 +441,7 @@ export default function CreditsPage() {
                   <span className="text-lg">🔥</span>
                   <div>
                     <p className="font-bold text-[#f2f4f6]">"100만원 다 쓸래" → 🥈 스탠다드</p>
-                    <p className="text-[#8b95a1] mt-1">코드팩 독립이 포함! 따로 사면 150만원+ → 99만원에 전부!</p>
+                    <p className="text-[#8b95a1] mt-1">코드팩 독립 + 호스팅 6개월 + 프리미엄 회의실 무제한!</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3 rounded-xl bg-[#2c2c35]/50 p-4">
@@ -520,7 +519,7 @@ export default function CreditsPage() {
               },
               {
                 q: '많이 수정하면 크레딧이 더 소모되나요?',
-                a: '네, AI 수정은 프로젝트당 횟수에 따라 단계적으로 증가합니다. 1~5회: 500cr, 6~10회: 800cr, 11회 이상: 1,200cr. 새 프로젝트를 만들면 리셋됩니다.',
+                a: '아닙니다. AI 수정 비용은 고정입니다. 단순 수정(텍스트/색상/이미지) 100cr, 복잡 수정(페이지/기능/DB/API) 500cr. 횟수에 따라 증가하지 않습니다.',
               },
               {
                 q: '정부지원사업비로 결제할 수 있나요?',

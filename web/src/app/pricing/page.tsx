@@ -11,8 +11,9 @@ const PLANS = [
     price: 49000,
     credits: 5000,
     perCredit: '9.8원/cr',
-    desc: '회의실 10회 + 분석 6회 + AI대화 50회',
-    features: ['크레딧 5,000 지급', '전체 템플릿 10종', '전체 테마 20종', 'ZIP 다운로드 가능', '이메일 지원'],
+    desc: 'AI 회의실 + 스마트 분석 체험',
+    features: ['크레딧 5,000 지급', 'AI 회의실 + 스마트 분석 체험', 'AI 채팅 상담', '이메일 지원'],
+    note: '앱 생성은 스탠다드부터 가능!',
     highlight: false,
   },
   {
@@ -20,9 +21,9 @@ const PLANS = [
     price: 149000,
     credits: 20000,
     perCredit: '7.5원/cr',
-    desc: '앱 1개 + 수정 10회 + 회의실 10회 + 분석 10회',
+    desc: '앱 1개 + 수정 여유',
     badge: '가장 인기',
-    features: ['크레딧 20,000 지급', '앱 1개 + 수정 여유', '전체 템플릿 10종', 'ZIP 다운로드 가능', 'AI 수정 포함', '우선 지원'],
+    features: ['크레딧 20,000 지급', '앱 1개 + 수정 여유', 'AI 회의실 + 스마트 분석', 'ZIP 다운로드 가능', '이메일 지원'],
     highlight: true,
   },
   {
@@ -30,9 +31,8 @@ const PLANS = [
     price: 299000,
     credits: 50000,
     perCredit: '6.0원/cr',
-    desc: '앱 3개 + 수정 30회 + 회의실 무제한급',
-    badge: '⭐ BEST',
-    features: ['크레딧 50,000 지급', '앱 3개 이상 생성', '프리미엄 테마 전체', 'ZIP 다운로드 가능', 'AI 수정 무제한급', '전담 지원', '40% 할인'],
+    desc: '앱 3개 이상 + 충분한 수정',
+    features: ['크레딧 50,000 지급', '앱 3개 이상 생성', 'AI 회의실 + 스마트 분석', 'ZIP 다운로드 가능', '우선 이메일 지원', 'cr당 최저 단가 (6.0원)'],
     highlight: false,
   },
 ];
@@ -46,14 +46,13 @@ const CREDIT_TABLE = [
   { icon: '🔧', action: 'AI 수정 (복잡)', credits: '500', note: '페이지·기능·DB·API' },
   { icon: '💬', action: 'AI 대화', credits: '30', note: '질문·상담' },
   { icon: '🖼️', action: 'AI 이미지 생성', credits: '200', note: '1장' },
-  { icon: '📦', action: '코드 다운로드', credits: '5,000', note: '전체 소스' },
 ];
 
 const FAQ = [
   { q: '크레딧에 유효기간이 있나요?', a: '충전일로부터 1년입니다. 1년 이내에 사용하지 않은 크레딧은 소멸됩니다.' },
   { q: '크레딧이 부족하면 어떻게 되나요?', a: '진행 중인 작업은 중단되지 않습니다. 새 요청 시 크레딧 충전 안내가 나타납니다.' },
   { q: '정부지원사업비로 결제할 수 있나요?', a: '세금계산서 발행이 가능합니다. 예비창업패키지, 초기창업패키지 등 정부사업비 집행이 가능합니다. 문의: mark@serion.ai.kr' },
-  { q: '환불이 가능한가요?', a: '충전 후 7일 이내 미사용 크레딧은 전액 환불 가능합니다.' },
+  { q: '환불이 가능한가요?', a: '충전 후 7일 이내, 1cr도 사용하지 않은 경우 전액 환불. 일부 사용 시 미사용분 비례 환불. 7일 경과 시 환불 불가. 무료 지급 크레딧(1,000cr)은 환불 대상 아님.' },
   { q: '정기결제(구독)인가요?', a: '아닙니다. 크레딧은 1회성 충전이며, 자동 결제되지 않습니다. 호스팅만 월 과금입니다.' },
   { q: '배포 비용은 어떻게 되나요?', a: '앱 생성 완료 시 24시간 무료 체험 배포가 자동 제공됩니다. 이후 월 29,000원으로 유지할 수 있습니다.' },
   { q: '단순 수정과 복잡 수정은 어떻게 구분되나요?', a: '텍스트·색상·이미지 변경은 단순(100cr), 페이지 추가·기능 변경·DB 수정은 복잡(500cr)으로 자동 분류됩니다.' },
@@ -161,12 +160,12 @@ export default function PricingPage() {
           <p className="text-sm text-[#8b95a1] mb-4">정부사업비로 정산 가능한 전용 패키지가 있습니다.</p>
           <div className="flex flex-col sm:flex-row justify-center gap-4 mb-3">
             <div className="rounded-xl bg-[#1b1b21] border border-[#2c2c35] px-6 py-3">
-              <span className="font-bold text-[#ffd60a]">🥉 라이트 49만원/월</span>
-              <span className="text-xs text-[#8b95a1] ml-2">50,000cr + 호스팅 + 프리미엄 회의실 3회</span>
+              <span className="font-bold text-[#ffd60a]">🥉 라이트 490,000원</span>
+              <span className="text-xs text-[#8b95a1] ml-2">50,000cr + 호스팅 3개월 + 프리미엄 회의실 3회</span>
             </div>
             <div className="rounded-xl bg-[#1b1b21] border border-[#2c2c35] px-6 py-3">
-              <span className="font-bold text-[#ffd60a]">🥈 스탠다드 99만원/월</span>
-              <span className="text-xs text-[#8b95a1] ml-2">100,000cr + 호스팅 + 코드팩 독립!</span>
+              <span className="font-bold text-[#ffd60a]">🥈 스탠다드 990,000원</span>
+              <span className="text-xs text-[#8b95a1] ml-2">100,000cr + 호스팅 6개월 + 코드팩 + 프리미엄 회의실 무제한</span>
             </div>
           </div>
           <a href="/credits" className="text-sm text-[#3182f6] hover:underline">자세히 보기 →</a>
