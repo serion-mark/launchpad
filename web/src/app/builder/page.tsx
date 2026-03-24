@@ -167,7 +167,7 @@ function BuilderContent() {
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [tokenUsed, setTokenUsed] = useState(0); // 이번 세션 토큰 사용량
   const [showSaveToast, setShowSaveToast] = useState(false);
-  const [showCostModal, setShowCostModal] = useState<'deploy' | 'download' | null>(null);
+  const [showCostModal, setShowCostModal] = useState<'deploy' | 'download' | 'generate' | null>(null);
   const [questionIndex, setQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [autoGenerate, setAutoGenerate] = useState(false); // /start에서 넘어온 경우 자동 생성
@@ -559,7 +559,7 @@ function BuilderContent() {
           const paths = modifyResult.modifiedFiles.map(f => f.path).join(', ');
           let replyContent = `✅ **코드 수정 완료!**\n\n`;
           replyContent += `수정된 파일 (${modifyResult.modifiedFiles.length}개): ${paths}\n`;
-          if (modifyResult.totalCredits > 0) replyContent += `사용 크레딧: ${modifyResult.totalCredits} cr\n`;
+          if (modifyResult.totalCredits > 0) replyContent += `✅ ${modifyResult.totalCredits}cr 사용 | 잔액: ${creditBalance !== null ? (creditBalance - modifyResult.totalCredits).toLocaleString() : '?'}cr\n`;
           if (modifyResult.fellBack) replyContent += `⚠️ Flash 모델로 자동 전환됨\n`;
           if (modifyResult.suggestHealthCheck) {
             replyContent += `\n🩺 **코드 건강 검진을 권장합니다!** (${modifyResult.totalModifications}회 수정)\n왼쪽 패널의 "코드 헬스체크"를 실행해보세요.\n`;
@@ -904,8 +904,17 @@ function BuilderContent() {
       completionMsg += `\n💡 **추천 개선사항:**\n`;
       completionMsg += assess.incompleteFeatures.map((f: string) => `  - ${f}`).join('\n') + '\n';
     }
-    completionMsg += `\n수정이 필요하면 채팅으로 말씀해주세요.\n`;
-    completionMsg += `완료되면 **"다운로드"** 또는 **"배포"** 버튼을 이용하세요!`;
+    // 24시간 체험 배포 안내
+    if (result.trialDeploy) {
+      completionMsg += `\n🎉 **24시간 무료 체험 배포 중!**\n`;
+      completionMsg += `🔗 ${result.trialDeploy.deployedUrl}\n`;
+      completionMsg += `⏰ 체험 종료: ${new Date(result.trialDeploy.trialExpiresAt).toLocaleString('ko-KR')}\n`;
+      completionMsg += `\n지금 바로 앱을 확인해보세요!\n`;
+    }
+    completionMsg += `\n수정이 필요하면 채팅으로 말씀해주세요.`;
+    if (!result.trialDeploy) {
+      completionMsg += `\n완료되면 **"다운로드"** 또는 **"배포"** 버튼을 이용하세요!`;
+    }
 
     // 생성 중 수집된 요청이 있으면 반영 제안 메시지 추가
     const pendingMsg = pendingRequests.length > 0
@@ -1551,12 +1560,12 @@ function BuilderContent() {
           <div className="border-t border-[#1e1e28] bg-[#13131a] px-4 py-2.5">
             <div className="flex gap-2">
               {buildPhase === 'designing' && !hasError && (
-                <button onClick={handleGenerate} className="flex-1 rounded-xl bg-gradient-to-r from-[#30d158] to-[#28c840] px-4 py-2.5 text-sm font-bold text-white hover:shadow-lg hover:shadow-[#30d158]/20 transition-all">
+                <button onClick={() => setShowCostModal('generate')} className="flex-1 rounded-xl bg-gradient-to-r from-[#30d158] to-[#28c840] px-4 py-2.5 text-sm font-bold text-white hover:shadow-lg hover:shadow-[#30d158]/20 transition-all">
                   앱 생성하기
                 </button>
               )}
               {buildPhase === 'designing' && hasError && (
-                <button onClick={handleGenerate} className="flex-1 rounded-xl bg-gradient-to-r from-[#f59e0b] to-[#ef4444] px-4 py-2.5 text-sm font-bold text-white hover:shadow-lg hover:shadow-[#ef4444]/20 transition-all">
+                <button onClick={() => setShowCostModal('generate')} className="flex-1 rounded-xl bg-gradient-to-r from-[#f59e0b] to-[#ef4444] px-4 py-2.5 text-sm font-bold text-white hover:shadow-lg hover:shadow-[#ef4444]/20 transition-all">
                   🔄 다시 시도하기
                 </button>
               )}
@@ -1982,11 +1991,33 @@ function BuilderContent() {
         </div>
       )}
 
-      {/* 배포/다운로드 비용 안내 모달 */}
+      {/* 비용 안내 모달 (생성/배포/다운로드) */}
       {showCostModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowCostModal(null)}>
           <div className="w-[480px] max-w-[90vw] rounded-2xl bg-[#1b1b21] border border-[#2c2c35] p-6" onClick={e => e.stopPropagation()}>
-            {showCostModal === 'deploy' ? (
+            {showCostModal === 'generate' ? (
+              <>
+                <h3 className="text-lg font-bold text-[#f2f4f6] mb-1">🚀 앱 생성</h3>
+                <p className="text-sm text-[#8b95a1] mb-4">AI가 풀스택 앱을 생성합니다.</p>
+                <div className="rounded-xl bg-[#2c2c35] p-4 mb-4 space-y-3">
+                  <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">앱 생성 비용</span><span className="text-[#ffd60a] font-bold">6,800 cr</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">현재 잔액</span><span className={`font-bold ${(creditBalance ?? 0) >= 6800 ? 'text-[#30d158]' : 'text-[#f43f5e]'}`}>{(creditBalance ?? 0).toLocaleString()} cr</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">생성 후 잔액</span><span className="text-[#f2f4f6]">{Math.max(0, (creditBalance ?? 0) - 6800).toLocaleString()} cr</span></div>
+                </div>
+                {(creditBalance ?? 0) < 6800 && (
+                  <div className="rounded-xl bg-[#f43f5e]/10 border border-[#f43f5e]/20 p-3 mb-4">
+                    <p className="text-xs text-[#f43f5e]">⚠️ 크레딧이 부족합니다 (필요: 6,800cr / 잔액: {(creditBalance ?? 0).toLocaleString()}cr) — <a href="/credits" className="underline font-bold">크레딧 충전하기</a></p>
+                  </div>
+                )}
+                <div className="rounded-xl bg-[#30d158]/10 border border-[#30d158]/20 p-3 mb-4">
+                  <p className="text-xs text-[#30d158]">🎉 생성 완료 후 24시간 무료 체험 배포가 자동 제공됩니다!</p>
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => setShowCostModal(null)} className="flex-1 rounded-xl bg-[#2c2c35] py-3 text-sm font-medium text-[#8b95a1] hover:bg-[#3a3a45]">취소</button>
+                  <button onClick={() => { setShowCostModal(null); handleGenerate(); }} className="flex-1 rounded-xl bg-gradient-to-r from-[#30d158] to-[#28c840] py-3 text-sm font-bold text-white hover:shadow-lg" disabled={(creditBalance ?? 0) < 6800}>6,800cr 생성 시작</button>
+                </div>
+              </>
+            ) : showCostModal === 'deploy' ? (
               <>
                 <h3 className="text-lg font-bold text-[#f2f4f6] mb-1">🚀 배포하기</h3>
                 <p className="text-sm text-[#8b95a1] mb-4">Foundry 서버에 앱을 배포하면 바로 사용할 수 있습니다.</p>

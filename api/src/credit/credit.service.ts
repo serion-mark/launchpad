@@ -1,29 +1,30 @@
 import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 
-// ── 크레딧 패키지 정의 ──────────────────────────────────
+// ── 크레딧 패키지 정의 (2026-03-24 실측 기반 재설계) ─────
 export const CREDIT_PACKAGES = {
-  micro: { credits: 1000, price: 12000, label: '소량팩' },
-  mini: { credits: 3000, price: 33000, label: '미니팩' },
   lite: { credits: 5000, price: 49000, label: '라이트팩' },
   standard: { credits: 20000, price: 149000, label: '스탠다드팩' },
-  pro: { credits: 50000, price: 249000, label: '프로팩' },
+  pro: { credits: 50000, price: 299000, label: '프로팩' },
 } as const;
 
 export type PackageId = keyof typeof CREDIT_PACKAGES;
 
-// ── 크레딧 소모 기준 (과금 전략 문서 반영) ──────────────
+// ── 크레딧 소모 기준 (2026-03-24 API 실측 기반) ─────────
 export const CREDIT_COSTS = {
-  app_generate: 3000,        // 실제 앱 생성 (레거시 고정 비용)
-  ai_modify: 500,            // AI 수정 요청 1회 (레거시 고정 비용)
+  app_generate: 6800,        // 앱 생성 ($2.45 → 마진95% → 6,800cr)
+  ai_modify_simple: 100,     // AI 수정 (단순: 텍스트/색상/이미지)
+  ai_modify_complex: 500,    // AI 수정 (복잡: 페이지/기능/DB/API)
+  ai_modify: 500,            // AI 수정 (레거시 호환)
+  ai_chat: 30,               // AI 대화 (질문/일반대화)
   premium_theme: 1000,       // 프리미엄 테마 적용
   code_download: 5000,       // 코드 다운로드
-  server_deploy: 8000,       // 서버 배포
+  server_deploy: 0,          // 서버 배포 (24시간 무료 체험 → 월 과금)
   free_trial: 0,             // 맛보기 설계안 (무료 1회)
-  // Phase 11: AI 회의실 + 스마트 분석 + 이미지 생성
+  // AI 회의실 + 스마트 분석 + 이미지 생성
   meeting_standard: 300,     // AI 회의실 스탠다드
-  meeting_premium: 1500,     // AI 회의실 프리미엄
-  smart_analysis_standard: 200,  // 스마트 분석 스탠다드
+  meeting_premium: 1000,     // AI 회의실 프리미엄 (1,500→1,000)
+  smart_analysis_standard: 300,  // 스마트 분석 (200→300)
   smart_analysis_premium: 1000,  // 스마트 분석 프리미엄
   image_generate: 200,       // AI 이미지 생성
 } as const;
@@ -45,13 +46,22 @@ export function calculateModelCost(tier: ModelTier, fileCount: number): number {
   return costs.base + (costs.perFile * fileCount);
 }
 
-/** 앱 생성용 크레딧 계산 — 최소 3,000cr 보장 (역마진 방지) */
-export function calculateAppGenerateCost(tier: ModelTier, fileCount: number): number {
-  const dynamicCost = calculateModelCost(tier, fileCount);
-  return Math.max(dynamicCost, CREDIT_COSTS.app_generate);
+/** AI 수정 단순/복잡 구분 — 키워드 기반 */
+const COMPLEX_KEYWORDS = ['추가', '생성', '만들어', '연동', '결제', '페이지', '기능', 'db', '테이블', 'api', '레이아웃', '구조', '삭제', '제거'];
+const SIMPLE_KEYWORDS = ['색', '색상', '텍스트', '문구', '글자', '이미지', '사진', '로고', '폰트', '크기', '바꿔', '변경'];
+
+export function classifyModifyCost(message: string): number {
+  const lower = message.toLowerCase();
+  const isComplex = COMPLEX_KEYWORDS.some(kw => lower.includes(kw));
+  const isSimple = SIMPLE_KEYWORDS.some(kw => lower.includes(kw));
+  // 복잡 키워드가 있으면 복잡, 단순만 있으면 단순, 둘 다 없으면 단순
+  if (isComplex && !isSimple) return CREDIT_COSTS.ai_modify_complex;
+  if (isSimple && !isComplex) return CREDIT_COSTS.ai_modify_simple;
+  if (isComplex && isSimple) return CREDIT_COSTS.ai_modify_complex; // 둘 다 있으면 복잡
+  return CREDIT_COSTS.ai_modify_simple; // 기본 단순
 }
 
-const SIGNUP_BONUS = 500;    // 회원가입 보너스 크레딧
+const SIGNUP_BONUS = 1000;   // 회원가입 보너스 크레딧 (체험용 1,000cr)
 
 @Injectable()
 export class CreditService {
@@ -79,7 +89,7 @@ export class CreditService {
           type: 'SIGNUP_BONUS',
           amount: SIGNUP_BONUS,
           balanceAfter: SIGNUP_BONUS,
-          description: '회원가입 보너스 500 크레딧',
+          description: '회원가입 보너스 1,000 크레딧',
         },
       });
     }

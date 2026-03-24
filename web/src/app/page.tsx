@@ -20,9 +20,9 @@ const PORTFOLIO_ITEMS: {
 
 // ── 크레딧 충전 패키지 ──
 const PRICING_PLANS = [
-  { name: '1,000cr', price: '12,000', credits: '1,000', desc: '체험용 크레딧', highlight: false },
-  { name: '5,000cr', price: '49,000', credits: '5,000', desc: 'MVP 1개 + 수정 여유', highlight: true },
-  { name: '50,000cr', price: '249,000', credits: '50,000', desc: '대규모 프로젝트', highlight: false },
+  { name: '라이트', price: '49,000', credits: '5,000', desc: '회의실 10회 + 분석 6회', highlight: false },
+  { name: '스탠다드', price: '149,000', credits: '20,000', desc: '앱 1개 + 수정 10회', highlight: true },
+  { name: '프로', price: '299,000', credits: '50,000', desc: '앱 3개 + 수정 무제한급', highlight: false },
 ];
 
 export default function LandingPage() {
@@ -63,7 +63,7 @@ export default function LandingPage() {
               이런 앱을 만들 수 있어요
             </a>
           </div>
-          <p className="mt-5 text-sm text-[#6b7684]">회원가입 시 500 크레딧 무료 제공 &middot; 카드 등록 불필요</p>
+          <p className="mt-5 text-sm text-[#6b7684]">회원가입 시 1,000 크레딧 무료 제공 &middot; 카드 등록 불필요</p>
         </div>
       </section>
 
@@ -286,7 +286,7 @@ export default function LandingPage() {
             아이디어가 있다면, 앱은 이미 완성된 거예요
           </h2>
           <p className="mb-10 text-lg text-[#8b95a1]">
-            회원가입 시 500 크레딧 무료. 카드 등록 없이, 질문에 답하기만 하면 앱이 완성됩니다.
+            회원가입 시 1,000 크레딧 무료. 카드 등록 없이, 질문에 답하기만 하면 앱이 완성됩니다.
           </p>
           <a
             href="/start"

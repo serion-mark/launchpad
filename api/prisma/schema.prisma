@@ -76,6 +76,7 @@ model Project {
   hostingExpiresAt   DateTime?
   monthlyVisitors    Int      @default(0)       // 이번 달 방문자 수
   visitorResetAt     DateTime?                  // 방문자 카운트 리셋 시점
+  // 24시간 체험: projectContext.trialExpiresAt / projectContext.trialDeployed 사용
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

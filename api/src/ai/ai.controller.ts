@@ -8,6 +8,7 @@ import { MeetingService } from './meeting.service';
 import { SmartAnalysisService } from './smart-analysis.service';
 import { ImageService } from './image.service';
 import { CreditService } from '../credit/credit.service';
+import { DeployService } from '../project/deploy.service';
 import type { GenerationProgress } from './ai.service';
 import type { AgentStepEvent } from './agent.service';
 import type { MeetingTier, MeetingPreset } from './meeting.service';
@@ -24,6 +25,7 @@ export class AiController {
     private smartAnalysisService: SmartAnalysisService,
     private imageService: ImageService,
     private creditService: CreditService,
+    private deployService: DeployService,
   ) {}
 
   // ── 빌더 채팅 (실시간 AI 대화) ─────────────────────
@@ -103,9 +105,15 @@ export class AiController {
       res.write(`data: ${JSON.stringify({ type: 'progress', ...data })}\n\n`);
     });
 
-    // 완료
-    emitter.on('done', (result: any) => {
-      res.write(`data: ${JSON.stringify({ type: 'done', ...result })}\n\n`);
+    // 완료 → 24시간 체험 배포 자동 트리거
+    emitter.on('done', async (result: any) => {
+      let trialDeploy = null;
+      try {
+        trialDeploy = await this.deployService.deployTrial(body.projectId, req.user.userId);
+      } catch (err) {
+        this.logger.warn(`체험 배포 실패: ${err}`);
+      }
+      res.write(`data: ${JSON.stringify({ type: 'done', ...result, trialDeploy })}\n\n`);
       res.end();
     });
 

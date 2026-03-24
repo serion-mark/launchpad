@@ -10,35 +10,33 @@ const MAIN_PACKAGES = [
   {
     id: 'lite', credits: 5000, price: 49000, label: '5,000',
     perCredit: '9.8원', discount: '', highlight: false,
-    desc: 'MVP 1개 + 수정 4회', badge: '',
+    desc: '회의실 10회 + 분석 6회 + AI대화 50회', badge: '',
   },
   {
     id: 'standard', credits: 20000, price: 149000, label: '20,000',
     perCredit: '7.5원', discount: '24% 할인', highlight: true,
-    desc: 'MVP 5개 + 수정 30회', badge: '인기',
+    desc: '앱 1개 + 수정 10회 + 회의실 10회', badge: '인기',
   },
   {
-    id: 'pro', credits: 50000, price: 249000, label: '50,000',
-    perCredit: '5.0원', discount: '49% 할인', highlight: false,
-    desc: 'MVP 15개 이상 + 무제한 수정', badge: '⭐ BEST',
+    id: 'pro', credits: 50000, price: 299000, label: '50,000',
+    perCredit: '6.0원', discount: '40% 할인', highlight: false,
+    desc: '앱 3개 + 수정 30회 + 회의실 무제한급', badge: '⭐ BEST',
   },
 ];
 
-const SMALL_PACKAGES = [
-  { id: 'micro', credits: 1000, price: 12000, perCredit: '12원' },
-  { id: 'mini', credits: 3000, price: 33000, perCredit: '11원' },
-];
+const SMALL_PACKAGES: { id: string; credits: number; price: number; perCredit: string }[] = [];
 
 // ── 크레딧 사용 예시 ───────────────────────────────────
 const CREDIT_USAGE = [
-  { icon: '🚀', action: '앱 생성', cost: '3,000', note: '1회' },
-  { icon: '✏️', action: 'AI 수정', cost: '500~1,200', note: '횟수별 증가' },
+  { icon: '🚀', action: '앱 생성', cost: '6,800', note: '1회' },
+  { icon: '✏️', action: 'AI 수정 (단순)', cost: '100', note: '텍스트·색상·이미지' },
+  { icon: '🔧', action: 'AI 수정 (복잡)', cost: '500', note: '페이지·기능·DB' },
+  { icon: '💬', action: 'AI 대화', cost: '30', note: '질문·상담' },
   { icon: '🧠', action: 'AI 회의실', cost: '300', note: '스탠다드' },
-  { icon: '🧠', action: 'AI 회의실', cost: '1,500', note: '프리미엄' },
-  { icon: '📊', action: '스마트 분석', cost: '200', note: '1회' },
+  { icon: '🏆', action: 'AI 회의실', cost: '1,000', note: '프리미엄' },
+  { icon: '📊', action: '스마트 분석', cost: '300', note: '1회' },
   { icon: '🖼️', action: 'AI 이미지', cost: '200', note: '1장' },
   { icon: '📦', action: '코드 다운로드', cost: '5,000', note: '1회' },
-  { icon: '🌐', action: '서버 배포', cost: '8,000', note: '1회' },
 ];
 
 // ── 모두의 창업 패키지 ─────────────────────────────────

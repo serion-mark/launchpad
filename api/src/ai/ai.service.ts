@@ -1213,7 +1213,7 @@ ${smartAnalysisContext ? `\n${smartAnalysisContext}\n위 분석을 참고하여 
           projectId: params.projectId,
           taskType: 'generate_full_app',
           description: `앱 생성: ${architecture.appName || params.template} (${fileCount}파일, ${actualTier})`,
-          minCost: 3000, // 앱 생성 최소 3,000cr 보장 (역마진 방지)
+          minCost: 6800, // 앱 생성 고정 6,800cr (API 실측 $2.45 → 마진95%)
         });
         totalCredits = creditResult.cost;
       }
@@ -1332,13 +1332,16 @@ ${JSON.stringify(project.projectContext || {}, null, 2)}`,
     const modifiedFiles = this.parseFileOutput(result.content, '');
     const actualTier: CreditModelTier = result.fellBack ? 'flash' : (tier as CreditModelTier);
 
-    // 크레딧 차감
+    // 크레딧 차감 (단순/복잡 구분)
+    const { classifyModifyCost } = await import('../credit/credit.service');
+    const modifyCost = classifyModifyCost(params.message);
     const creditResult = await this.creditService.deductByModel(userId, {
       tier: actualTier,
       fileCount: modifiedFiles.length || 1,
       projectId: params.projectId,
-      taskType: 'modify',
-      description: `AI 수정: ${params.message.slice(0, 50)} (${modifiedFiles.length}파일)`,
+      taskType: modifyCost <= 100 ? 'modify_simple' : 'modify_complex',
+      description: `AI 수정(${modifyCost <= 100 ? '단순' : '복잡'}): ${params.message.slice(0, 50)} (${modifiedFiles.length}파일)`,
+      minCost: modifyCost,
     });
 
     // 기존 파일에 수정 적용

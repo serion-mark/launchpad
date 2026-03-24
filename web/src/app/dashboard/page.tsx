@@ -49,6 +49,7 @@ export default function DashboardPage() {
   const [newDesc, setNewDesc] = useState('');
   const [creating, setCreating] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const user = getUser();
 
   const fetchProjects = async () => {
@@ -59,9 +60,17 @@ export default function DashboardPage() {
     setLoading(false);
   };
 
+  const fetchBalance = async () => {
+    try {
+      const res = await authFetch('/credits/balance');
+      if (res.ok) { const d = await res.json(); setCreditBalance(d.balance); }
+    } catch { /* */ }
+  };
+
   useEffect(() => {
     if (!user) { window.location.href = '/login'; return; }
     fetchProjects();
+    fetchBalance();
   }, []);
 
   const handleCreate = async () => {
@@ -110,11 +119,16 @@ export default function DashboardPage() {
             <img src="/logo.svg" alt="Foundry" className="h-7 md:h-8" />
           </a>
           <div className="flex items-center gap-3">
+            {creditBalance !== null && (
+              <a href="/credits" className="rounded-xl bg-[#ffd60a]/10 border border-[#ffd60a]/20 px-4 py-2 text-sm font-bold text-[#ffd60a] hover:bg-[#ffd60a]/20 transition-colors">
+                💰 {creditBalance.toLocaleString()}cr
+              </a>
+            )}
             <a href="/meeting" className="rounded-xl bg-[#2c2c35] px-4 py-2 text-sm font-medium text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">
               🧠 AI 회의실
             </a>
             <a href="/credits" className="rounded-xl bg-[#2c2c35] px-4 py-2 text-sm font-medium text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">
-              요금제
+              충전하기
             </a>
             <span className="text-sm text-[#6b7684] hidden md:inline">{user?.email}</span>
             <button onClick={logout} className="rounded-xl bg-[#2c2c35] px-4 py-2 text-sm text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">

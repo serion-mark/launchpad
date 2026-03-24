@@ -349,6 +349,57 @@ export default nextConfig;
   }
 
   /**
+   * 24시간 무료 체험 배포 — 앱 생성 완료 후 자동 호출
+   * 크레딧 차감 없음, trialExpiresAt 설정
+   */
+  async deployTrial(projectId: string, userId: string): Promise<{
+    subdomain: string;
+    deployedUrl: string;
+    trialExpiresAt: Date;
+  } | null> {
+    try {
+      const project = await this.prisma.project.findUnique({ where: { id: projectId } });
+      if (!project || project.userId !== userId) return null;
+      if (!project.generatedCode) return null;
+
+      const subdomain = project.subdomain || this.generateSubdomain(project.name, userId);
+      const deployedUrl = `https://${subdomain}.${DEPLOY_DOMAIN}`;
+      const trialExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24시간 후
+
+      const existingContext = (project.projectContext as any) || {};
+      await this.prisma.project.update({
+        where: { id: projectId },
+        data: {
+          subdomain,
+          deployedUrl,
+          buildStatus: 'pending',
+          buildLog: null,
+          buildStartedAt: new Date(),
+          buildFinishedAt: null,
+          status: 'deployed',
+          projectContext: {
+            ...existingContext,
+            trialDeployed: true,
+            trialExpiresAt: trialExpiresAt.toISOString(),
+          } as any,
+        },
+      });
+
+      // 빌드 큐에 추가
+      this.enqueueBuild(projectId, userId, subdomain).catch(err => {
+        this.logger.error(`체험 빌드 실패 [${projectId}]: ${err.message}`);
+      });
+
+      this.logger.log(`[TRIAL] 24시간 체험 배포 시작: ${projectId} → ${deployedUrl}`);
+
+      return { subdomain, deployedUrl, trialExpiresAt };
+    } catch (err) {
+      this.logger.error(`체험 배포 오류: ${err}`);
+      return null;
+    }
+  }
+
+  /**
    * 실제 빌드+배포 실행 (큐에서 호출)
    */
   private async _executeBuild(projectId: string, userId: string, subdomain: string): Promise<void> {
