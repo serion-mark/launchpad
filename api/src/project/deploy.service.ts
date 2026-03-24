@@ -219,6 +219,10 @@ export class DeployService {
           `$1\n  eslint: { ignoreDuringBuilds: true },`,
         );
       }
+      // Next.js 16에서 제거된 설정 삭제
+      content = content.replace(/\s*esmExternals\s*:\s*[^,}\n]+,?/g, '');
+      content = content.replace(/\s*experimental\s*:\s*\{\s*\},?/g, ''); // 빈 experimental 제거
+      content = content.replace(/\s*swcMinify\s*:\s*[^,}\n]+,?/g, '');
       fs.writeFileSync(configPath, content, 'utf-8');
     } else {
       // 설정 파일이 아예 없으면 생성
