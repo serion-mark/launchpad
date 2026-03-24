@@ -30,40 +30,87 @@ export default function LandingPage() {
     <div className="min-h-screen bg-[#17171c] text-[#f2f4f6]">
       <LandingNav />
 
-      {/* ── 히어로 섹션 ─────────────────────────── */}
-      <section className="relative overflow-hidden px-5 pt-20 pb-24 md:pt-32 md:pb-36">
+      {/* ── 히어로 섹션 (2분할) ─────────────────── */}
+      <section className="relative overflow-hidden px-5 pt-16 pb-20 md:pt-24 md:pb-28">
         {/* 배경 글로우 */}
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute left-1/2 top-0 -translate-x-1/2 h-[500px] w-[800px] rounded-full bg-[#3182f6]/8 blur-[120px]" />
+          <div className="absolute left-1/4 top-0 h-[500px] w-[600px] rounded-full bg-[#3182f6]/8 blur-[120px]" />
+          <div className="absolute right-1/4 top-0 h-[500px] w-[600px] rounded-full bg-[#a855f7]/6 blur-[120px]" />
         </div>
 
-        <div className="relative mx-auto max-w-4xl text-center">
-          <div className="mb-6 inline-block rounded-full bg-[#3182f6]/10 px-4 py-1.5 text-sm font-medium text-[#3182f6]">
-            정부지원사업 창업자를 위한 AI MVP 빌더
+        <div className="relative mx-auto max-w-6xl">
+          {/* 상단 배지 */}
+          <div className="mb-10 text-center">
+            <div className="inline-block rounded-full bg-[#3182f6]/10 px-4 py-1.5 text-sm font-medium text-[#3182f6]">
+              정부지원사업 창업자를 위한 AI MVP 빌더
+            </div>
           </div>
-          <h1 className="mb-6 text-[28px] sm:text-4xl md:text-[60px] font-extrabold leading-[1.15] tracking-tight">
-            아이디어만 있으면 됩니다.<br />
-            <span className="text-[#3182f6]">나머지는 AI가<br className="sm:hidden" /> 만들어 드립니다.</span>
-          </h1>
-          <p className="mx-auto mb-10 max-w-2xl text-lg md:text-xl text-[#8b95a1] leading-relaxed">
-            개발자 없이, 질문에 답하기만 하면 작동하는 앱이 완성됩니다.<br className="hidden md:block" />
-            외주 3,000만원 &rarr; <b className="text-[#f2f4f6]">Foundry 30만원</b>. 기획서 100장보다 작동하는 앱 1개.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a
-              href="/start"
-              className="rounded-2xl bg-[#3182f6] px-10 py-4 text-lg font-bold text-white hover:bg-[#1b64da] transition-colors shadow-lg shadow-[#3182f6]/25"
-            >
-              지금 무료로 체험하기 &rarr;
-            </a>
+
+          {/* 2분할 그리드 */}
+          <div className="grid gap-6 md:gap-8 md:grid-cols-2">
+            {/* 왼쪽: MVP 만들기 */}
+            <div className="rounded-3xl border border-[#2c2c35] bg-[#17171c]/80 p-8 md:p-10 flex flex-col justify-between">
+              <div>
+                <div className="mb-6 text-5xl">💡</div>
+                <h1 className="mb-5 text-[26px] sm:text-3xl md:text-4xl font-extrabold leading-[1.2] tracking-tight">
+                  아이디어만<br />있으면 됩니다.<br />
+                  <span className="text-[#3182f6]">나머지는 AI가<br />만들어 드립니다.</span>
+                </h1>
+                <p className="mb-5 text-base md:text-lg text-[#8b95a1] leading-relaxed">
+                  개발자 없이, 질문에 답하기만 하면<br className="hidden md:block" />
+                  작동하는 앱이 완성됩니다.
+                </p>
+                <p className="mb-8 text-sm font-semibold text-[#3182f6]">
+                  외주 3,000만원 &rarr; Foundry 30만원.<br />
+                  기획서 100장보다 작동하는 앱 1개.
+                </p>
+              </div>
+              <div>
+                <a
+                  href="/start"
+                  className="inline-block w-full sm:w-auto rounded-2xl bg-[#3182f6] px-10 py-4 text-center text-lg font-bold text-white hover:bg-[#1b64da] transition-colors shadow-lg shadow-[#3182f6]/25"
+                >
+                  바로 시작 &rarr;
+                </a>
+                <p className="mt-4 text-xs text-[#6b7684]">회원가입 시 1,000cr 무료 지급 &middot; 카드 등록 불필요</p>
+              </div>
+            </div>
+
+            {/* 오른쪽: AI 회의실 */}
+            <div className="rounded-3xl border border-[#2c2c35] bg-[#12121a]/80 p-8 md:p-10 flex flex-col justify-between">
+              <div>
+                <div className="mb-6 text-5xl">🧠</div>
+                <h2 className="mb-5 text-[26px] sm:text-3xl md:text-4xl font-extrabold leading-[1.2] tracking-tight">
+                  AI 한 명은 답하고,<br />
+                  <span className="text-[#a855f7]">파운더리AI는<br />토론합니다.</span>
+                </h2>
+                <p className="mb-5 text-xl md:text-2xl font-bold text-[#f2f4f6]">
+                  차이를 경험해보세요.
+                </p>
+                <p className="mb-8 text-base md:text-lg text-[#8b95a1] leading-relaxed">
+                  사업계획서로 앱 만들기도 가능합니다
+                </p>
+              </div>
+              <div>
+                <a
+                  href="/meeting"
+                  className="inline-block w-full sm:w-auto rounded-2xl border-2 border-[#a855f7] px-10 py-4 text-center text-lg font-bold text-[#a855f7] hover:bg-[#a855f7]/10 transition-colors"
+                >
+                  회의 시작하기 &rarr;
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* 하단 포트폴리오 링크 */}
+          <div className="mt-8 text-center">
             <a
               href="/portfolio"
-              className="rounded-2xl border border-[#2c2c35] px-8 py-4 text-lg font-semibold text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#2c2c35] transition-colors"
+              className="rounded-2xl border border-[#2c2c35] px-8 py-3.5 text-base font-semibold text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#2c2c35] transition-colors"
             >
               이런 앱을 만들 수 있어요
             </a>
           </div>
-          <p className="mt-5 text-sm text-[#6b7684]">회원가입 시 1,000 크레딧 무료 제공 &middot; 카드 등록 불필요</p>
         </div>
       </section>
 
