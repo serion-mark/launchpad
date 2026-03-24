@@ -176,10 +176,9 @@ export class DeployService {
       if (fs.existsSync(p)) fs.unlinkSync(p);
     }
 
-    // 안전한 config 덮어쓰기 — static export 보장
-    const config = `import type { NextConfig } from 'next';
-
-const nextConfig: NextConfig = {
+    // 안전한 config 덮어쓰기 — static export 보장 (.mjs = 모든 Next.js 버전 호환)
+    const config = `/** @type {import('next').NextConfig} */
+const nextConfig = {
   output: 'export',
   images: { unoptimized: true },
   typescript: { ignoreBuildErrors: true },
@@ -188,7 +187,7 @@ const nextConfig: NextConfig = {
 
 export default nextConfig;
 `;
-    fs.writeFileSync(path.join(outputDir, 'next.config.ts'), config, 'utf-8');
+    fs.writeFileSync(path.join(outputDir, 'next.config.mjs'), config, 'utf-8');
   }
 
   /**
