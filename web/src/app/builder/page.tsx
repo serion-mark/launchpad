@@ -192,6 +192,8 @@ function BuilderContent() {
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   // 생성 중 사용자 요청 수집 (완료 후 "반영할까요?" 제안용)
   const [pendingRequests, setPendingRequests] = useState<string[]>([]);
+  // 에러 상태 관리 (에러 시 목업 안 보이게 + "다시 시도하기" 버튼)
+  const [hasError, setHasError] = useState(false);
 
   const templateId = previewTemplate || project?.template || 'beauty-salon';
   const questions = QUESTIONNAIRES[templateId] || QUESTIONNAIRES['beauty-salon'];
@@ -673,6 +675,7 @@ function BuilderContent() {
   const handleGenerate = async () => {
     if (!projectId) return;
     setBuildPhase('generating');
+    setHasError(false);
     setGenerateProgress([]);
     setGenerateStep('');
     setGenFileCount(0);
@@ -726,14 +729,15 @@ function BuilderContent() {
         if (result) {
           handleGenerateComplete(result);
         } else {
-          // 에러 시: 이미 생성된 코드가 있으면 done 유지, 없으면 designing
+          // 에러 시: 이미 생성된 코드가 있으면 done 유지, 없으면 designing + hasError
           const hasCode = project?.generatedCode && Array.isArray(project.generatedCode) && project.generatedCode.length > 0;
           setBuildPhase(hasCode ? 'done' : 'designing');
+          if (!hasCode) setHasError(true);
           setMessages(prev => [...prev, {
             id: Date.now().toString(), role: 'assistant',
             content: hasCode
               ? '추가 생성에 실패했습니다. 기존 앱은 유지됩니다.\n\n채팅으로 수정하거나 [배포] 버튼을 이용하세요.'
-              : '크레딧이 부족하거나 생성에 실패했습니다.\n\n[크레딧 충전하기 →](/credits)',
+              : '⚠️ 앱 생성에 실패했습니다.\n\n크레딧을 확인하고 다시 시도해주세요. [크레딧 충전하기 →](/credits)',
             timestamp: new Date().toISOString(), type: 'text',
           }]);
         }
@@ -811,11 +815,12 @@ function BuilderContent() {
                 // 이미 생성된 코드가 있으면 done 유지
                 const hasCode = streamingFiles.length > 0 || (project?.generatedCode && Array.isArray(project.generatedCode) && project.generatedCode.length > 0);
                 setBuildPhase(hasCode ? 'done' : 'designing');
+                if (!hasCode) setHasError(true);
                 setMessages(prev => [...prev, {
                   id: Date.now().toString(), role: 'assistant',
                   content: hasCode
-                    ? `생성 중 오류: ${data.message}\n\n생성된 파일은 유지됩니다. 채팅으로 수정하거나 [배포] 버튼을 이용하세요.`
-                    : `생성 실패: ${data.message}\n\n다시 시도해주세요.`,
+                    ? `생성 중 오류가 발생했습니다.\n\n생성된 파일은 유지됩니다. 채팅으로 수정하거나 [배포] 버튼을 이용하세요.`
+                    : `⚠️ 앱 생성에 실패했습니다.\n\n다시 시도해주세요.`,
                   timestamp: new Date().toISOString(), type: 'text',
                 }]);
               }
@@ -832,6 +837,7 @@ function BuilderContent() {
       const hasCode = streamingFiles.length > 0 || (project?.generatedCode && Array.isArray(project.generatedCode) && project.generatedCode.length > 0);
       setBuildPhase(hasCode ? 'done' : 'designing');
       if (!hasCode) {
+        setHasError(true);
         setGenerateProgress([]);
         setStreamingFiles([]);
       }
@@ -839,7 +845,7 @@ function BuilderContent() {
         id: Date.now().toString(), role: 'assistant',
         content: hasCode
           ? '네트워크 오류가 발생했습니다. 생성된 파일은 유지됩니다.'
-          : '네트워크 오류가 발생했습니다. 다시 시도해주세요.',
+          : '⚠️ 네트워크 오류가 발생했습니다.\n\n다시 시도해주세요.',
         timestamp: new Date().toISOString(), type: 'text',
       }]);
     }
@@ -1318,9 +1324,14 @@ function BuilderContent() {
                 <span className="text-[10px] text-[#a855f7] font-medium">{questionIndex + 1}/{questions.length}</span>
               </div>
             )}
-            {buildPhase === 'designing' && (
+            {buildPhase === 'designing' && !hasError && (
               <span className="flex items-center gap-1.5 text-[11px] text-[#3182f6]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#3182f6] animate-pulse" />설계 중
+              </span>
+            )}
+            {buildPhase === 'designing' && hasError && (
+              <span className="flex items-center gap-1.5 text-[11px] text-[#ef4444]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#ef4444]" />생성 실패
               </span>
             )}
             {buildPhase === 'done' && (
@@ -1520,9 +1531,14 @@ function BuilderContent() {
         {(buildPhase === 'designing' || buildPhase === 'done') && (
           <div className="border-t border-[#1e1e28] bg-[#13131a] px-4 py-2.5">
             <div className="flex gap-2">
-              {buildPhase === 'designing' && (
+              {buildPhase === 'designing' && !hasError && (
                 <button onClick={handleGenerate} className="flex-1 rounded-xl bg-gradient-to-r from-[#30d158] to-[#28c840] px-4 py-2.5 text-sm font-bold text-white hover:shadow-lg hover:shadow-[#30d158]/20 transition-all">
                   앱 생성하기
+                </button>
+              )}
+              {buildPhase === 'designing' && hasError && (
+                <button onClick={handleGenerate} className="flex-1 rounded-xl bg-gradient-to-r from-[#f59e0b] to-[#ef4444] px-4 py-2.5 text-sm font-bold text-white hover:shadow-lg hover:shadow-[#ef4444]/20 transition-all">
+                  🔄 다시 시도하기
                 </button>
               )}
               {buildPhase === 'done' && pendingRequests.length > 0 && (
@@ -1819,8 +1835,8 @@ function BuilderContent() {
             </>
           )}
 
-          {/* 설계 중 → 인터랙티브 미리보기 (done 상태에서는 표시하지 않음) */}
-          {!showLivePreview && buildPhase !== 'generating' && buildPhase !== 'done' && previewTemplate && (
+          {/* 설계 중 → 인터랙티브 미리보기 (done/에러 상태에서는 표시하지 않음) */}
+          {!showLivePreview && buildPhase !== 'generating' && buildPhase !== 'done' && !hasError && previewTemplate && (
             <div className="flex flex-col items-center gap-3 p-5">
               {(projectFeatures.length > 0 || Object.keys(answers).length >= 3) && (
                 <div className="flex items-center gap-2 rounded-xl bg-[#3182f6]/8 border border-[#3182f6]/15 px-3 py-2 text-xs">
@@ -1850,8 +1866,22 @@ function BuilderContent() {
             </div>
           )}
 
+          {/* 에러 상태: 생성 실패 안내 */}
+          {hasError && buildPhase === 'designing' && (
+            <div className="flex h-full items-center justify-center text-center text-[#4e5968]">
+              <div>
+                <div className="mb-4 text-5xl">⚠️</div>
+                <p className="text-sm font-medium text-[#f2f4f6]">앱 생성에 실패했습니다</p>
+                <p className="text-xs mt-2 text-[#6b7684]">크레딧을 확인하고 다시 시도해주세요</p>
+                <a href="/credits" className="mt-4 inline-block rounded-lg bg-[#3182f6] px-4 py-2 text-xs font-medium text-white hover:bg-[#2563eb] transition-colors">
+                  크레딧 충전하기
+                </a>
+              </div>
+            </div>
+          )}
+
           {/* 빈 상태: 설계 전 */}
-          {!showLivePreview && buildPhase !== 'generating' && buildPhase !== 'done' && !previewTemplate && (
+          {!showLivePreview && buildPhase !== 'generating' && buildPhase !== 'done' && !hasError && !previewTemplate && (
             <div className="flex h-full items-center justify-center text-center text-[#4e5968]">
               <div>
                 <div className="mb-4 text-5xl opacity-60">📱</div>
