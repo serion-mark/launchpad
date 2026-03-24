@@ -159,23 +159,22 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── 사용 방법 4단계 ─────────────────────── */}
+      {/* ── 사용 방법 3단계 ─────────────────────── */}
       <section className="px-5 py-20 md:py-28">
         <div className="mx-auto max-w-6xl">
           <div className="mb-14 text-center">
             <h2 className="mb-3 text-3xl md:text-4xl font-bold tracking-tight">30분이면 완성</h2>
-            <p className="text-[#8b95a1] text-lg">복잡한 설정 없이 4단계로 앱을 만드세요</p>
+            <p className="text-[#8b95a1] text-lg">AI와 대화하면 앱이 만들어집니다</p>
           </div>
 
-          <div className="grid gap-0 md:grid-cols-4">
+          <div className="grid gap-0 md:grid-cols-3">
             {[
-              { step: '1', title: '업종 선택', desc: '미용실, 쇼핑몰, 매칭앱 등 10개 업종 또는 자유 입력', color: '#3182f6' },
-              { step: '2', title: '질문 답변', desc: '6가지 질문에 답하면 AI가 최적 기능을 자동 구성', color: '#30d158' },
-              { step: '3', title: 'AI 생성', desc: '프론트+백엔드+DB를 자동 생성 (약 20~40분)', color: '#a855f7' },
-              { step: '4', title: '배포/다운로드', desc: '내 앱 전용 주소로 즉시 배포 또는 ZIP 다운로드', color: '#f59e0b' },
+              { step: '1', title: 'AI와 대화', desc: '만들고 싶은 앱을 자유롭게 설명하세요. AI가 기능과 구조를 자동 설계합니다.', color: '#3182f6' },
+              { step: '2', title: '앱 생성', desc: '프론트+백엔드+DB를 자동 생성. 24시간 무료 체험 배포까지.', color: '#30d158' },
+              { step: '3', title: '수정 & 완성', desc: '채팅으로 수정 요청. 배포 또는 ZIP 다운로드로 내 앱 완성!', color: '#a855f7' },
             ].map((s, i) => (
               <div key={s.step} className="relative flex flex-col items-center text-center p-6">
-                {i < 3 && <div className="hidden md:block absolute top-12 right-0 w-1/2 h-0.5 bg-[#2c2c35]" />}
+                {i < 2 && <div className="hidden md:block absolute top-12 right-0 w-1/2 h-0.5 bg-[#2c2c35]" />}
                 {i > 0 && <div className="hidden md:block absolute top-12 left-0 w-1/2 h-0.5 bg-[#2c2c35]" />}
                 <div
                   className="relative z-10 mb-5 flex h-14 w-14 items-center justify-center rounded-2xl text-xl font-black text-white"
