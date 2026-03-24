@@ -976,20 +976,37 @@ function BuilderContent() {
 
   // ── 테마/라벨/데모데이터 (분리된 모듈에서 가져옴) ────
   const tm = THEME_MAP[project?.theme || 'basic-light'] || THEME_MAP['basic-light'];
-  const industry = answers.industry || '';
+  // custom 템플릿일 때 answers 전체에서 키워드 감지하여 industry 자동 설정
+  const rawIndustry = answers.industry || '';
+  const industry = useMemo(() => {
+    if (rawIndustry) return rawIndustry;
+    if (templateId !== 'custom') return '';
+    // answers 전체 텍스트에서 키워드 감지
+    const allText = Object.values(answers).join(' ').toLowerCase() + ' ' + (project?.name || '').toLowerCase() + ' ' + (project?.description || '').toLowerCase();
+    if (/매칭|소개팅|데이팅|만남|연결|중개/.test(allText)) return '매칭';
+    if (/쇼핑|커머스|상품|판매|주문|장바구니|직거래/.test(allText)) return '커머스';
+    if (/병원|클리닉|진료|의료|건강/.test(allText)) return '병원';
+    if (/피트니스|요가|헬스|운동|PT/.test(allText)) return '피트니스';
+    if (/학원|교육|수업|강의|과외|학습/.test(allText)) return '교육';
+    if (/카페|식당|맛집|음식|레스토랑|배달/.test(allText)) return '카페';
+    if (/관리|시설|아파트|민원/.test(allText)) return '시설관리';
+    if (/미용|헤어|살롱|뷰티|네일/.test(allText)) return '미용';
+    return '서비스'; // 범용 fallback
+  }, [rawIndustry, templateId, answers, project?.name, project?.description]);
   const FEAT_LABEL = getFeatLabel(templateId, industry);
   const demoData = getDemoData(templateId, industry);
   const { names: demoNames, services: demoServices, staffTitle: demoStaffTitle, staffNames: demoStaffNames } = demoData;
 
   // 업종별 부울 플래그 (미리보기 콘텐츠 생성용)
-  const isBeauty = templateId === 'beauty-salon';
-  const isCommerce = templateId === 'ecommerce';
-  const isO2O = templateId === 'o2o-matching';
+  const isBeauty = templateId === 'beauty-salon' || industry === '미용';
+  const isCommerce = templateId === 'ecommerce' || industry === '커머스';
+  const isO2O = templateId === 'o2o-matching' || industry === '매칭';
   const isEdutech = templateId === 'edutech';
-  const isFacility = templateId === 'facility-mgmt';
+  const isFacility = templateId === 'facility-mgmt' || industry === '시설관리';
   const isClinic = industry.includes('병원') || industry.includes('클리닉');
   const isFitness = industry.includes('피트니스') || industry.includes('요가') || industry.includes('헬스');
   const isEdu = isEdutech || industry.includes('학원') || industry.includes('교육');
+  const isFood = industry.includes('카페') || industry.includes('식당');
 
   // 모델 선택 상태
   const selectedModelTier: AppModelTier = 'smart'; // Phase 11: Smart 고정
@@ -1002,12 +1019,12 @@ function BuilderContent() {
         <span style="background:${accent};color:white;padding:6px 14px;border-radius:8px;font-size:11px;font-weight:600">관리자</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
-        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">${isFacility ? '오늘 민원' : isO2O ? '오늘 매칭' : isEdutech ? '활성 수강생' : isEdu ? '이번 달 수강료' : isCommerce ? '오늘 주문' : '오늘 매출'}</div><div style="font-size:22px;font-weight:700;color:${accent}">${isFacility ? '7건' : isO2O ? '23건' : isEdutech ? '248명' : isEdu ? '₩4,200,000' : isCommerce ? '34건' : '₩1,280,000'}</div></div>
-        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">${isFacility ? '처리 완료' : isO2O ? '완료율' : isEdutech ? '오늘 수업' : isEdu ? '오늘 수업' : isFitness ? '오늘 클래스' : isCommerce ? '오늘 매출' : '오늘 예약'}</div><div style="font-size:22px;font-weight:700">${isFacility ? '5건' : isO2O ? '87%' : isEdutech ? '8강' : isEdu ? '8강' : isCommerce ? '₩2,340,000' : '12건'}</div></div>
-        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">${isFacility ? '미처리' : isO2O ? '신규 제공자' : isEdutech ? '수료율' : isEdu ? '신규 등록' : isCommerce ? '신규 가입' : '신규 고객'}</div><div style="font-size:22px;font-weight:700;color:${isFacility ? '#f43f5e' : '#16a34a'}">${isFacility ? '2건' : isO2O ? '+5명' : isEdutech ? '67%' : '+3명'}</div></div>
+        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">${isFacility ? '오늘 민원' : isO2O ? '오늘 매칭' : isEdutech ? '활성 수강생' : isEdu ? '이번 달 수강료' : isCommerce ? '오늘 주문' : isFood ? '오늘 예약' : isBeauty ? '오늘 매출' : '오늘 활동'}</div><div style="font-size:22px;font-weight:700;color:${accent}">${isFacility ? '7건' : isO2O ? '23건' : isEdutech ? '248명' : isEdu ? '₩4,200,000' : isCommerce ? '34건' : isFood ? '18건' : isBeauty ? '₩1,280,000' : '156건'}</div></div>
+        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">${isFacility ? '처리 완료' : isO2O ? '성공률' : isEdutech ? '오늘 수업' : isEdu ? '오늘 수업' : isFitness ? '오늘 클래스' : isCommerce ? '오늘 매출' : isBeauty ? '오늘 예약' : '활성 사용자'}</div><div style="font-size:22px;font-weight:700">${isFacility ? '5건' : isO2O ? '87%' : isEdutech ? '8강' : isEdu ? '8강' : isCommerce ? '₩2,340,000' : isBeauty ? '12건' : '2,847명'}</div></div>
+        <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)"><div style="font-size:10px;color:#64748b">${isFacility ? '미처리' : isO2O ? '신규 가입' : isEdutech ? '수료율' : isEdu ? '신규 등록' : isCommerce ? '신규 가입' : isBeauty ? '신규 고객' : '신규 가입'}</div><div style="font-size:22px;font-weight:700;color:${isFacility ? '#f43f5e' : '#16a34a'}">${isFacility ? '2건' : isO2O ? '+12명' : isEdutech ? '67%' : isBeauty ? '+3명' : '+28명'}</div></div>
       </div>
       <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
-        <div style="font-size:14px;font-weight:600;margin-bottom:12px">${isFacility ? '최근 민원' : isO2O ? '최근 매칭' : isEdutech ? '오늘 수업' : isEdu ? '오늘 수업 일정' : isCommerce ? '최근 주문' : '오늘 일정'}</div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:12px">${isFacility ? '최근 민원' : isO2O ? '최근 매칭' : isEdutech ? '오늘 수업' : isEdu ? '오늘 수업 일정' : isCommerce ? '최근 주문' : isBeauty ? '오늘 일정' : '최근 활동'}</div>
         <div style="font-size:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span><b style="color:${accent}">10:00</b> ${demoNames[0]} · ${demoServices[0]}</span><span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:10px">확정</span></div>
         <div style="font-size:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span><b style="color:${accent}">11:30</b> ${demoNames[1]} · ${demoServices[1]}</span><span style="background:#dbeafe;color:#2563eb;padding:2px 8px;border-radius:10px;font-size:10px">진행중</span></div>
         <div style="font-size:12px;padding:10px 0;display:flex;justify-content:space-between"><span><b style="color:${accent}">14:00</b> ${demoNames[2]} · ${demoServices[2]}</span><span style="background:#fef9c3;color:#ca8a04;padding:2px 8px;border-radius:10px;font-size:10px">대기</span></div>
@@ -1047,13 +1064,13 @@ function BuilderContent() {
         </div>`).join('')}
       </div>`,
       sales: `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <h2 style="font-size:18px;font-weight:700;color:#1e293b">💰 ${isEdu ? '수강료' : '매출'} 관리</h2>
+        <h2 style="font-size:18px;font-weight:700;color:#1e293b">💰 ${isEdu ? '수강료' : isO2O ? '활동 통계' : '매출'} 관리</h2>
         <span style="font-size:12px;color:#64748b">2026년 3월</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
-        <div style="background:white;padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center"><div style="font-size:10px;color:#64748b">오늘</div><div style="font-size:16px;font-weight:700;color:${accent}">₩1,280,000</div></div>
-        <div style="background:white;padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center"><div style="font-size:10px;color:#64748b">이번 주</div><div style="font-size:16px;font-weight:700">₩5,420,000</div></div>
-        <div style="background:white;padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center"><div style="font-size:10px;color:#64748b">이번 달</div><div style="font-size:16px;font-weight:700">₩18,750,000</div></div>
+        <div style="background:white;padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center"><div style="font-size:10px;color:#64748b">${isO2O ? '오늘 매칭' : '오늘'}</div><div style="font-size:16px;font-weight:700;color:${accent}">${isO2O ? '23건' : isBeauty ? '₩1,280,000' : '156건'}</div></div>
+        <div style="background:white;padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center"><div style="font-size:10px;color:#64748b">${isO2O ? '이번 주 매칭' : '이번 주'}</div><div style="font-size:16px;font-weight:700">${isO2O ? '142건' : isBeauty ? '₩5,420,000' : '1,082건'}</div></div>
+        <div style="background:white;padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center"><div style="font-size:10px;color:#64748b">${isO2O ? '이번 달 매칭' : '이번 달'}</div><div style="font-size:16px;font-weight:700">${isO2O ? '487건' : isBeauty ? '₩18,750,000' : '4,231건'}</div></div>
         <div style="background:white;padding:14px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);text-align:center"><div style="font-size:10px;color:#64748b">전월 대비</div><div style="font-size:16px;font-weight:700;color:#16a34a">+12%</div></div>
       </div>
       <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
@@ -1082,9 +1099,9 @@ function BuilderContent() {
       </div>
       <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
         <div style="font-size:14px;font-weight:600;margin-bottom:12px">최근 발송</div>
-        <div style="font-size:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span>김지현 · 예약 확인</span><span style="color:#16a34a">✓ 성공</span></div>
-        <div style="font-size:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span>이서윤 · 리마인더</span><span style="color:#16a34a">✓ 성공</span></div>
-        <div style="font-size:12px;padding:10px 0;display:flex;justify-content:space-between"><span>박민준 · 부재중 안내</span><span style="color:#16a34a">✓ 성공</span></div>
+        <div style="font-size:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span>${demoNames[0]} · ${isO2O ? '매칭 알림' : '예약 확인'}</span><span style="color:#16a34a">✓ 성공</span></div>
+        <div style="font-size:12px;padding:10px 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between"><span>${demoNames[1]} · ${isO2O ? '메시지 알림' : '리마인더'}</span><span style="color:#16a34a">✓ 성공</span></div>
+        <div style="font-size:12px;padding:10px 0;display:flex;justify-content:space-between"><span>${demoNames[2]} · ${isO2O ? '프로필 업데이트' : '부재중 안내'}</span><span style="color:#16a34a">✓ 성공</span></div>
       </div>`,
       settlement: `<div style="margin-bottom:16px"><h2 style="font-size:18px;font-weight:700;color:#1e293b">📋 정산</h2></div>
       <div style="background:white;padding:16px;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)">
