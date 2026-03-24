@@ -170,63 +170,14 @@ export class DeployService {
    * next.config.ts에 output: 'export' 보장
    */
   private ensureNextConfig(outputDir: string) {
-    const configTs = path.join(outputDir, 'next.config.ts');
-    const configJs = path.join(outputDir, 'next.config.js');
-    const configMjs = path.join(outputDir, 'next.config.mjs');
+    // 기존 config 파일 전부 삭제 (패치 방식은 너무 불안정)
+    for (const name of ['next.config.ts', 'next.config.js', 'next.config.mjs']) {
+      const p = path.join(outputDir, name);
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    }
 
-    // 기존 설정 파일 확인
-    let configPath = '';
-    if (fs.existsSync(configTs)) configPath = configTs;
-    else if (fs.existsSync(configJs)) configPath = configJs;
-    else if (fs.existsSync(configMjs)) configPath = configMjs;
-
-    if (configPath) {
-      let content = fs.readFileSync(configPath, 'utf-8');
-      // output: 'export'가 없으면 추가
-      if (!content.includes("output:") && !content.includes("output :")) {
-        // 다양한 패턴 지원: `const nextConfig = {`, `const nextConfig: NextConfig = {`, etc.
-        const replaced = content.replace(
-          /(const\s+nextConfig[\s\S]*?=\s*\{)/,
-          `$1\n  output: 'export',`,
-        );
-        content = replaced !== content ? replaced : content;
-      }
-      // images.unoptimized 보장 (static export에서 Image 컴포넌트 사용 시)
-      if (!content.includes('unoptimized')) {
-        content = content.replace(
-          /images:\s*\{[^}]*\}/,
-          `images: { unoptimized: true }`,
-        );
-        // images 설정 자체가 없는 경우
-        if (!content.includes('images')) {
-          content = content.replace(
-            /(output:\s*'export',?)/,
-            `$1\n  images: { unoptimized: true },`,
-          );
-        }
-      }
-      // TypeScript 빌드 에러 무시 (컴파일은 성공하지만 타입 체크 실패 시)
-      if (!content.includes('ignoreBuildErrors')) {
-        content = content.replace(
-          /(output:\s*'export',?)/,
-          `$1\n  typescript: { ignoreBuildErrors: true },`,
-        );
-      }
-      // ESLint 빌드 에러 무시
-      if (!content.includes('ignoreDuringBuilds')) {
-        content = content.replace(
-          /(output:\s*'export',?)/,
-          `$1\n  eslint: { ignoreDuringBuilds: true },`,
-        );
-      }
-      // Next.js 16에서 제거된 설정 삭제
-      content = content.replace(/\s*esmExternals\s*:\s*[^,}\n]+,?/g, '');
-      content = content.replace(/\s*experimental\s*:\s*\{\s*\},?/g, ''); // 빈 experimental 제거
-      content = content.replace(/\s*swcMinify\s*:\s*[^,}\n]+,?/g, '');
-      fs.writeFileSync(configPath, content, 'utf-8');
-    } else {
-      // 설정 파일이 아예 없으면 생성
-      const config = `import type { NextConfig } from 'next';
+    // 안전한 config 덮어쓰기 — static export 보장
+    const config = `import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   output: 'export',
@@ -237,8 +188,7 @@ const nextConfig: NextConfig = {
 
 export default nextConfig;
 `;
-      fs.writeFileSync(configTs, config, 'utf-8');
-    }
+    fs.writeFileSync(path.join(outputDir, 'next.config.ts'), config, 'utf-8');
   }
 
   /**
