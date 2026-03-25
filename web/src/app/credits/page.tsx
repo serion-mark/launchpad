@@ -46,6 +46,7 @@ const MODU_PACKAGES = [
       '크레딧 50,000 지급',
       '호스팅 3개월 포함',
       'AI 회의실 프리미엄 3회',
+      '기술지원 2회 무료',
       '세금계산서 발행 가능',
     ],
   },
@@ -54,8 +55,9 @@ const MODU_PACKAGES = [
     features: [
       '크레딧 100,000 지급',
       '호스팅 6개월 포함',
-      'AI 회의실 프리미엄 무제한',
+      'AI 회의실 프리미엄 무제한급',
       '📦 코드팩 독립 포함!',
+      '기술지원 5회 무료',
       '세금계산서 발행 가능',
     ],
   },
@@ -441,7 +443,7 @@ export default function CreditsPage() {
                   <span className="text-lg">🔥</span>
                   <div>
                     <p className="font-bold text-[#f2f4f6]">"100만원 다 쓸래" → 🥈 스탠다드</p>
-                    <p className="text-[#8b95a1] mt-1">코드팩 독립 + 호스팅 6개월 + 프리미엄 회의실 무제한!</p>
+                    <p className="text-[#8b95a1] mt-1">코드팩 독립 + 호스팅 6개월 + 프리미엄 회의실 무제한급 + 기술지원 5회!</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3 rounded-xl bg-[#2c2c35]/50 p-4">

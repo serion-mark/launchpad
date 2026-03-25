@@ -161,11 +161,11 @@ export default function PricingPage() {
           <div className="flex flex-col sm:flex-row justify-center gap-4 mb-3">
             <div className="rounded-xl bg-[#1b1b21] border border-[#2c2c35] px-6 py-3">
               <span className="font-bold text-[#ffd60a]">🥉 라이트 490,000원</span>
-              <span className="text-xs text-[#8b95a1] ml-2">50,000cr + 호스팅 3개월 + 프리미엄 회의실 3회</span>
+              <span className="text-xs text-[#8b95a1] ml-2">50,000cr + 호스팅 3개월 + 프리미엄 회의실 3회 + 기술지원 2회</span>
             </div>
             <div className="rounded-xl bg-[#1b1b21] border border-[#2c2c35] px-6 py-3">
               <span className="font-bold text-[#ffd60a]">🥈 스탠다드 990,000원</span>
-              <span className="text-xs text-[#8b95a1] ml-2">100,000cr + 호스팅 6개월 + 코드팩 + 프리미엄 회의실 무제한</span>
+              <span className="text-xs text-[#8b95a1] ml-2">100,000cr + 호스팅 6개월 + 코드팩 + 프리미엄 회의실 무제한급 + 기술지원 5회</span>
             </div>
           </div>
           <a href="/credits" className="text-sm text-[#3182f6] hover:underline">자세히 보기 →</a>
