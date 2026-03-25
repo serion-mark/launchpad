@@ -14,8 +14,8 @@ const DEPLOY_DIR = path.resolve(process.env.DEPLOY_DIR || '/var/www/apps');
 const DEPLOY_DOMAIN = process.env.DEPLOY_DOMAIN || 'foundry.ai.kr';
 /** 빌드 타임아웃 (ms) */
 const BUILD_TIMEOUT = parseInt(process.env.BUILD_TIMEOUT_MS || '', 10) || 5 * 60 * 1000;
-/** F6: 빌드 자동 수정 최대 시도 횟수 */
-const MAX_BUILD_FIX_ATTEMPTS = 3;
+/** F6: 빌드 자동 수정 최대 시도 횟수 (0 = F6 비활성화 — 수정 내용 덮어쓰기 방지!) */
+const MAX_BUILD_FIX_ATTEMPTS = 0;
 
 /** ── 빌드 큐 (In-Memory) ───────────────────────────────── */
 const MAX_CONCURRENT_BUILDS = 2;
