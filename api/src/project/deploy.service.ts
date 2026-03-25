@@ -167,6 +167,45 @@ export class DeployService {
   }
 
   /**
+   * 빌드 직전: DB 최신 generatedCode → 디스크 동기화
+   * npm install 동안 인라인 편집이 발생했을 수 있으므로, 빌드 전 최신 코드로 갱신
+   */
+  private async syncLatestCodeToDisk(projectId: string, outputDir: string, appendLog: (msg: string) => void) {
+    try {
+      const latest = await this.prisma.project.findUnique({
+        where: { id: projectId },
+        select: { generatedCode: true },
+      });
+      if (!latest?.generatedCode) return;
+
+      const files = latest.generatedCode as { path: string; content: string }[];
+      let updated = 0;
+
+      for (const file of files) {
+        const filePath = path.resolve(outputDir, file.path);
+        if (!filePath.startsWith(outputDir + path.sep) && filePath !== outputDir) continue;
+
+        // 디스크 파일과 DB 내용 비교 — 다르면 갱신
+        const exists = fs.existsSync(filePath);
+        if (exists) {
+          const diskContent = fs.readFileSync(filePath, 'utf-8');
+          if (diskContent === file.content) continue;
+        }
+
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        fs.writeFileSync(filePath, file.content, 'utf-8');
+        updated++;
+      }
+
+      if (updated > 0) {
+        appendLog(`[sync] 빌드 전 ${updated}개 파일 최신 동기화 완료`);
+      }
+    } catch (err: any) {
+      appendLog(`[sync] 동기화 실패 (무시): ${err.message?.slice(0, 100)}`);
+    }
+  }
+
+  /**
    * next.config.ts에 output: 'export' 보장
    */
   private ensureNextConfig(outputDir: string) {
@@ -556,6 +595,10 @@ export default nextConfig;
 
       const supabaseEnv = await this.getSupabaseEnv(projectId);
       let buildSuccess = false;
+
+      // ★ 빌드 직전: DB에서 최신 generatedCode를 다시 읽어서 디스크 동기화
+      // npm install 동안 사용자가 인라인 편집했을 수 있으므로 최신 코드로 갱신
+      await this.syncLatestCodeToDisk(projectId, outputDir, appendLog);
 
       for (let attempt = 0; attempt <= MAX_BUILD_FIX_ATTEMPTS; attempt++) {
         // 매 시도 전 next.config 보장 (F6 AI 수정이 config를 덮어쓸 수 있음)
