@@ -124,6 +124,14 @@ function BuilderContent() {
             } else {
               setBuildPhase('designing');
             }
+          } else if (data.status === 'active' || data.status === 'deployed') {
+            // chatHistory가 없어도 완료된 프로젝트면 done으로 복원
+            setBuildPhase('done');
+            setMessages([{
+              id: '1', role: 'assistant',
+              content: `**${data.name}** 프로젝트가 준비되어 있습니다.\n수정이 필요하시면 말씀해주세요!`,
+              timestamp: new Date().toISOString(), type: 'text',
+            }]);
           } else if (data.features?.readyToGenerate && data.features?.answers) {
             setMessages([{
               id: '1', role: 'assistant',

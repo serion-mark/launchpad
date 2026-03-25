@@ -377,73 +377,102 @@ export default function BuilderChat({
       }
     }
 
+    // done이 아닌데 수정 키워드 감지 → 안내 (할루시네이션 방지!)
+    const modifyKeywords = ['수정', '변경', '바꿔', '바꾸', '추가', '삭제', '제거', '고쳐', '고치', '색상', '색깔', '텍스트', '문구', '버튼', '이미지', '크기', '위치', '레이아웃', '반응형', '모바일', 'fix', 'change', 'add', 'remove', 'update', 'modify'];
+    const isModifyRequest = modifyKeywords.some(kw => userMsg.content.toLowerCase().includes(kw));
+
+    if (buildPhase !== 'done' && projectId && isModifyRequest) {
+      const aiMsg: Message = {
+        id: (Date.now() + 1).toString(), role: 'assistant',
+        content: '앱 생성이 완료된 후에 수정할 수 있습니다.\n현재 상태에서는 설계 관련 대화가 가능합니다.\n\n앱 생성을 먼저 완료해주세요!',
+        timestamp: new Date().toISOString(), type: 'text',
+      };
+      setMessages([...newMessages, aiMsg]);
+      setIsTyping(false);
+      return;
+    }
+
     // done 상태: 수정 vs 일반 대화
     if (buildPhase === 'done' && projectId) {
-      const modifyKeywords = ['수정', '변경', '바꿔', '바꾸', '추가', '삭제', '제거', '고쳐', '고치', '색상', '색깔', '텍스트', '문구', '버튼', '이미지', '크기', '위치', '레이아웃', 'fix', 'change', 'add', 'remove', 'update', 'modify'];
-      const isModifyRequest = modifyKeywords.some(kw => userMsg.content.toLowerCase().includes(kw));
-
       if (isModifyRequest) {
-        const modifyResult = await callModifyFiles({
-          projectId,
-          message: userMsg.content,
-          modelTier: selectedModelTier,
-        });
-
-        authFetch('/credits/balance').then(r => r.ok ? r.json() : null).then(d => {
-          if (d) setCreditBalance(d.balance);
-        }).catch(() => {});
-
-        if (modifyResult && modifyResult.modifiedFiles.length > 0) {
-          if (project) {
-            const existingFiles = Array.isArray(project.generatedCode) ? [...project.generatedCode] : [];
-            for (const mod of modifyResult.modifiedFiles) {
-              const idx = existingFiles.findIndex((f: any) => f.path === mod.path);
-              if (idx >= 0) existingFiles[idx] = mod;
-              else existingFiles.push(mod);
+        // 단계별 진행 상태 표시 (같은 메시지 ID로 content 업데이트)
+        const statusMsgId = `modify-${Date.now()}`;
+        const updateStatus = (content: string) => {
+          setMessages(prev => {
+            const existing = prev.find(m => m.id === statusMsgId);
+            if (existing) {
+              return prev.map(m => m.id === statusMsgId ? { ...m, content } : m);
             }
-            setProject({ ...project, generatedCode: existingFiles });
+            return [...prev, { id: statusMsgId, role: 'assistant' as const, content, timestamp: new Date().toISOString(), type: 'text' as const }];
+          });
+        };
+
+        // 1단계: 수정 요청 접수
+        updateStatus('✏️ 수정 요청 접수\n⏱️ 약 5~8분 소요');
+
+        try {
+          // 2단계: 코드 수정 중
+          setTimeout(() => updateStatus('🔄 코드 수정 중... (1/3)\n⏱️ 약 2~3분'), 3000);
+
+          const modifyResult = await callModifyFiles({
+            projectId,
+            message: userMsg.content,
+            modelTier: selectedModelTier,
+          });
+
+          authFetch('/credits/balance').then(r => r.ok ? r.json() : null).then(d => {
+            if (d) setCreditBalance(d.balance);
+          }).catch(() => {});
+
+          if (modifyResult && modifyResult.modifiedFiles.length > 0) {
+            if (project) {
+              const existingFiles = Array.isArray(project.generatedCode) ? [...project.generatedCode] : [];
+              for (const mod of modifyResult.modifiedFiles) {
+                const idx = existingFiles.findIndex((f: any) => f.path === mod.path);
+                if (idx >= 0) existingFiles[idx] = mod;
+                else existingFiles.push(mod);
+              }
+              setProject({ ...project, generatedCode: existingFiles });
+            }
+
+            // 3단계: 재배포 중
+            updateStatus('📦 재배포 중... (2/3)\n⏱️ 약 3~5분');
+
+            // 자동 재배포 트리거
+            onModifyComplete();
+
+            // 4단계: 완료 (약간 딜레이로 재배포 단계 보여주기)
+            setTimeout(() => {
+              const paths = modifyResult.modifiedFiles.map(f => f.path).join(', ');
+              let replyContent = `✅ **수정 완료!** (3/3)\n\n`;
+              replyContent += `수정된 파일 (${modifyResult.modifiedFiles.length}개): ${paths}\n`;
+              if (modifyResult.totalCredits > 0) replyContent += `💰 ${modifyResult.totalCredits}cr 사용 | 잔액: ${creditBalance !== null ? (creditBalance - modifyResult.totalCredits).toLocaleString() : '?'}cr\n`;
+              if (modifyResult.fellBack) replyContent += `⚠️ Flash 모델로 자동 전환됨\n`;
+              replyContent += `\n🔄 미리보기에 반영 중입니다. (약 2~3분)\n추가 수정이 필요하면 말씀해주세요!`;
+              updateStatus(replyContent);
+              setIsTyping(false);
+              setMessages(prev => {
+                saveChatHistory(prev);
+                return prev;
+              });
+            }, 2000);
+          } else if (modifyResult) {
+            updateStatus('요청을 분석했지만 수정할 코드를 찾지 못했습니다. 좀 더 구체적으로 말씀해주세요.\n\n예: "메인 페이지 배경색을 파란색으로 바꿔줘"');
+            setIsTyping(false);
+          } else {
+            updateStatus('좀 더 구체적으로 말씀해주세요. 예: "메인 페이지 배경색을 파란색으로 바꿔줘"');
+            setIsTyping(false);
           }
-
-          const paths = modifyResult.modifiedFiles.map(f => f.path).join(', ');
-          let replyContent = `✅ **코드 수정 완료!** 재배포 중...\n\n`;
-          replyContent += `수정된 파일 (${modifyResult.modifiedFiles.length}개): ${paths}\n`;
-          if (modifyResult.totalCredits > 0) replyContent += `✅ ${modifyResult.totalCredits}cr 사용 | 잔액: ${creditBalance !== null ? (creditBalance - modifyResult.totalCredits).toLocaleString() : '?'}cr\n`;
-          if (modifyResult.fellBack) replyContent += `⚠️ Flash 모델로 자동 전환됨\n`;
-          replyContent += `\n🔄 미리보기에 반영 중입니다. (약 2~3분)\n추가 수정이 필요하면 말씀해주세요!`;
-
-          // 자동 재배포 트리거
-          onModifyComplete();
-
-          const aiMsg: Message = {
-            id: (Date.now() + 1).toString(), role: 'assistant',
-            content: replyContent, timestamp: new Date().toISOString(), type: 'text',
-          };
-          const updatedMessages = [...newMessages, aiMsg];
-          setMessages(updatedMessages);
-          setIsTyping(false);
-          saveChatHistory(updatedMessages);
-        } else if (modifyResult) {
-          const aiMsg: Message = {
-            id: (Date.now() + 1).toString(), role: 'assistant',
-            content: '요청을 분석했지만 수정할 코드를 찾지 못했습니다. 좀 더 구체적으로 말씀해주세요.\n\n예: "메인 페이지 배경색을 파란색으로 바꿔줘"',
-            timestamp: new Date().toISOString(), type: 'text',
-          };
-          setMessages([...newMessages, aiMsg]);
-          setIsTyping(false);
-        } else {
-          const aiMsg: Message = {
-            id: (Date.now() + 1).toString(), role: 'assistant',
-            content: '좀 더 구체적으로 말씀해주세요. 예: "메인 페이지 배경색을 파란색으로 바꿔줘"',
-            timestamp: new Date().toISOString(), type: 'text',
-          };
-          setMessages([...newMessages, aiMsg]);
+        } catch (err) {
+          console.error('Modify API error:', err);
+          updateStatus('⚠️ 코드 수정에 실패했습니다.\n\n다시 시도하거나 좀 더 구체적으로 요청해주세요.\n예: "메인 페이지 배경색을 파란색으로 바꿔줘"');
           setIsTyping(false);
         }
-        return;
+        return; // 무조건 return! 일반 채팅으로 절대 빠지지 않게!
       }
     }
 
-    // designing 상태: AI 채팅
+    // designing 상태: AI 채팅 (수정 기능 없음! 설계 상담만!)
     const chatHistory = newMessages
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => ({ role: m.role, content: m.content }));

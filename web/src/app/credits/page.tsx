@@ -98,6 +98,7 @@ export default function CreditsPage() {
   const [activeTab, setActiveTab] = useState<'credit' | 'modu' | 'independence'>('credit');
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [refundAgreed, setRefundAgreed] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
   const isLoggedIn = !!getUser();
 
   useEffect(() => {
@@ -124,6 +125,12 @@ export default function CreditsPage() {
       return;
     }
 
+    // 토스 결제 키가 없으면 문의 모달 표시
+    if (!TOSS_CLIENT_KEY) {
+      setShowContactModal(true);
+      return;
+    }
+
     setIsProcessing(true);
     setSelectedPkg(pkgId);
 
@@ -145,7 +152,7 @@ export default function CreditsPage() {
     } catch (error: any) {
       if (error.code !== 'USER_CANCEL') {
         console.error('결제 오류:', error);
-        alert('결제 중 오류가 발생했습니다.');
+        setShowContactModal(true);
       }
     } finally {
       setIsProcessing(false);
@@ -155,6 +162,32 @@ export default function CreditsPage() {
 
   return (
     <div className="min-h-screen bg-[#17171c] text-[#f2f4f6]">
+      {/* 충전 문의 모달 */}
+      {showContactModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowContactModal(false)}>
+          <div className="mx-4 w-full max-w-sm rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-8 text-center" onClick={e => e.stopPropagation()}>
+            <h3 className="mb-2 text-xl font-bold">크레딧 충전 문의</h3>
+            <p className="mb-6 text-sm text-[#8b95a1]">현재 충전은 문의를 통해 진행됩니다.</p>
+            <div className="mb-6 space-y-3">
+              <a href="mailto:mark@serion.ai.kr" className="flex items-center justify-center gap-2 rounded-xl bg-[#2c2c35] px-4 py-3 text-sm text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">
+                <span>📧</span> mark@serion.ai.kr
+              </a>
+              <a href="tel:010-2164-3181" className="flex items-center justify-center gap-2 rounded-xl bg-[#2c2c35] px-4 py-3 text-sm text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">
+                <span>📞</span> 010-2164-3181
+              </a>
+            </div>
+            <div className="flex gap-3">
+              <a href="mailto:mark@serion.ai.kr?subject=Foundry 크레딧 충전 문의" className="flex-1 rounded-xl bg-[#3182f6] py-3 text-sm font-bold text-white hover:bg-[#1b64da] transition-colors">
+                문의하기
+              </a>
+              <button onClick={() => setShowContactModal(false)} className="flex-1 rounded-xl bg-[#2c2c35] py-3 text-sm font-bold text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 헤더 */}
       <header className="border-b border-[#2c2c35] px-5 py-4 md:px-8">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
