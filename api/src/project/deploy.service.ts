@@ -845,12 +845,18 @@ export default nextConfig;
         fs.mkdirSync(path.dirname(filePath), { recursive: true });
         fs.writeFileSync(filePath, completed, 'utf-8');
 
-        const idx = files.findIndex(f => f.path === targetFiles[i].path);
-        if (idx >= 0) files[idx] = targetFiles[i];
+        // ★ 최신 DB에서 generatedCode 읽어서 해당 파일만 머지
+        const latestProject = await this.prisma.project.findUnique({
+          where: { id: projectId },
+          select: { generatedCode: true },
+        });
+        const latestFiles = (latestProject?.generatedCode as { path: string; content: string }[]) || files;
+        const idx = latestFiles.findIndex(f => f.path === targetFiles[i].path);
+        if (idx >= 0) latestFiles[idx] = targetFiles[i];
 
         await this.prisma.project.update({
           where: { id: projectId },
-          data: { generatedCode: files as any },
+          data: { generatedCode: latestFiles as any },
         });
       }
     }
@@ -862,14 +868,15 @@ export default nextConfig;
 
     // 수정된 파일을 파일시스템에 적용 (단, 사용자가 최근 수정한 파일은 보호!)
     let fixedCount = 0;
-    const updatedFiles = [...files];
 
-    // 사용자 최근 수정 파일 보호: projectContext에서 lastModifiedFiles 확인
-    const projectData = await this.prisma.project.findUnique({
+    // ★ Phase A-4 핵심 수정: DB에서 최신 generatedCode를 다시 읽어서 머지
+    // F6 실행 중에 사용자가 인라인 편집했을 수 있으므로, 옛날 files가 아닌 최신 DB 상태 기준
+    const freshProject = await this.prisma.project.findUnique({
       where: { id: projectId },
-      select: { projectContext: true },
+      select: { generatedCode: true, projectContext: true },
     });
-    const lastModifiedFiles: string[] = (projectData?.projectContext as any)?.lastModifiedFiles || [];
+    const updatedFiles = (freshProject?.generatedCode as { path: string; content: string }[]) || [...files];
+    const lastModifiedFiles: string[] = (freshProject?.projectContext as any)?.lastModifiedFiles || [];
 
     for (const fixed of modifyResult) {
       // 사용자가 방금 수정한 파일이면 F6이 건드리지 않음!!
@@ -883,13 +890,13 @@ export default nextConfig;
       fs.writeFileSync(filePath, fixed.content, 'utf-8');
       fixedCount++;
 
-      // generatedCode에도 반영
+      // generatedCode에도 반영 (최신 DB 기준 머지)
       const idx = updatedFiles.findIndex(f => f.path === fixed.path);
       if (idx >= 0) updatedFiles[idx] = fixed;
       else updatedFiles.push(fixed);
     }
 
-    // DB 업데이트
+    // DB 업데이트 (F6이 수정한 파일만 반영, 나머지는 최신 상태 유지)
     await this.prisma.project.update({
       where: { id: projectId },
       data: { generatedCode: updatedFiles as any },

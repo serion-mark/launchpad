@@ -176,24 +176,29 @@ export class ProjectService {
         where: { id },
         data: { generatedCode: files as any, totalModifications: { increment: 1 } },
       });
+      // F6 보호: lastModifiedFiles에 기록
+      await this.markFileAsUserModified(id, result.filePath);
       return { success: true, matchFound: true, filePath: result.filePath };
     }
 
     return { success: false, matchFound: false, filePath: body.filePath || 'unknown' };
   }
 
-  // 단순 치환 실행
+  // 단순 치환 실행 + lastModifiedFiles 기록 (F6 보호용)
   private async doReplace(files: any[], fileIdx: number, oldText: string, newText: string, projectId: string) {
     const before = files[fileIdx].content;
     files[fileIdx].content = files[fileIdx].content.replace(oldText, newText);
     if (before === files[fileIdx].content) {
       return { success: false, matchFound: false, filePath: files[fileIdx].path };
     }
+    const modifiedPath = files[fileIdx].path;
     await this.prisma.project.update({
       where: { id: projectId },
       data: { generatedCode: files as any, totalModifications: { increment: 1 } },
     });
-    return { success: true, matchFound: true, filePath: files[fileIdx].path };
+    // F6 보호: lastModifiedFiles에 기록
+    await this.markFileAsUserModified(projectId, modifiedPath);
+    return { success: true, matchFound: true, filePath: modifiedPath };
   }
 
   // JSX 내 텍스트를 범용 패턴으로 찾아서 치환
@@ -240,6 +245,27 @@ export class ProjectService {
     }
 
     return { success: false, filePath: preferredPath || 'unknown' };
+  }
+
+  // 인라인 편집된 파일을 projectContext.lastModifiedFiles에 기록 (F6 보호용)
+  private async markFileAsUserModified(projectId: string, filePath: string) {
+    try {
+      const proj = await this.prisma.project.findUnique({
+        where: { id: projectId },
+        select: { projectContext: true },
+      });
+      const ctx = (proj?.projectContext as any) || {};
+      const modified: string[] = ctx.lastModifiedFiles || [];
+      if (!modified.includes(filePath)) {
+        modified.push(filePath);
+        // 최근 10개만 유지
+        if (modified.length > 10) modified.shift();
+      }
+      await this.prisma.project.update({
+        where: { id: projectId },
+        data: { projectContext: { ...ctx, lastModifiedFiles: modified } },
+      });
+    } catch { /* 보호 실패해도 치명적이지 않음 */ }
   }
 
   // ── Phase 11: 호스팅 과금 ─────────────────────────
