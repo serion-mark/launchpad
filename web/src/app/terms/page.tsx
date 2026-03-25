@@ -62,16 +62,15 @@ export default function TermsPage() {
             <p>7. 천재지변, 서버 장애 등 불가항력으로 인한 서비스 중단에 대해 회사는 책임지지 않습니다.</p>
           </div>
 
-          {/* 신규 추가: 데이터 보관 정책 */}
+          {/* 데이터 보관 정책 */}
           <div className="rounded-2xl border border-[#3182f6]/30 bg-[#3182f6]/5 p-6 !mt-8">
             <h2 className="!mt-0 text-[#3182f6]">제10조 (데이터 보관)</h2>
-            <p>1. <strong>생성된 앱 코드:</strong> 무기한 보관됩니다 (데이터베이스에 저장).</p>
+            <p>1. <strong>생성된 앱 코드:</strong> 회원 탈퇴 전까지 보관됩니다.</p>
             <p>2. <strong>배포된 앱 (*.foundry.ai.kr):</strong></p>
-            <p className="ml-4">• 30일 미접속 시 빌드 파일이 자동 정리됩니다 (코드는 보존).</p>
-            <p className="ml-4">• 재방문 시 자동 재배포됩니다.</p>
-            <p className="ml-4">• 정리 7일 전 이메일 안내가 발송됩니다.</p>
-            <p>3. <strong>&quot;오래 보관하기&quot; 설정:</strong> 자동 정리 대상에서 제외됩니다.</p>
-            <p>4. <strong>계정 삭제 시:</strong> 모든 데이터는 30일 후 영구 삭제됩니다.</p>
+            <p className="ml-4">• 호스팅 결제 중: 정상 운영됩니다.</p>
+            <p className="ml-4">• 24시간 무료 체험 종료 후 미결제 시: 비공개 처리됩니다.</p>
+            <p className="ml-4">• 비공개 처리 후에도 코드는 보관되며, 결제 시 언제든 재배포 가능합니다.</p>
+            <p>3. <strong>회원 탈퇴 시:</strong> 탈퇴 요청일로부터 30일간 데이터 보관 후 영구 삭제됩니다. 삭제 전 데이터 다운로드가 가능합니다.</p>
           </div>
 
           <h2>제11조 (서비스 수준 목표)</h2>
