@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter } from 'events';
 import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import { CreditService, type ModelTier as CreditModelTier } from '../credit/credit.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { MemoryService } from './memory.service';
@@ -506,6 +507,7 @@ const GENERATE_SYSTEM_PROMPT = `당신은 Foundry AI MVP 빌더의 아키텍처 
 @Injectable()
 export class AiService {
   private anthropic: Anthropic;
+  private openai: OpenAI | null = null;
   private readonly logger = new Logger('AiService');
 
   constructor(
@@ -517,6 +519,27 @@ export class AiService {
     this.anthropic = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
     });
+    if (process.env.OPENAI_API_KEY) {
+      this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    }
+  }
+
+  /** GPT-4o로 코드 수정 호출 (Claude 대신 — 비용 절감!) */
+  private async callGPTForModify(system: string, userContent: string): Promise<{ content: string; inputTokens: number; outputTokens: number }> {
+    if (!this.openai) throw new Error('OPENAI_API_KEY가 설정되지 않았습니다');
+    const response = await this.openai.chat.completions.create({
+      model: 'gpt-4o',
+      max_tokens: 8192,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: userContent },
+      ],
+    });
+    return {
+      content: response.choices[0]?.message?.content || '',
+      inputTokens: response.usage?.prompt_tokens || 0,
+      outputTokens: response.usage?.completion_tokens || 0,
+    };
   }
 
   // ── 빌더 채팅 (실시간 대화) ────────────────────────
@@ -1320,9 +1343,8 @@ ${smartAnalysisContext ? `\n${smartAnalysisContext}\n위 분석을 참고하여 
       .map(f => f.path)
       .join('\n');
 
-    const result = await this.callWithFallback(tier, MODIFY_SYSTEM_PROMPT, [{
-      role: 'user',
-      content: `수정 요청: ${params.message}
+    // GPT-4o로 코드 수정 (Claude 대비 비용 90%+ 절감!)
+    const userContent = `수정 요청: ${params.message}
 
 프로젝트 전체 파일 목록 (참고용):
 ${fileIndex}
@@ -1331,8 +1353,20 @@ ${fileIndex}
 ${targetFileContents.map(f => `[FILE: ${f.path}]\n${f.content}`).join('\n\n')}
 
 프로젝트 컨텍스트:
-${JSON.stringify(project.projectContext || {}, null, 2)}`,
-    }]);
+${JSON.stringify(project.projectContext || {}, null, 2)}`;
+
+    let result: { content: string; inputTokens: number; outputTokens: number; actualTier?: AppModelTier; fellBack?: boolean };
+    if (this.openai) {
+      this.logger.log(`[${params.projectId}] 코드 수정: GPT-4o 사용 (비용 절감)`);
+      const gptResult = await this.callGPTForModify(MODIFY_SYSTEM_PROMPT, userContent);
+      result = { ...gptResult, actualTier: tier, fellBack: false };
+    } else {
+      this.logger.log(`[${params.projectId}] 코드 수정: Claude 사용 (OpenAI 키 없음)`);
+      const claudeResult = await this.callWithFallback(tier, MODIFY_SYSTEM_PROMPT, [{
+        role: 'user', content: userContent,
+      }]);
+      result = claudeResult;
+    }
 
     const modifiedFiles = this.parseFileOutput(result.content, '');
     const actualTier: CreditModelTier = result.fellBack ? 'flash' : (tier as CreditModelTier);
