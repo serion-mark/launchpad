@@ -146,8 +146,12 @@ export class ProjectService {
     if (project.userId !== userId) throw new ForbiddenException();
 
     const files = (project.generatedCode as any[]) || [];
-    const fileIdx = files.findIndex((f: any) => f.path === body.filePath);
-    if (fileIdx === -1) throw new NotFoundException(`파일을 찾을 수 없습니다: ${body.filePath}`);
+    let fileIdx = files.findIndex((f: any) => f.path === body.filePath);
+    // filePath가 없거나 못 찾으면 전체 파일에서 oldText 포함하는 파일 검색
+    if (fileIdx === -1 && body.oldText) {
+      fileIdx = files.findIndex((f: any) => f.content && f.content.includes(body.oldText));
+    }
+    if (fileIdx === -1) return { success: false, matchFound: false, filePath: body.filePath || 'unknown' };
 
     const file = files[fileIdx];
     if (!file.content.includes(body.oldText)) {

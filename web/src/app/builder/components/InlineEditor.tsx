@@ -63,7 +63,8 @@ export default function InlineEditor({
 
   // DB에 저장 (inline-edit API) — 실패 감지 포함
   const saveToDb = useCallback(async (oldText: string, newText: string) => {
-    if (!el.file || oldText === newText) return;
+    if (oldText === newText) return;
+    // file이 없으면 전체 파일 검색으로 fallback
     setSaving(true);
     onSavingChange(true);
     try {
