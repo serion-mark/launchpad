@@ -527,11 +527,37 @@ export class AiService {
   /** GPT-4o로 코드 수정 호출 (Claude 대신 — 비용 절감!) */
   private async callGPTForModify(system: string, userContent: string): Promise<{ content: string; inputTokens: number; outputTokens: number }> {
     if (!this.openai) throw new Error('OPENAI_API_KEY가 설정되지 않았습니다');
+
+    // GPT용 시스템 프롬프트 — 출력 형식을 더 명확하게!
+    const gptSystem = `${system}
+
+중요!! 반드시 아래 형식으로만 출력하세요:
+
+[FILE: app/page.tsx]
+'use client';
+import React from 'react';
+// ... 수정된 전체 코드 ...
+export default function Page() { ... }
+
+규칙:
+1. [FILE: 파일경로] 헤더 반드시 포함
+2. 수정된 파일의 전체 코드를 출력 (부분이 아님!)
+3. 마크다운 코드 블록(\`\`\`tsx 등) 절대 사용 금지!
+4. 설명 텍스트 없이 [FILE: ...] + 코드만 출력
+5. 수정하지 않은 파일은 출력하지 마세요
+
+예시 출력:
+[FILE: app/page.tsx]
+'use client';
+export default function Page() {
+  return <h1>백설공주 사과농장</h1>;
+}`;
+
     const response = await this.openai.chat.completions.create({
       model: 'gpt-4o',
       max_tokens: 8192,
       messages: [
-        { role: 'system', content: system },
+        { role: 'system', content: gptSystem },
         { role: 'user', content: userContent },
       ],
     });
