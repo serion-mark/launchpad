@@ -213,7 +213,12 @@
 
   // ── 메시지 수신 ──
   function onMessage(e) {
-    if (ALLOWED_ORIGINS.indexOf(e.origin) === -1) return;
+    // foundry.ai.kr 도메인이면 모두 허용 (서브도메인 포함)
+    var origin = e.origin || '';
+    var isAllowed = ALLOWED_ORIGINS.indexOf(origin) !== -1 ||
+      origin.indexOf('foundry.ai.kr') !== -1 ||
+      origin.indexOf('localhost') !== -1;
+    if (!isAllowed) return;
     if (!e.data || typeof e.data !== 'object') return;
 
     switch (e.data.type) {
