@@ -1,6 +1,6 @@
 # Phase A-4 비주얼 에디터 완성 — 완료 보고서
-> 작성: 자비스 (세션 5, 2026-03-25)
-> 커밋: 7e0b3db
+> 작성: 자비스 (세션 5~6, 2026-03-25~26)
+> 커밋: 7e0b3db, a302b32 (긴급 버그 수정)
 
 ---
 
@@ -46,6 +46,19 @@
 - 하단 [배포/수정사항 적용] + 상단 [수정사항 적용] 모두 `isSaving` 시 disabled
 - A-3에서 이미 상단은 구현, 이번에 하단도 통일
 
+### 【5】 긴급 버그 수정: F6 자동 수정이 인라인 편집 덮어쓰기 (a302b32)
+
+**증상**: 인라인 편집 → DB 저장 성공 → [수정사항 적용] → 빌드 에러 발생 → F6 자동 수정 발동 → **인라인 편집 내용이 원래대로 원복됨**
+
+**원인**: `deploy.service.ts`의 F6 자동 수정이 **빌드 시작 시점에 읽은 옛날 generatedCode 전체**를 DB에 덮어쓰기. 그 사이에 인라인 편집으로 바뀐 내용이 날아감.
+
+**해결 (3중 보호)**:
+1. **F6 저장 전 최신 DB 다시 읽기** — `freshProject` 쿼리로 최신 generatedCode 가져와서 F6이 수정한 파일만 머지. 나머지 파일은 최신 상태 유지.
+2. **인라인 편집 시 `lastModifiedFiles` 기록** — `project.service.ts`에 `markFileAsUserModified()` 헬퍼 추가. 인라인 편집 성공 시 `projectContext.lastModifiedFiles`에 파일 경로 기록 (최근 10개 추적).
+3. **F6 사용자 수정 파일 보호** — F6이 `lastModifiedFiles`에 있는 파일은 건드리지 않음 (기존 로직 활용, 이제 인라인 편집도 대상).
+
+**적용 범위**: F6 AI 수정 + F4+F6 잘린 파일 처리 둘 다 적용.
+
 ---
 
 ## 왜 그렇게 했는가
@@ -59,33 +72,43 @@
 - openingTag에 의존하면 오히려 매칭 실패율 올라감
 - 순수 innerText만 보내고 API에서 JSX 패턴으로 찾는 게 더 범용적
 
+### F6 버그: 왜 전체 저장 대신 머지로 바꿨는가
+- F6은 에러 파일 1~5개만 수정하는데, generatedCode 전체(수십 개 파일)를 덮어쓰고 있었음
+- 인라인 편집은 F6과 독립적으로 실행되므로, F6 실행 중에도 사용자가 편집할 수 있음
+- **해결 원칙**: F6은 자기가 수정한 파일만 DB에 반영, 나머지는 최신 DB 상태 유지
+
 ---
 
 ## 변경 파일 요약
 
-| 파일 | 변경 | 줄 수 |
-|------|------|-------|
-| `project.service.ts` | 4단계 매칭 + JSX 패턴 정규식 | +80/-20줄 |
-| `BuilderPreview.tsx` | editorReady 큐잉 + foundry-editor-ready 수신 | +30/-10줄 |
-| `InlineEditor.tsx` | applyText 단순화 (openingTag 제거) | -5줄 |
-| `BuilderChat.tsx` | unsavedCount/isSaving prop + 배포 버튼 분기 | +15/-3줄 |
-| `page.tsx` | unsavedCount/isSaving prop 전달 | +2줄 |
+| 파일 | 변경 | 커밋 |
+|------|------|------|
+| `project.service.ts` | 4단계 JSX 매칭 + `markFileAsUserModified` + lastModifiedFiles 기록 | 7e0b3db, a302b32 |
+| `deploy.service.ts` | F6 저장 전 최신 DB 읽기 + 머지 (F4+F6 둘 다) | a302b32 |
+| `BuilderPreview.tsx` | editorReady 큐잉 + foundry-editor-ready 수신 + 온보딩 | 7e0b3db |
+| `InlineEditor.tsx` | applyText 단순화 (openingTag 제거) | 7e0b3db |
+| `BuilderChat.tsx` | unsavedCount/isSaving prop + 배포 버튼 분기 | 7e0b3db |
+| `page.tsx` | unsavedCount/isSaving prop 전달 | 7e0b3db |
 
 ---
 
 ## 삽질 기록
 
-없음. A-1~A-3에서 충분히 삽질했기 때문에 이번엔 원인이 명확했고 계획서(PLAN.md)가 정확했음.
+### F6 덮어쓰기 버그 (세션 6에서 발견)
+- A-4 구현 후 테스트에서 발견: 인라인 편집 → DB 저장 성공 → 배포 시 F6 발동 → 원복
+- 원인 파악에 5분, 수정에 10분. `deploy.service.ts` 813줄에서 files를 처음에 한 번 읽고 계속 사용하는 구조가 문제
+- 교훈: **비동기 작업(F6)이 DB를 공유하면 반드시 최신 상태를 다시 읽어야 함**
 
 ---
 
 ## 다음에 할 것
 
 ### 즉시 테스트 필요
-- [ ] foundry.ai.kr/builder에서 app-7e95 (스마트팜) 열기
-- [ ] 편집 모드 ON → 요소 클릭 → 텍스트 수정 → [적용]
-- [ ] F12 Network: PATCH inline-edit → 200 OK + matchFound: true 확인
-- [ ] [수정사항 적용] 클릭 → 재배포 → 새로고침해도 유지 확인
+- [x] foundry.ai.kr/builder에서 app-7e95 (스마트팜) 열기
+- [x] 편집 모드 ON → 요소 클릭 → 텍스트 수정 → [적용]
+- [x] F12 Network: PATCH inline-edit → 200 OK + matchFound: true 확인
+- [ ] [수정사항 적용] 클릭 → F6 발동 시에도 인라인 편집 유지 확인
+- [ ] 새로고침해도 유지 확인
 
 ### Phase B 후보
 - [ ] 드래그로 요소 이동
