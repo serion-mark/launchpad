@@ -263,6 +263,14 @@ Foundry는 Static Export 전용 Next.js 앱을 생성합니다.
 - 홈페이지에는: 앱 이름 히어로, 주요 기능 소개, 각 페이지로 이동하는 CTA 버튼 포함
 - 홈페이지가 없으면 고객이 메인 URL 접속 시 404 에러 발생
 
+🔴 파일 구조 규칙 (중복/충돌 방지 — 매우 중요!):
+- 같은 경로의 파일을 절대 중복 생성하지 마세요! (app/page.tsx가 2개 이상 있으면 안 됨)
+- 파일 경로는 반드시 app/ 사용 (src/app/ 사용 금지!)
+- next.config 파일은 next.config.ts 하나만 생성 (.mjs, .js 생성 금지)
+- supabase 클라이언트는 src/utils/supabase/client.ts 하나만 생성 (.tsx 생성 금지)
+- 수정 시 기존 파일을 수정하세요. 같은 파일을 새로 추가하면 중복 발생!
+- 반응형 디자인: 모든 페이지에 Tailwind 반응형 클래스(sm:, md:, lg:) 사용
+
 🟢 Visual Edit 지원 (필수!):
 - 모든 주요 섹션/컴포넌트에 data-component 속성 추가
 - 예: <header data-component="Header">, <section data-component="HeroSection">, <nav data-component="Navigation">
@@ -2025,6 +2033,8 @@ ${lastLines}`,
 에러 로그를 분석하고, 문제가 있는 파일을 수정해주세요.
 
 ⚠️ Foundry 규칙 (반드시 준수):
+- 에러가 있는 파일만 수정하고, 나머지 파일은 절대 건드리지 마!
+- 새 파일을 추가하지 마! 기존 파일만 수정!
 - 수정된 파일만 [FILE: 경로] 형식으로 반환
 - 파일의 전체 코드를 출력 (부분 수정 아님)
 - 마크다운 코드 블록(\`\`\`) 절대 금지
