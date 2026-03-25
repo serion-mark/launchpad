@@ -90,17 +90,18 @@ tsc 0 에러 유지하면서 깔끔하게 마무리.
 
 ## 다음에 할 것
 
-### Phase A-1 개선 (우선순위 높음)
-- [ ] **색상 변경 DB 저장**: 현재 색상 변경은 DOM만 변경, DB 저장 로직 추가 필요
-- [ ] **이미지 변경 DB 저장**: 마찬가지
-- [ ] **재배포 트리거**: 인라인 편집 후 자동 재배포 (현재는 수동 필요)
-- [ ] **data-foundry-file 속성**: AI 프롬프트에 파일 경로 속성 추가 지시 → 정확한 파일 매칭
+### Phase A-1 개선 — 완료!! (세션 5, bc91f5f)
+- [x] **색상 변경 DB 저장**: applyColor에서 rgbToHex 변환 후 inline-edit API 호출
+- [x] **이미지 변경 DB 저장**: applyImage에서 기존 src → 새 src로 inline-edit API 호출
+- [x] **재배포 트리거**: InlineEditor에 onModifyComplete prop 추가 → saveToDb 성공 시 자동 재배포
+- [x] **data-foundry-file 속성**: FRONTEND_SYSTEM_PROMPT에 "최상위 요소에 data-foundry-file 추가" 지시
+- [x] **채팅 컨텍스트 자동 삽입**: onSendToChat → page.tsx setInput → 채팅 입력창에 "📍 [컴포넌트] 파일경로" 자동 삽입
 
 ### Phase A-2 (다음 마일스톤)
-- [ ] AI에게 수정 요청 시 채팅창에 컨텍스트 자동 삽입 (현재는 onSendToChat이 편집 모드 끄기만 함)
 - [ ] 드래그로 요소 이동
 - [ ] 복수 요소 동시 선택
 - [ ] 편집 히스토리 (Ctrl+Z)
+- [ ] 색상 변경 시 디바운스 (매 onChange마다 API 호출 방지)
 
 ---
 
