@@ -29,8 +29,9 @@ const SMALL_PACKAGES: { id: string; credits: number; price: number; perCredit: s
 // ── 크레딧 사용 예시 ───────────────────────────────────
 const CREDIT_USAGE = [
   { icon: '🚀', action: '앱 생성', cost: '6,800', note: '1회' },
-  { icon: '✏️', action: 'AI 수정 (단순)', cost: '100', note: '텍스트·색상·이미지' },
-  { icon: '🔧', action: 'AI 수정 (복잡)', cost: '500', note: '페이지·기능·DB' },
+  { icon: '✏️', action: 'AI 수정 (단순)', cost: '500', note: '색상·텍스트·문구·이미지' },
+  { icon: '🔨', action: 'AI 수정 (보통)', cost: '1,000', note: '레이아웃·스타일·버튼·폰트' },
+  { icon: '🔧', action: 'AI 수정 (복잡)', cost: '1,500', note: '페이지추가·반응형·기능·DB·API' },
   { icon: '💬', action: 'AI 대화', cost: '30', note: '질문·상담' },
   { icon: '🧠', action: 'AI 회의실', cost: '300', note: '스탠다드' },
   { icon: '🏆', action: 'AI 회의실', cost: '1,000', note: '프리미엄' },
@@ -554,7 +555,7 @@ export default function CreditsPage() {
               },
               {
                 q: '많이 수정하면 크레딧이 더 소모되나요?',
-                a: '아닙니다. AI 수정 비용은 고정입니다. 단순 수정(텍스트/색상/이미지) 100cr, 복잡 수정(페이지/기능/DB/API) 500cr. 횟수에 따라 증가하지 않습니다.',
+                a: '아닙니다. AI 수정 비용은 고정입니다. 단순(색상/텍스트/이미지) 500cr, 보통(레이아웃/스타일/버튼) 1,000cr, 복잡(페이지추가/반응형/기능/DB) 1,500cr. 횟수에 따라 증가하지 않습니다.',
               },
               {
                 q: '정부지원사업비로 결제할 수 있나요?',

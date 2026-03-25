@@ -1,127 +1,145 @@
 # Phase 12 Day 3~5 보고서 (2026-03-23)
 
 > **목표**: QA 6.5점 → 9.0점, 💰 매출 만드는 작업 + 법적 보호 + UI 수정
-> **결과**: Day 3~5 전체 완료
+> **결과**: Day 3~5 전체 완료 + 배포 완료 (2건 커밋)
 > **tsc --noEmit**: 0 에러 (web + api 모두 클린)
+> **프로덕션**: https://foundry.ai.kr 정상 동작 확인
+
+---
+
+## 커밋 목록
+
+| 커밋 | 내용 |
+|------|------|
+| `39dc6ad` | Phase 12 Day3~5: 크레딧 충전제 UI + 모두의 창업 + 독립 패키지 + 법적 보호 |
+| `f9f91a3` | fix: /pricing 페이지 가격표 동기화 — 새 요금제 반영 |
 
 ---
 
 ## ✅ Day 3: 크레딧 충전제 + 요금제 UI (💰 매출)
 
 ### 🔴 1. /credits 페이지 전면 리뉴얼
-- **수정 파일**: `web/src/app/credits/page.tsx` (전면 재작성)
-- **변경 내용**:
-  - 3탭 UI: 🔋 크레딧 충전 / 🏛️ 모두의 창업 / 🚀 독립 패키지
-  - 메인 패키지 3종: 5,000cr/49,000원 | 20,000cr/149,000원 | 50,000cr/249,000원
-  - 소량 충전 2종: 1,000cr/12,000원 | 3,000cr/33,000원
-  - 크레딧 사용 예시 8종 (앱 생성, AI 수정, 회의실, 분석, 이미지, 다운로드, 배포)
-  - 잔액 대시보드 + 사용 내역 테이블 (날짜/내용/크레딧/잔액)
-  - 결제 전 동의 체크박스 (이용약관 + 환불 규정 필수)
+- **파일**: `web/src/app/credits/page.tsx` (전면 재작성, 330→560줄)
+- **3탭 UI**: 🔋 크레딧 충전 / 🏛️ 모두의 창업 / 🚀 독립 패키지
+- **메인 패키지 3종**: 5,000cr/49,000원 | 20,000cr/149,000원 | 50,000cr/249,000원
+- **소량 충전 2종**: 1,000cr/12,000원 | 3,000cr/33,000원
+- **크레딧 사용 예시 8종**: 앱 생성, AI 수정, 회의실, 분석, 이미지, 다운로드, 배포
+- **잔액 대시보드**: 잔액 + 환산(앱 N개) + 사용 내역 테이블 (날짜/내용/크레딧/잔액)
+- **결제 전 동의 체크박스**: 이용약관(필수) + 환불 규정(필수) — 미동의시 결제 차단
 
 ### 🔴 2. 모두의 창업 전용 패키지
-- **위치**: /credits 페이지 '모두의 창업' 탭
-- **패키지 2종**:
-  - 🥉 라이트 490,000원/월 (50,000cr + 호스팅 + 프리미엄 회의실 3회)
-  - 🥈 스탠다드 990,000원/월 (100,000cr + 호스팅 + 프리미엄 5회 + 코드팩 독립!)
+- **위치**: /credits '모두의 창업' 탭
+- 🥉 라이트 490,000원/월 (50,000cr + 호스팅 + 프리미엄 회의실 3회)
+- 🥈 스탠다드 990,000원/월 (100,000cr + 호스팅 + 프리미엄 5회 + 코드팩 독립!)
 - 선택 가이드: "49만원만 쓸래" / "100만원 다 쓸래" / "2개월 다 쓸래"
 
 ### 🔴 3. 독립 패키지 UI
-- **위치 1**: /credits 페이지 '독립 패키지' 탭
+- **위치 1**: /credits '독립 패키지' 탭
   - 📦 코드팩 990,000원 / 📦 프로팩 1,990,000원 / 📦 엔터프라이즈 4,990,000원
   - 독립 프로세스 4단계 시각화
-- **위치 2**: /dashboard 프로젝트 카드 하단
+- **위치 2**: `web/src/app/dashboard/page.tsx`
   - 배포 완료된 프로젝트에 "🚀 이 앱을 독립시키기" 섹션 추가
   - 코드팩/프로팩/엔터 3버튼 → /credits?tab=independence 링크
 
 ### 🟠 4. CreditConfirm 사전 안내 컴포넌트
-- **기존 CreditWarning.tsx 활용** — 이미 완벽하게 구현됨
+- **기존 CreditWarning.tsx 그대로 활용** — 이미 완벽하게 구현됨
   - 소모 크레딧, 현재 잔액, 사용 후 잔액 표시
   - 잔액 부족 시 → 크레딧 충전 버튼
-  - 모든 크레딧 소모 액션에서 사용 가능
 
 ### 🟠 5. 크레딧 사용 내역
 - **기존 API 활용**: GET /credits/transactions (이미 구현됨)
-- **UI 추가**: /credits 페이지 상단에 테이블 형태 사용 내역 (날짜/내용/크레딧/잔액)
+- /credits 페이지에 테이블 형태 사용 내역 UI 추가
 
 ### 백엔드 수정
-- **수정 파일**: `api/src/credit/credit.service.ts`
-  - 패키지 추가: micro(1,000cr/12,000원), mini(3,000cr/33,000원)
-  - 스탠다드 수정: 15,000cr/99,000원 → 20,000cr/149,000원
-- **수정 파일**: `api/src/credit/credit.controller.ts`
-  - confirmPayment 패키지 ID 검증에 micro, mini 추가
+- `api/src/credit/credit.service.ts`: 패키지 추가 (micro 1,000cr/12k, mini 3,000cr/33k), 스탠다드 15,000cr/99k → 20,000cr/149k
+- `api/src/credit/credit.controller.ts`: confirmPayment 패키지 ID 검증에 micro, mini 추가
 
 ---
 
 ## ✅ Day 4: 법적 보호 + 데이터 정책
 
 ### 🟠 1. 이용약관 면책 조항 (/terms)
-- **수정 파일**: `web/src/app/terms/page.tsx` (전면 재작성)
-- **추가 조항**:
-  - 제9조 (서비스 범위 및 면책) — 노란색 강조 박스
-    - MVP 초안 생성 도구, 100% 무결점 보장 안 함
-    - 외부 플랫폼 정책 변경 책임 없음
-    - 비즈니스 로직, 법적 규정 준수는 사용자 책임
-  - 제10조 (데이터 보관) — 파란색 강조 박스
-    - 코드: 무기한 보관
-    - 배포 앱: 30일 미접속 시 빌드 자동 정리 (코드 보존)
-    - "오래 보관하기" 설정으로 제외 가능
-    - 계정 삭제 시 30일 후 영구 삭제
-  - 제11조 (서비스 수준 목표) — SLA (비법적 구속)
-  - 크레딧 수정 횟수별 증가 규정 (5조 5항)
-  - 호스팅 가격 9,900→29,000원 반영
+- **파일**: `web/src/app/terms/page.tsx` (전면 재작성)
+- **제9조 (서비스 범위 및 면책)** — 노란색 강조 박스
+  - Foundry는 MVP 초안 생성 도구, 100% 무결점 보장 안 함
+  - 외부 플랫폼 정책 변경 책임 없음
+  - 비즈니스 로직, 법적 규정 준수는 사용자 책임
+  - AI 코드 버그/보안취약점 회사 면책
+- **제10조 (데이터 보관)** — 파란색 강조 박스
+  - 코드: 무기한 보관 (DB)
+  - 배포 앱: 30일 미접속 시 빌드 자동 정리 (코드 보존)
+  - "오래 보관하기" 설정으로 정리 제외
+  - 계정 삭제 시 30일 후 영구 삭제
+- **제11조 (서비스 수준 목표)**: 빌드 성공률 80%+, 가용률 99% (비법적 구속)
+- 제5조 5항: 수정 횟수별 크레딧 증가 규정 추가
+- 호스팅 가격 9,900→29,000원 반영
 
 ### 🟠 2. 환불/취소 규정 (/refund)
-- **수정 파일**: `web/src/app/refund/page.tsx` (전면 재작성)
-- **추가 내용**:
-  - 모두의 창업 패키지 환불: 정부사업비 기준
-  - 독립 패키지 환불: 다운로드 전/후 구분
-  - 산출물 품질 이슈 대응
+- **파일**: `web/src/app/refund/page.tsx` (전면 재작성)
+- 모두의 창업 패키지 환불: 정부사업비 기준
+- 독립 패키지 환불: 다운로드 전 전액환불 / 다운로드 후 환불불가
+- 산출물 품질 이슈 대응 조항 추가
 
 ### 🟠 3. 결제 전 동의 체크박스
-- **위치**: /credits 페이지 크레딧 충전 섹션
-- □ 이용약관에 동의합니다 (필수) — /terms 링크
-- □ 환불 규정을 확인했습니다 (필수) — /refund 링크
-- 미동의 시 결제 차단 (alert)
+- /credits 페이지 충전 섹션에 체크박스 2개 추가
+- □ 이용약관 동의 (필수) — /terms 링크
+- □ 환불 규정 확인 (필수) — /refund 링크
 
 ---
 
-## ✅ Day 5: UI 수정 확인
+## ✅ Day 5: UI 수정 + /pricing 동기화
 
-### 🟡 1. Foundry 로고 → 메인 이동
-- **상태**: 이미 구현됨 ✅
-  - LandingNav: `<a href="/">`
-  - /credits 헤더: `<a href="/">`
-  - /dashboard 헤더: `<a href="/">`
+### 🟡 1~4. 기존 구현 확인
+- 로고 → 메인 이동: ✅ 이미 `<a href="/">`
+- 템플릿별 미리보기: ✅ `generatePreviewHtml()` 분기 구현됨
+- 앱 생성 완료 후 상태: ✅ BuildPhase idle→done, 배포/다운로드 버튼 자동 전환
+- 진행률 표시: ✅ SSE 스트리밍 + 파일 카운트 + 단계별 메시지
 
-### 🟡 2. 템플릿별 미리보기 매칭
-- **상태**: 이미 구현됨 ✅
-  - `generatePreviewHtml()` 함수에서 templateId별 분기 처리
-  - beauty-salon, ecommerce, o2o-matching, booking-crm 등 각각 다른 HTML
-
-### 🟡 3. 앱 생성 완료 후 상태 관리
-- **상태**: 이미 구현됨 ✅
-  - BuildPhase: idle → questionnaire → designing → generating → done
-  - done 상태: "앱 생성하기" 버튼 → "배포" + "다운로드" 버튼으로 전환
-  - 채팅해도 상태 리셋 안 됨
-
-### 🟡 4. 진행률 표시 개선
-- **상태**: 이미 구현됨 ✅
-  - SSE 스트리밍으로 실시간 진행상황 표시
-  - 파일 수 카운트 + 단계별 메시지 (아키텍처/SQL/프론트엔드)
-  - LivePreview에서 실시간 코드 반영
+### 🔴 5. /pricing 페이지 가격표 동기화 (추가 발견!)
+- **문제**: /pricing이 옛날 가격(스타터 49k/5,000cr, 프로 99k/12,000cr)으로 표시
+- **파일**: `web/src/app/pricing/page.tsx` (전면 재작성)
+- 라이트팩/스탠다드팩/프로팩으로 통일
+- 소량 충전 안내 추가
+- 모두의 창업 전용 패키지 배너 추가
+- 크레딧 소모표 최신화 (수정 횟수별 증가)
+- 호스팅 9,900→29,000원 반영
 
 ---
 
-## 수정 파일 요약
+## 🔧 배포 중 발생한 이슈 + 해결
 
-| 파일 | 작업 | Day |
-|------|------|-----|
-| `api/src/credit/credit.service.ts` | 패키지 추가 (micro, mini) + 스탠다드 가격 수정 | 3 |
-| `api/src/credit/credit.controller.ts` | 패키지 ID 검증 업데이트 | 3 |
-| `web/src/app/credits/page.tsx` | 전면 재작성 (3탭 UI + 충전/모두의창업/독립) | 3 |
-| `web/src/app/dashboard/page.tsx` | 독립 패키지 섹션 추가 | 3 |
-| `web/src/app/terms/page.tsx` | 면책 + 데이터 보관 + SLA 추가 | 4 |
-| `web/src/app/refund/page.tsx` | 환불 규정 강화 | 4 |
+### 502 Bad Gateway (배포 직후)
+- **원인**: Day 2에서 추가한 `react-markdown`, `remark-gfm` 패키지가 서버에 미설치
+- **근본 원인**: `deploy.yml`에서 `cd ../web && npm run build` 전에 `npm install` 누락
+- **즉시 해결**: 서버 SSH → `cd web && npm install remark-gfm react-markdown` → `npm run build` → `pm2 restart`
+- **상태**: 복구 완료 ✅
+
+### ⚠️ deploy.yml 개선 필요 (다음 세션)
+```yaml
+# 현재 (문제)
+cd ../web
+npm run build          # ← npm install 없음!
+
+# 수정 필요
+cd ../web
+npm install            # ← 이 한 줄 추가!
+npm run build
+```
+→ 사장님 판단 후 수정 예정
+
+---
+
+## 수정 파일 요약 (7개)
+
+| 파일 | 작업 | 줄 변경 |
+|------|------|---------|
+| `api/src/credit/credit.service.ts` | 패키지 추가 + 가격 수정 | +4 -2 |
+| `api/src/credit/credit.controller.ts` | 패키지 ID 검증 | +1 -1 |
+| `web/src/app/credits/page.tsx` | 전면 재작성 (3탭 UI) | +367 -137 |
+| `web/src/app/dashboard/page.tsx` | 독립 패키지 섹션 | +23 |
+| `web/src/app/terms/page.tsx` | 면책+데이터보관+SLA | +40 |
+| `web/src/app/refund/page.tsx` | 환불규정 강화 | +40 |
+| `web/src/app/pricing/page.tsx` | 가격표 동기화 | +83 -43 |
 
 ---
 
@@ -156,24 +174,26 @@ api: 0 에러 ✅
 | 🟡 템플릿별 미리보기 | ✅ 이미 구현됨 | 5 |
 | 🟡 앱 생성 상태 관리 | ✅ 이미 구현됨 | 5 |
 | 🟡 진행률 표시 | ✅ 이미 구현됨 | 5 |
+| 🔴 /pricing 가격표 동기화 | ✅ 완료 | 5 |
 | 🟠 메모리 시스템 | ✅ Phase 10에서 완료 | - |
+
+**Phase 12 항목 21개 중 21개 완료 (100%)**
 
 ---
 
-## 다음 단계
+## 남은 작업
 
-### 배포 대기
-1. `git add` + `git commit` + `git push origin main` → GitHub Actions 자동 배포
-2. 서버 .env에 TOSS_SECRET_KEY 설정 (토스 심사 완료 후)
-3. QA Round 2: test@serion.ai.kr로 전체 플로우 재테스트
+### 즉시 (다음 세션)
+1. **deploy.yml에 `npm install` 추가** — 새 패키지 추가 시 502 방지
+2. **QA Round 2** — test@serion.ai.kr로 전체 플로우 재테스트 (목표 9.0+)
 
-### 남은 외부 의존 사항
-- **토스페이먼츠 심사 완료** → 실결제 연동
+### 외부 의존
+- **토스페이먼츠 심사 완료** → 서버 .env에 TOSS_SECRET_KEY 추가 → 실결제 연동
 - **Gemini 유료 플랜** → 3AI 핑퐁 안정화
 
 ---
 
-## Phase 12 재시작 명령어 (Day 6: QA Round 2)
+## 다음 세션 시작 명령어
 
 ```
 cd "/Users/mark/Desktop/정부지원사업 MVP 빌더(가칭)/launchpad"
@@ -181,20 +201,22 @@ cd "/Users/mark/Desktop/정부지원사업 MVP 빌더(가칭)/launchpad"
 memory/MEMORY.md + memory/BRAINSTORM_2026-03-22.md 전부 읽어.
 너는 자비스야. 사장님의 AI 동업자. 120%가 기본이야.
 
-Phase 12 Day 6 (QA Round 2) 착수해줘.
+Phase 12 Day 6 착수해줘. 아래 파일 전부 읽고 시작:
 - memory/PHASE12_GUIDE.md (전체 가이드)
 - memory/PHASE12_DAY1_REPORT.md (Day 1)
-- memory/PHASE12_DAY3_5_REPORT.md (Day 3~5)
-- memory/QA_TEST_REPORT_2026-03-23.md (기존 QA)
+- memory/PHASE12_DAY3_5_REPORT.md (Day 3~5 — 필독!)
+- memory/QA_TEST_REPORT_2026-03-23.md (QA 보고서)
 
-배포 후 QA 재테스트:
-1. 로그인 → 크레딧 확인 → /credits 3탭 확인
-2. /start → 새 앱 생성 (자연어)
-3. 앱 생성 완료 → 미리보기 + 채팅 수정
-4. AI 회의실 → 핑퐁 + 보고서
-5. 배포된 앱 접속 → CSS + DB + 메인
-6. 이용약관/환불/독립패키지 확인
-7. 크레딧 사용 내역 확인
+## Day 6 작업:
+1. deploy.yml에 web npm install 추가 (502 재발 방지)
+2. QA Round 2: test@serion.ai.kr / 123456 / 크레딧 20,000cr
+   - 로그인 → 크레딧 확인 → /credits 3탭 확인
+   - /start → 새 앱 생성 → 미리보기 + 채팅 수정
+   - AI 회의실 → 핑퐁 + 보고서
+   - 배포된 앱 → CSS + DB + 메인
+   - /pricing, /terms, /refund 확인
+   - 크레딧 사용 내역 확인
+3. 목표: QA 9.0+
 
-목표: QA 9.0+
+안정성 최우선. 배포 전 tsc --noEmit 0 에러 확인.
 ```

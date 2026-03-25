@@ -399,12 +399,18 @@ Phase 11 배포 완료. memory/MEMORY.md 읽고 미완료 작업 이어서.
 - web/src/app/start/page.tsx — 대화형 채팅 + 스마트 분석 UI
 
 ## Phase 9 작업 (기본기 완성, 3/24~3/31)
-### Day 1: 빌드 성공률 80%+
-- 패키지 화이트리스트 (사용 가능 패키지만 허용)
-- 빌드 전 코드 사전검증 단계 추가
-- 에러 자동수정 패턴 10개 → 30개 확장
-- ai.service.ts 프롬프트 "절대 하지 마" 강화
-- 수정 파일: ai.service.ts, deploy.service.ts
+### Day 1: 빌드 성공률 80%+ ✅ 완료 (2026-03-24)
+- ✅ 빌더 리팩토링: page.tsx 2,069줄 → 4개 컴포넌트 분리
+- ✅ 템플릿 잔재 전부 제거 (하드코딩 목업, demoData 등)
+- ✅ done 미리보기 = 체험 배포 URL iframe (LivePreview 대체)
+- ✅ @supabase/ssr → @supabase/supabase-js safeguard
+- ✅ next.config.ts → .mjs 자동 변환 (서버 호환)
+- ✅ esmExternals 자동 제거
+- ✅ Tailwind CDN 주입 확인 (빌드 후 HTML에 자동 삽입)
+- ✅ nginx X-Frame-Options 해결 (iframe 정상 로드)
+- ✅ E2E 성공: 스마트팜 직거래장터 (스마트분석→생성→배포→iframe 미리보기)
+- ✅ 채팅 수정 → 자동 재배포 → iframe 업데이트 확인
+- 수정 파일: deploy.service.ts, ai.service.ts, BuilderPreview.tsx, BuilderChat.tsx, page.tsx
 
 ### Day 2: 실시간 미리보기
 - SSE 스트리밍 → LivePreview 실시간 연결

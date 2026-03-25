@@ -13,8 +13,9 @@ export type PackageId = keyof typeof CREDIT_PACKAGES;
 // ── 크레딧 소모 기준 (2026-03-24 API 실측 기반) ─────────
 export const CREDIT_COSTS = {
   app_generate: 6800,        // 앱 생성 ($2.45 → 마진95% → 6,800cr)
-  ai_modify_simple: 100,     // AI 수정 (단순: 텍스트/색상/이미지)
-  ai_modify_complex: 500,    // AI 수정 (복잡: 페이지/기능/DB/API)
+  ai_modify_simple: 500,     // AI 수정 (단순: 색상/텍스트/문구/이미지) — 실측 $0.33
+  ai_modify_normal: 1000,    // AI 수정 (보통: 레이아웃/스타일/버튼/폰트)
+  ai_modify_complex: 1500,   // AI 수정 (복잡: 페이지추가/반응형/기능/DB/API) — 실측 $1.00
   ai_modify: 500,            // AI 수정 (레거시 호환)
   ai_chat: 30,               // AI 대화 (질문/일반대화)
   premium_theme: 1000,       // 프리미엄 테마 적용
@@ -46,19 +47,19 @@ export function calculateModelCost(tier: ModelTier, fileCount: number): number {
   return costs.base + (costs.perFile * fileCount);
 }
 
-/** AI 수정 단순/복잡 구분 — 키워드 기반 */
-const COMPLEX_KEYWORDS = ['추가', '생성', '만들어', '연동', '결제', '페이지', '기능', 'db', '테이블', 'api', '레이아웃', '구조', '삭제', '제거'];
-const SIMPLE_KEYWORDS = ['색', '색상', '텍스트', '문구', '글자', '이미지', '사진', '로고', '폰트', '크기', '바꿔', '변경'];
+/** AI 수정 단순/보통/복잡 3단계 구분 — 키워드 기반 (실측: 단순 $0.33, 복잡 $1.00) */
+const COMPLEX_KEYWORDS = ['추가', '생성', '만들어', '연동', '결제', '페이지', '기능', 'db', '테이블', 'api', '반응형', '모바일', '삭제', '제거'];
+const NORMAL_KEYWORDS = ['레이아웃', '구조', '스타일', '버튼', '폰트', '크기', '위치', '정렬', '간격', '여백', '디자인'];
+const SIMPLE_KEYWORDS = ['색', '색상', '텍스트', '문구', '글자', '이미지', '사진', '로고', '이름', '제목', '바꿔', '변경'];
 
 export function classifyModifyCost(message: string): number {
   const lower = message.toLowerCase();
   const isComplex = COMPLEX_KEYWORDS.some(kw => lower.includes(kw));
+  const isNormal = NORMAL_KEYWORDS.some(kw => lower.includes(kw));
   const isSimple = SIMPLE_KEYWORDS.some(kw => lower.includes(kw));
-  // 복잡 키워드가 있으면 복잡, 단순만 있으면 단순, 둘 다 없으면 단순
-  if (isComplex && !isSimple) return CREDIT_COSTS.ai_modify_complex;
-  if (isSimple && !isComplex) return CREDIT_COSTS.ai_modify_simple;
-  if (isComplex && isSimple) return CREDIT_COSTS.ai_modify_complex; // 둘 다 있으면 복잡
-  return CREDIT_COSTS.ai_modify_simple; // 기본 단순
+  if (isComplex) return CREDIT_COSTS.ai_modify_complex;  // 복잡 1,500cr
+  if (isNormal) return CREDIT_COSTS.ai_modify_normal;     // 보통 1,000cr
+  return CREDIT_COSTS.ai_modify_simple;                    // 단순 500cr (기본)
 }
 
 const SIGNUP_BONUS = 1000;   // 회원가입 보너스 크레딧 (체험용 1,000cr)

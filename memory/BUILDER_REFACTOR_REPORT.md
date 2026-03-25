@@ -83,13 +83,13 @@ builder/
 - [x] designing → 구조 시각화
 - [x] done → LivePreview/iframe만 (로그인 아님!)
 - [x] "반영 실패" / "코드 수정 못함" 메시지 차단
-- [ ] 실제 배포 테스트 (사장님 확인 필요)
-- [ ] /start에서 채팅으로 앱 설계 시작되는지 (기존 플로우 유지)
-- [ ] class="w-full" 텍스트 노출 없는지
+- [x] 실제 배포 테스트 ✅ 스마트팜 직거래장터 E2E 성공 (2026-03-24)
+- [x] /start에서 스마트 분석 → AI 회의실 → 빌더 생성 플로우 정상 ✅
+- [x] class="w-full" 텍스트 노출 없음 ✅ (Tailwind CDN 주입으로 해결)
 
 ## 남은 작업
 
 1. **demo-data.ts** 파일 삭제 가능 (page.tsx에서 더 이상 import 안 함)
 2. **/start 페이지 "또는 템플릿으로 시작하기"** 섹션 제거 — 별도 작업
 3. **constants.ts** 정리 — QUESTIONNAIRES는 유지, THEME_MAP/getFeatLabel은 BuilderPreview 미사용 확인 후 정리 가능
-4. **배포 테스트** — git push 후 실제 사이트 확인
+4. **모바일 프리뷰 개선** — 375px에서 transform: scale() 축소 표시 필요

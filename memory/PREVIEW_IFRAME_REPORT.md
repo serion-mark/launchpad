@@ -57,9 +57,33 @@ F. 채팅: "🎉 미리보기가 업데이트되었습니다!"
 | done (URL 있음) | **iframe(배포 URL)** + LIVE 배지 |
 | done (URL 없음) | "배포 준비 중..." + 폴링 |
 
-## 검증
+## 추가 수정 (2026-03-24 오후)
+
+### 빌드 에러 3종 해결
+1. **`next.config.ts` 미지원** → `ensureNextConfig()`에서 `.ts`/`.js` 삭제 + `.mjs`로 덮어쓰기
+2. **`esmExternals` 에러** → next.config에서 자동 제거
+3. **`--no-turbopack` 미인식** → Next.js 16은 기본 webpack, 플래그 제거
+4. **`out/` 미생성** → `output: 'export'` 확실히 포함된 config로 덮어쓰기
+
+### X-Frame-Options 해결
+- nginx `*.foundry.ai.kr` 앱 서브도메인에서 `X-Frame-Options` 제거
+- `foundry.ai.kr` 빌더에서 `app-*.foundry.ai.kr` iframe 정상 로드
+
+### Tailwind CSS 정상 작동 확인
+- `deploy.service.ts`의 Tailwind CDN 주입 (lines 689-714) 정상 동작
+- `out/` 디렉토리의 모든 HTML에 `@tailwindcss/browser@4` CDN 스크립트 주입
+- 빌드 실패 시 CDN 주입 단계 미도달이 원인이었음 → config 수정으로 해결
+
+### E2E 성공 테스트 (2026-03-24 오후 6:30)
+- **스마트팜 직거래장터** — 스마트 분석 → AI 회의실 → 빌더 생성 → 체험 배포 → iframe 미리보기 성공!
+- 30개 파일 생성, 6,800cr 크레딧 차감
+- Tailwind CSS 정상 (그라데이션, 카드, 폰트 전부 적용)
+- 채팅 수정 → 자동 재배포 → iframe 업데이트 확인 (globals.css 수정 153cr)
+
+## 검증 (2026-03-24 최종)
 - [x] tsc --noEmit 0 에러
-- [ ] 앱 생성 완료 → 미리보기에 실제 앱 (iframe)
-- [ ] 채팅 수정 → 재배포 → iframe 업데이트
-- [ ] 로그인 화면 안 나오고 메인 페이지
-- [ ] 모바일/PC 전환 작동
+- [x] 앱 생성 완료 → 미리보기에 실제 앱 (iframe) ✅ 스마트팜 직거래장터
+- [x] 채팅 수정 → 재배포 → iframe 업데이트 ✅ globals.css 수정 153cr
+- [x] 로그인 화면 안 나오고 메인 페이지 ✅
+- [x] PC 모드 전환 작동 ✅
+- [ ] 모바일 모드 개선 (375px에서 축소 표시 필요 — transform: scale())

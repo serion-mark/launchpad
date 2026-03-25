@@ -1344,8 +1344,8 @@ ${JSON.stringify(project.projectContext || {}, null, 2)}`,
       tier: actualTier,
       fileCount: modifiedFiles.length || 1,
       projectId: params.projectId,
-      taskType: modifyCost <= 100 ? 'modify_simple' : 'modify_complex',
-      description: `AI 수정(${modifyCost <= 100 ? '단순' : '복잡'}): ${params.message.slice(0, 50)} (${modifiedFiles.length}파일)`,
+      taskType: modifyCost <= 500 ? 'modify_simple' : modifyCost <= 1000 ? 'modify_normal' : 'modify_complex',
+      description: `AI 수정(${modifyCost <= 500 ? '단순' : modifyCost <= 1000 ? '보통' : '복잡'}): ${params.message.slice(0, 50)} (${modifiedFiles.length}파일)`,
       minCost: modifyCost,
     });
 

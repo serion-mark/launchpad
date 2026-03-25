@@ -116,7 +116,7 @@ export default function GuidePage() {
               <ul className="space-y-1 text-sm text-[#8b95a1]">
                 <li>- AI와 대화하는 것은 <b className="text-[#30d158]">완전 무료</b>입니다</li>
                 <li>- 생성 완료 후 24시간 무료 체험 배포가 자동 제공됩니다</li>
-                <li>- 생성 후에도 채팅으로 수정 가능합니다 (단순 100cr, 복잡 500cr)</li>
+                <li>- 생성 후에도 채팅으로 수정 가능합니다 (단순 500cr, 보통 1,000cr, 복잡 1,500cr)</li>
                 <li>- AI 회의실에서 먼저 토론하면 더 완성도 높은 앱을 만들 수 있어요</li>
               </ul>
             </div>
@@ -133,7 +133,7 @@ export default function GuidePage() {
               {[
                 { icon: '🚀', title: '배포하기', desc: 'Foundry 서버에 앱을 올려 바로 사용합니다.', detail: '월 29,000원 / SSL 자동 / 서브도메인 제공 / 배포 후에도 수정 가능' },
                 { icon: '📦', title: '코드 다운로드', desc: 'ZIP으로 전체 소스코드를 받아갑니다.', detail: '프론트+백엔드+DB 전체 / ERD+API 명세 포함' },
-                { icon: '💬', title: '채팅으로 수정', desc: '"메인 배너 바꿔줘" 같이 자연어로 수정 요청.', detail: 'AI가 코드를 수정 / 단순 100cr · 복잡 500cr (고정)' },
+                { icon: '💬', title: '채팅으로 수정', desc: '"메인 배너 바꿔줘" 같이 자연어로 수정 요청.', detail: 'AI가 코드를 수정 / 단순 500cr · 보통 1,000cr · 복잡 1,500cr' },
                 { icon: '💾', title: '저장 & 이어하기', desc: '작업 중 언제든 저장하고 나중에 이어서 합니다.', detail: '30초마다 자동 저장 / 프로젝트 목록에서 클릭하면 이어서 작업' },
               ].map(item => (
                 <div key={item.title} className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6">
