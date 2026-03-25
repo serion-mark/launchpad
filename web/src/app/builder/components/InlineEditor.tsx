@@ -105,17 +105,11 @@ export default function InlineEditor({
     }, 500);
   }, [saveToDb, onSavingChange]);
 
-  // 텍스트 즉시 적용 — 맥락 포함 치환
+  // 텍스트 즉시 적용 — 순수 innerText 전송 (API에서 JSX 패턴 매칭)
   const applyText = async () => {
     postToIframe({ type: 'update-text', value: text });
     const oldText = el.innerText || el.textContent;
-    if (el.openingTag) {
-      // 태그 포함해서 검색 (정확한 매칭)
-      const closeTag = `</${el.tagName}>`;
-      await saveToDb(`${el.openingTag}${oldText}${closeTag}`, `${el.openingTag}${text}${closeTag}`);
-    } else {
-      await saveToDb(oldText, text);
-    }
+    await saveToDb(oldText, text);
   };
 
   // 색상 즉시 적용 + 디바운스 DB 저장

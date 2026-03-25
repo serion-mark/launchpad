@@ -90,18 +90,34 @@ export default function BuilderPreview({
   // ── 비주얼 에디터: 편집 모드 ──
   const [editMode, setEditMode] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [editorReady, setEditorReady] = useState(false);
+  const pendingEditMode = useRef<boolean | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  // iframe src 바뀌면 editorReady 리셋
+  useEffect(() => {
+    setEditorReady(false);
+  }, [iframeKey]);
+
   // iframe에 편집 모드 메시지 전송
+  const sendEditModeToIframe = useCallback((enable: boolean) => {
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        { type: enable ? 'enable-edit-mode' : 'disable-edit-mode' },
+        '*'
+      );
+    }
+  }, []);
+
   const toggleEditMode = useCallback(() => {
     const next = !editMode;
     setEditMode(next);
     if (!next) setSelectedElement(null);
-    if (iframeRef.current?.contentWindow) {
-      iframeRef.current.contentWindow.postMessage(
-        { type: next ? 'enable-edit-mode' : 'disable-edit-mode' },
-        '*'
-      );
+    if (editorReady) {
+      sendEditModeToIframe(next);
+    } else {
+      // editor 아직 로드 안 됨 → 큐에 넣고 ready 되면 전송
+      pendingEditMode.current = next;
     }
     // 온보딩: 처음 편집 모드 켤 때만
     if (next && typeof window !== 'undefined' && !localStorage.getItem('foundry-edit-onboarded')) {
@@ -109,18 +125,26 @@ export default function BuilderPreview({
       localStorage.setItem('foundry-edit-onboarded', '1');
       setTimeout(() => setShowOnboarding(false), 4000);
     }
-  }, [editMode, setSelectedElement]);
+  }, [editMode, editorReady, setSelectedElement, sendEditModeToIframe]);
 
-  // iframe에서 element-clicked 수신
+  // iframe에서 foundry-editor-ready + element-clicked 수신
   useEffect(() => {
     const handler = (e: MessageEvent) => {
+      if (e.data?.type === 'foundry-editor-ready') {
+        setEditorReady(true);
+        // 큐에 대기 중인 editMode 메시지 전송
+        if (pendingEditMode.current !== null) {
+          sendEditModeToIframe(pendingEditMode.current);
+          pendingEditMode.current = null;
+        }
+      }
       if (e.data?.type === 'element-clicked' && e.data.element) {
         setSelectedElement(e.data.element);
       }
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, [setSelectedElement]);
+  }, [setSelectedElement, sendEditModeToIframe]);
 
   // done 상태 배포 URL 결정
   const deployedUrl = project?.deployedUrl || null;

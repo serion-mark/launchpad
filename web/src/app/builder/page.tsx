@@ -633,6 +633,8 @@ function BuilderContent() {
         setShowCostModal={setShowCostModal}
         onModifyComplete={handleModifyComplete}
         selectedElement={selectedElement}
+        unsavedCount={unsavedCount}
+        isSaving={isSaving}
       />
 
       {/* 오른쪽: 미리보기 */}

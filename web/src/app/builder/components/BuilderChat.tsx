@@ -126,6 +126,8 @@ interface BuilderChatProps {
   onModifyComplete: () => void; // 수정 완료 후 자동 재배포 트리거
   // 비주얼 에디터
   selectedElement?: { component?: string; file?: string; tagName?: string; textContent?: string } | null;
+  unsavedCount: number;
+  isSaving: boolean;
 }
 
 export default function BuilderChat({
@@ -148,6 +150,8 @@ export default function BuilderChat({
   showCostModal, setShowCostModal,
   onModifyComplete,
   selectedElement,
+  unsavedCount,
+  isSaving,
 }: BuilderChatProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -800,7 +804,17 @@ export default function BuilderChat({
             )}
             {buildPhase === 'done' && (
               <>
-                <button onClick={() => setShowCostModal('deploy')} className="flex-1 rounded-xl bg-gradient-to-r from-[#3182f6] to-[#2563eb] px-3 py-2.5 text-sm font-bold text-white hover:shadow-lg hover:shadow-[#3182f6]/20 transition-all">배포</button>
+                <button
+                  onClick={unsavedCount > 0 ? onModifyComplete : () => setShowCostModal('deploy')}
+                  disabled={unsavedCount > 0 && isSaving}
+                  className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-bold text-white transition-all disabled:opacity-50 ${
+                    unsavedCount > 0
+                      ? 'bg-gradient-to-r from-[#ff6b35] to-[#e55a2b] hover:shadow-lg hover:shadow-[#ff6b35]/20 animate-pulse'
+                      : 'bg-gradient-to-r from-[#3182f6] to-[#2563eb] hover:shadow-lg hover:shadow-[#3182f6]/20'
+                  }`}
+                >
+                  {unsavedCount > 0 ? (isSaving ? '저장 중...' : `수정사항 적용 (${unsavedCount})`) : '배포'}
+                </button>
                 <button onClick={() => setShowCostModal('download')} className="flex-1 rounded-xl bg-gradient-to-r from-[#a855f7] to-[#9333ea] px-3 py-2.5 text-sm font-bold text-white hover:shadow-lg hover:shadow-[#a855f7]/20 transition-all">다운로드</button>
                 <button
                   onClick={async () => {

@@ -139,44 +139,107 @@ export class ProjectService {
     };
   }
 
-  // ── Phase A-1: 인라인 편집 (AI 없음, 단순 텍스트 치환) ──
+  // ── Phase A-4: 인라인 편집 (범용 JSX 텍스트 치환) ──
   async inlineEdit(id: string, userId: string, body: { filePath: string; oldText: string; newText: string }) {
     const project = await this.prisma.project.findUnique({ where: { id } });
     if (!project) throw new NotFoundException('프로젝트를 찾을 수 없습니다');
     if (project.userId !== userId) throw new ForbiddenException();
 
     const files = (project.generatedCode as any[]) || [];
-    let fileIdx = files.findIndex((f: any) => f.path === body.filePath);
-    // filePath가 없거나 못 찾으면 전체 파일에서 oldText 포함하는 파일 검색
-    if (fileIdx === -1 && body.oldText) {
-      fileIdx = files.findIndex((f: any) => f.content && f.content.includes(body.oldText));
-    }
-    if (fileIdx === -1) return { success: false, matchFound: false, filePath: body.filePath || 'unknown' };
-
-    const file = files[fileIdx];
-    if (!file.content.includes(body.oldText)) {
-      // 치환 실패: 매칭 안 됨 (DOM과 소스코드 불일치)
-      return { success: false, matchFound: false, filePath: body.filePath };
+    const oldText = body.oldText?.trim();
+    const newText = body.newText?.trim();
+    if (!oldText || !newText || oldText === newText) {
+      return { success: false, matchFound: false, filePath: body.filePath || 'unknown' };
     }
 
-    const before = file.content;
-    file.content = file.content.replace(body.oldText, body.newText);
+    // 1단계: filePath로 파일 찾기 → 없으면 전체 검색
+    let fileIdx = body.filePath ? files.findIndex((f: any) => f.path === body.filePath) : -1;
 
-    if (before === file.content) {
-      return { success: false, matchFound: false, filePath: body.filePath };
+    // 2단계: 단순 includes 매칭 시도
+    if (fileIdx >= 0 && files[fileIdx].content.includes(oldText)) {
+      return this.doReplace(files, fileIdx, oldText, newText, id);
     }
 
-    files[fileIdx] = file;
+    // 3단계: filePath 없거나 못 찾으면 전체 파일에서 단순 includes 검색
+    if (fileIdx === -1) {
+      fileIdx = files.findIndex((f: any) => f.content?.includes(oldText));
+      if (fileIdx >= 0) {
+        return this.doReplace(files, fileIdx, oldText, newText, id);
+      }
+    }
 
+    // 4단계: JSX 텍스트 패턴 매칭 (DOM innerText ≠ JSX 소스 문제 해결)
+    // >텍스트<, {"텍스트"}, {'텍스트'}, {`텍스트`} 패턴 검색
+    const result = this.findAndReplaceJsxText(files, oldText, newText, body.filePath);
+    if (result.success) {
+      await this.prisma.project.update({
+        where: { id },
+        data: { generatedCode: files as any, totalModifications: { increment: 1 } },
+      });
+      return { success: true, matchFound: true, filePath: result.filePath };
+    }
+
+    return { success: false, matchFound: false, filePath: body.filePath || 'unknown' };
+  }
+
+  // 단순 치환 실행
+  private async doReplace(files: any[], fileIdx: number, oldText: string, newText: string, projectId: string) {
+    const before = files[fileIdx].content;
+    files[fileIdx].content = files[fileIdx].content.replace(oldText, newText);
+    if (before === files[fileIdx].content) {
+      return { success: false, matchFound: false, filePath: files[fileIdx].path };
+    }
     await this.prisma.project.update({
-      where: { id },
-      data: {
-        generatedCode: files as any,
-        totalModifications: { increment: 1 },
-      },
+      where: { id: projectId },
+      data: { generatedCode: files as any, totalModifications: { increment: 1 } },
     });
+    return { success: true, matchFound: true, filePath: files[fileIdx].path };
+  }
 
-    return { success: true, matchFound: true, filePath: body.filePath };
+  // JSX 내 텍스트를 범용 패턴으로 찾아서 치환
+  private findAndReplaceJsxText(files: any[], oldText: string, newText: string, preferredPath?: string): { success: boolean; filePath: string } {
+    // oldText에서 특수 정규식 문자 이스케이프
+    const escaped = oldText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // 공백/줄바꿈을 유연하게 매칭 (\s+ 또는 JSX 태그 허용)
+    const flexiblePattern = escaped.replace(/\s+/g, '[\\s\\n]*(?:<[^>]*>)*[\\s\\n]*');
+
+    // 패턴들: >텍스트</  >텍스트\n  {"텍스트"}  {'텍스트'}  {`텍스트`}
+    const patterns = [
+      new RegExp(`(>)${flexiblePattern}(</)`, 'g'),      // >텍스트</
+      new RegExp(`(>)${flexiblePattern}(\\s*<)`, 'g'),    // >텍스트 <
+      new RegExp(`({")${escaped}("})`, 'g'),              // {"텍스트"}
+      new RegExp(`({')${escaped}('})`, 'g'),              // {'텍스트'}
+      new RegExp(`({\`)${escaped}(\`})`, 'g'),            // {`텍스트`}
+    ];
+
+    // preferredPath 파일 우선 검색
+    const searchOrder = preferredPath
+      ? [files.findIndex((f: any) => f.path === preferredPath), ...files.map((_, i) => i)]
+      : files.map((_, i) => i);
+    const seen = new Set<number>();
+
+    for (const idx of searchOrder) {
+      if (idx < 0 || seen.has(idx)) continue;
+      seen.add(idx);
+      const file = files[idx];
+      if (!file?.content) continue;
+
+      for (const pattern of patterns) {
+        pattern.lastIndex = 0;
+        const match = pattern.exec(file.content);
+        if (match) {
+          // 첫 매칭만 치환 (정확성)
+          const fullMatch = match[0];
+          const prefix = match[1]; // > 또는 {"
+          const suffix = match[match.length - 1]; // </ 또는 "}
+          const replacement = `${prefix}${newText}${suffix}`;
+          file.content = file.content.replace(fullMatch, replacement);
+          return { success: true, filePath: file.path };
+        }
+      }
+    }
+
+    return { success: false, filePath: preferredPath || 'unknown' };
   }
 
   // ── Phase 11: 호스팅 과금 ─────────────────────────
