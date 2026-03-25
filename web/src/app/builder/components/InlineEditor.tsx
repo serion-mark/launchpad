@@ -10,6 +10,7 @@ interface InlineEditorProps {
   iframeRef: RefObject<HTMLIFrameElement | null>;
   onClose: () => void;
   onSendToChat: (prompt: string) => void;
+  onModifyComplete: () => void;
 }
 
 export default function InlineEditor({
@@ -18,6 +19,7 @@ export default function InlineEditor({
   iframeRef,
   onClose,
   onSendToChat,
+  onModifyComplete,
 }: InlineEditorProps) {
   const el = selectedElement;
 
@@ -55,22 +57,33 @@ export default function InlineEditor({
     await saveToDb(el.innerText || el.textContent, text);
   };
 
-  // 색상 즉시 적용
-  const applyColor = (property: string, value: string) => {
+  // 색상 즉시 적용 + DB 저장
+  const applyColor = (property: string, value: string, oldValue: string) => {
     postToIframe({ type: 'update-style', property, value });
+    // CSS 속성명 → Tailwind/인라인 스타일에서 찾을 수 있는 형태로 저장
+    if (el.file && oldValue && oldValue !== value) {
+      const oldHex = rgbToHex(oldValue);
+      const newHex = value;
+      if (oldHex !== newHex) {
+        saveToDb(oldHex, newHex);
+      }
+    }
   };
 
-  // 이미지 즉시 적용
+  // 이미지 즉시 적용 + DB 저장
   const applyImage = () => {
     postToIframe({ type: 'update-image', value: imageSrc });
+    if (el.imageSrc && el.imageSrc !== imageSrc) {
+      saveToDb(el.imageSrc, imageSrc);
+    }
   };
 
-  // DB에 저장 (inline-edit API)
+  // DB에 저장 (inline-edit API) + 자동 재배포
   const saveToDb = async (oldText: string, newText: string) => {
     if (!el.file || oldText === newText) return;
     setSaving(true);
     try {
-      await authFetch(`/projects/${projectId}/inline-edit`, {
+      const res = await authFetch(`/projects/${projectId}/inline-edit`, {
         method: 'PATCH',
         body: JSON.stringify({
           filePath: el.file,
@@ -78,10 +91,14 @@ export default function InlineEditor({
           newText: newText.trim(),
         }),
       });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      if (res.ok) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2000);
+        // 자동 재배포 트리거 (기존 handleModifyComplete 재사용)
+        onModifyComplete();
+      }
     } catch {
-      // 실패해도 DOM 변경은 유지 (다음 재배포 시 반영 안 됨)
+      // 실패해도 DOM 변경은 유지
     }
     setSaving(false);
   };
@@ -151,8 +168,9 @@ export default function InlineEditor({
                 type="color"
                 value={rgbToHex(textColor)}
                 onChange={(e) => {
+                  const oldVal = textColor;
                   setTextColor(e.target.value);
-                  applyColor('color', e.target.value);
+                  applyColor('color', e.target.value, oldVal);
                 }}
                 className="h-8 w-8 cursor-pointer rounded border border-[#2c2c35] bg-transparent"
               />
@@ -166,8 +184,9 @@ export default function InlineEditor({
                 type="color"
                 value={rgbToHex(bgColor)}
                 onChange={(e) => {
+                  const oldVal = bgColor;
                   setBgColor(e.target.value);
-                  applyColor('backgroundColor', e.target.value);
+                  applyColor('backgroundColor', e.target.value, oldVal);
                 }}
                 className="h-8 w-8 cursor-pointer rounded border border-[#2c2c35] bg-transparent"
               />

@@ -658,6 +658,11 @@ function BuilderContent() {
         isRedeploying={isRedeploying}
         selectedElement={selectedElement}
         setSelectedElement={setSelectedElement}
+        onModifyComplete={handleModifyComplete}
+        onSendToChat={(ctx) => {
+          // 채팅 입력창에 컨텍스트 자동 삽입
+          setInput(`📍 ${ctx}\n`);
+        }}
       />
 
       {/* 저장 완료 토스트 */}

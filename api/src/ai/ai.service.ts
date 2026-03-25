@@ -268,6 +268,9 @@ Foundry는 Static Export 전용 Next.js 앱을 생성합니다.
 - 예: <header data-component="Header">, <section data-component="HeroSection">, <nav data-component="Navigation">
 - 버튼, 카드, 네비게이션, 폼 등 수정 가능한 요소에 반드시 포함
 - 컴포넌트명은 PascalCase (Header, CTAButton, ServiceCard 등)
+- 각 페이지/컴포넌트의 최상위 요소에 data-foundry-file 속성 추가 (파일 경로)
+- 예: <div data-foundry-file="app/page.tsx" data-component="HomePage">, <div data-foundry-file="app/about/page.tsx">
+- 이 속성으로 비주얼 에디터가 클릭된 요소의 원본 파일을 정확히 찾음
 
 🟢 필수 사항:
 - 모든 page.tsx 파일 첫 줄에 'use client' 필수!

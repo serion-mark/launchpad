@@ -54,6 +54,8 @@ interface BuilderPreviewProps {
   // 비주얼 에디터
   selectedElement: SelectedElement | null;
   setSelectedElement: (el: SelectedElement | null) => void;
+  onModifyComplete: () => void;
+  onSendToChat: (ctx: string) => void;
 }
 
 export default function BuilderPreview({
@@ -70,6 +72,8 @@ export default function BuilderPreview({
   answers, projectFeatures,
   iframeKey, isRedeploying,
   selectedElement, setSelectedElement,
+  onModifyComplete,
+  onSendToChat,
 }: BuilderPreviewProps) {
 
   const isPreviewFocused = buildPhase === 'done' || buildPhase === 'generating';
@@ -203,14 +207,15 @@ export default function BuilderPreview({
                 projectId={projectId}
                 iframeRef={iframeRef}
                 onClose={() => setSelectedElement(null)}
-                onSendToChat={(prompt) => {
-                  // page.tsx에서 setInput prop을 전달받으면 활용
+                onSendToChat={(ctx) => {
+                  onSendToChat(ctx);
                   setSelectedElement(null);
                   setEditMode(false);
                   if (iframeRef.current?.contentWindow) {
                     iframeRef.current.contentWindow.postMessage({ type: 'disable-edit-mode' }, '*');
                   }
                 }}
+                onModifyComplete={onModifyComplete}
               />
             )}
           </div>
