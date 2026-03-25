@@ -554,7 +554,7 @@ export default function Page() {
 }`;
 
     const response = await this.openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: 'gpt-4o-mini',
       max_tokens: 8192,
       messages: [
         { role: 'system', content: gptSystem },
