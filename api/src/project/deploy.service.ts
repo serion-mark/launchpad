@@ -177,12 +177,12 @@ export class DeployService {
     }
 
     // 안전한 config 덮어쓰기 — static export 보장 (.mjs = 모든 Next.js 버전 호환)
+    // ⚠️ Next.js 16에서 eslint 옵션 삭제됨! 넣으면 빌드 에러!
     const config = `/** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'export',
   images: { unoptimized: true },
   typescript: { ignoreBuildErrors: true },
-  eslint: { ignoreDuringBuilds: true },
 };
 
 export default nextConfig;
