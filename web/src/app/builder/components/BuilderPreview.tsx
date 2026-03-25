@@ -17,6 +17,7 @@ export interface SelectedElement {
   innerText: string;
   className: string;
   id: string;
+  openingTag: string; // 맥락 치환용 (예: <h1 className="text-3xl font-bold">)
   component: string;
   file: string;
   rect: { x: number; y: number; width: number; height: number };
@@ -56,6 +57,8 @@ interface BuilderPreviewProps {
   setSelectedElement: (el: SelectedElement | null) => void;
   onModifyComplete: () => void;
   onSendToChat: (ctx: string) => void;
+  hasUnsavedChanges: boolean;
+  onInlineEditSaved: () => void;
 }
 
 export default function BuilderPreview({
@@ -74,6 +77,8 @@ export default function BuilderPreview({
   selectedElement, setSelectedElement,
   onModifyComplete,
   onSendToChat,
+  hasUnsavedChanges,
+  onInlineEditSaved,
 }: BuilderPreviewProps) {
 
   const isPreviewFocused = buildPhase === 'done' || buildPhase === 'generating';
@@ -159,6 +164,15 @@ export default function BuilderPreview({
           )}
         </div>
         <div className="flex items-center gap-2">
+          {buildPhase === 'done' && deployedUrl && hasUnsavedChanges && (
+            <button
+              onClick={onModifyComplete}
+              disabled={isRedeploying}
+              className="rounded-md bg-[#ff6b35] px-3 py-1 text-[10px] font-bold text-white hover:bg-[#e55a2b] disabled:opacity-50 transition-colors animate-pulse"
+            >
+              {isRedeploying ? '적용 중...' : '수정사항 적용'}
+            </button>
+          )}
           {buildPhase === 'done' && deployedUrl && (
             <a href={deployedUrl} target="_blank" rel="noopener noreferrer" className="rounded-md bg-[#1e1e28] px-2.5 py-1 text-[10px] text-[#8b95a1] hover:text-[#f2f4f6] transition-colors">
               외부에서 보기 ↗
@@ -215,7 +229,7 @@ export default function BuilderPreview({
                     iframeRef.current.contentWindow.postMessage({ type: 'disable-edit-mode' }, '*');
                   }
                 }}
-                onModifyComplete={onModifyComplete}
+                onInlineEditSaved={onInlineEditSaved}
               />
             )}
           </div>

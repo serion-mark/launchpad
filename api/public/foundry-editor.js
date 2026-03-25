@@ -70,12 +70,19 @@
     var rect = el.getBoundingClientRect();
     var computed = window.getComputedStyle(el);
 
+    // outerHTML에서 opening tag만 추출 (맥락 치환용)
+    var outerHtml = (el.outerHTML || '').slice(0, 500);
+    var openingTag = outerHtml;
+    var closeIdx = outerHtml.indexOf('>');
+    if (closeIdx > 0) openingTag = outerHtml.slice(0, closeIdx + 1);
+
     return {
       tagName: el.tagName.toLowerCase(),
       textContent: (el.textContent || '').trim().slice(0, 200),
       innerText: (el.innerText || '').trim().slice(0, 200),
       className: (el.className || '').toString().slice(0, 300),
       id: el.id || '',
+      openingTag: openingTag,
       component: component,
       file: file,
       rect: {

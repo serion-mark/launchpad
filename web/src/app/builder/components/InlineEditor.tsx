@@ -10,7 +10,7 @@ interface InlineEditorProps {
   iframeRef: RefObject<HTMLIFrameElement | null>;
   onClose: () => void;
   onSendToChat: (prompt: string) => void;
-  onModifyComplete: () => void;
+  onInlineEditSaved: () => void; // DB 저장 성공 알림 (재배포는 안 함!)
 }
 
 export default function InlineEditor({
@@ -19,7 +19,7 @@ export default function InlineEditor({
   iframeRef,
   onClose,
   onSendToChat,
-  onModifyComplete,
+  onInlineEditSaved,
 }: InlineEditorProps) {
   const el = selectedElement;
 
@@ -51,10 +51,17 @@ export default function InlineEditor({
     }
   };
 
-  // 텍스트 즉시 적용
+  // 텍스트 즉시 적용 — 맥락 포함 치환 (openingTag 활용)
   const applyText = async () => {
     postToIframe({ type: 'update-text', value: text });
-    await saveToDb(el.innerText || el.textContent, text);
+    const oldText = el.innerText || el.textContent;
+    if (el.openingTag && el.file) {
+      // 맥락 포함: "<h1 className=...>기존텍스트</h1>" → "<h1 className=...>새텍스트</h1>"
+      const closeTag = `</${el.tagName}>`;
+      await saveToDb(`${el.openingTag}${oldText}${closeTag}`, `${el.openingTag}${text}${closeTag}`);
+    } else {
+      await saveToDb(oldText, text);
+    }
   };
 
   // 색상 즉시 적용 + DB 저장
@@ -78,7 +85,7 @@ export default function InlineEditor({
     }
   };
 
-  // DB에 저장 (inline-edit API) + 자동 재배포
+  // DB에 저장 (inline-edit API) — 재배포는 안 함! [수정사항 적용] 버튼으로 분리
   const saveToDb = async (oldText: string, newText: string) => {
     if (!el.file || oldText === newText) return;
     setSaving(true);
@@ -94,8 +101,7 @@ export default function InlineEditor({
       if (res.ok) {
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
-        // 자동 재배포 트리거 (기존 handleModifyComplete 재사용)
-        onModifyComplete();
+        onInlineEditSaved(); // 부모에 "변경사항 있음" 알림
       }
     } catch {
       // 실패해도 DOM 변경은 유지

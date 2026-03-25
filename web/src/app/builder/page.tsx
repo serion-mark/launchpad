@@ -90,8 +90,9 @@ function BuilderContent() {
   // ── iframe 리로드 + 재배포 상태 ──────────────────
   const [iframeKey, setIframeKey] = useState(Date.now());
   const [isRedeploying, setIsRedeploying] = useState(false);
-  // 비주얼 에디터: 선택된 요소
+  // 비주얼 에디터: 선택된 요소 + 미저장 변경사항
   const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const selectedModelTier: AppModelTier = 'smart';
   const templateId = project?.template || 'custom';
@@ -560,6 +561,7 @@ function BuilderContent() {
       }
     } catch { /* */ }
     setIsRedeploying(false);
+    setHasUnsavedChanges(false);
   };
 
   // ── generatedFiles 계산 ──────────────────────────
@@ -658,11 +660,12 @@ function BuilderContent() {
         isRedeploying={isRedeploying}
         selectedElement={selectedElement}
         setSelectedElement={setSelectedElement}
-        onModifyComplete={handleModifyComplete}
+        onModifyComplete={() => { handleModifyComplete(); }}
         onSendToChat={(ctx) => {
-          // 채팅 입력창에 컨텍스트 자동 삽입
           setInput(`📍 ${ctx}\n`);
         }}
+        hasUnsavedChanges={hasUnsavedChanges}
+        onInlineEditSaved={() => setHasUnsavedChanges(true)}
       />
 
       {/* 저장 완료 토스트 */}
