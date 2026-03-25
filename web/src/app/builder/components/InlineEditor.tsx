@@ -109,7 +109,8 @@ export default function InlineEditor({
   const applyText = async () => {
     postToIframe({ type: 'update-text', value: text });
     const oldText = el.innerText || el.textContent;
-    if (el.openingTag && el.file) {
+    if (el.openingTag) {
+      // 태그 포함해서 검색 (정확한 매칭)
       const closeTag = `</${el.tagName}>`;
       await saveToDb(`${el.openingTag}${oldText}${closeTag}`, `${el.openingTag}${text}${closeTag}`);
     } else {
