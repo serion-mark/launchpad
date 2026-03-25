@@ -524,47 +524,22 @@ export class AiService {
     }
   }
 
-  /** GPT-4o로 코드 수정 호출 (Claude 대신 — 비용 절감!) */
-  private async callGPTForModify(system: string, userContent: string): Promise<{ content: string; inputTokens: number; outputTokens: number }> {
-    if (!this.openai) throw new Error('OPENAI_API_KEY가 설정되지 않았습니다');
-
-    // GPT용 시스템 프롬프트 — 출력 형식을 더 명확하게!
-    const gptSystem = `${system}
-
-중요!! 반드시 아래 형식으로만 출력하세요:
-
-[FILE: app/page.tsx]
-'use client';
-import React from 'react';
-// ... 수정된 전체 코드 ...
-export default function Page() { ... }
-
-규칙:
-1. [FILE: 파일경로] 헤더 반드시 포함
-2. 수정된 파일의 전체 코드를 출력 (부분이 아님!)
-3. 마크다운 코드 블록(\`\`\`tsx 등) 절대 사용 금지!
-4. 설명 텍스트 없이 [FILE: ...] + 코드만 출력
-5. 수정하지 않은 파일은 출력하지 마세요
-
-예시 출력:
-[FILE: app/page.tsx]
-'use client';
-export default function Page() {
-  return <h1>백설공주 사과농장</h1>;
-}`;
-
-    const response = await this.openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+  /** Haiku로 코드 수정 호출 (Sonnet 대비 1/12 비용!) */
+  private async callHaikuForModify(system: string, userContent: string): Promise<{ content: string; inputTokens: number; outputTokens: number }> {
+    const response = await this.anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 8192,
-      messages: [
-        { role: 'system', content: gptSystem },
-        { role: 'user', content: userContent },
-      ],
+      system,
+      messages: [{ role: 'user', content: userContent }],
     });
+    const content = response.content
+      .filter(block => block.type === 'text')
+      .map(block => (block as Anthropic.TextBlock).text)
+      .join('\n');
     return {
-      content: response.choices[0]?.message?.content || '',
-      inputTokens: response.usage?.prompt_tokens || 0,
-      outputTokens: response.usage?.completion_tokens || 0,
+      content,
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
     };
   }
 
@@ -1382,17 +1357,10 @@ ${targetFileContents.map(f => `[FILE: ${f.path}]\n${f.content}`).join('\n\n')}
 ${JSON.stringify(project.projectContext || {}, null, 2)}`;
 
     let result: { content: string; inputTokens: number; outputTokens: number; actualTier?: AppModelTier; fellBack?: boolean };
-    if (this.openai) {
-      this.logger.log(`[${params.projectId}] 코드 수정: GPT-4o 사용 (비용 절감)`);
-      const gptResult = await this.callGPTForModify(MODIFY_SYSTEM_PROMPT, userContent);
-      result = { ...gptResult, actualTier: tier, fellBack: false };
-    } else {
-      this.logger.log(`[${params.projectId}] 코드 수정: Claude 사용 (OpenAI 키 없음)`);
-      const claudeResult = await this.callWithFallback(tier, MODIFY_SYSTEM_PROMPT, [{
-        role: 'user', content: userContent,
-      }]);
-      result = claudeResult;
-    }
+    // Haiku로 코드 수정 (Sonnet 대비 1/12 비용! + Claude용 프롬프트 호환!)
+    this.logger.log(`[${params.projectId}] 코드 수정: Claude Haiku 사용 (비용 절감)`);
+    const haikuResult = await this.callHaikuForModify(MODIFY_SYSTEM_PROMPT, userContent);
+    result = { ...haikuResult, actualTier: 'flash' as AppModelTier, fellBack: true };
 
     const modifiedFiles = this.parseFileOutput(result.content, '');
     const actualTier: CreditModelTier = result.fellBack ? 'flash' : (tier as CreditModelTier);
