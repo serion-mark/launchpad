@@ -1412,6 +1412,7 @@ ${JSON.stringify(project.projectContext || {}, null, 2)}`;
           ...(project.projectContext as any || {}),
           lastAction: `수정: ${params.message.slice(0, 50)}`,
           lastModifiedAt: new Date().toISOString(),
+          lastModifiedFiles: modifiedFiles.map(f => f.path),
           userPreferences: {
             ...((project.projectContext as any)?.userPreferences || {}),
             model: actualTier,

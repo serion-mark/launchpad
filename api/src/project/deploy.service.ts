@@ -14,8 +14,8 @@ const DEPLOY_DIR = path.resolve(process.env.DEPLOY_DIR || '/var/www/apps');
 const DEPLOY_DOMAIN = process.env.DEPLOY_DOMAIN || 'foundry.ai.kr';
 /** 빌드 타임아웃 (ms) */
 const BUILD_TIMEOUT = parseInt(process.env.BUILD_TIMEOUT_MS || '', 10) || 5 * 60 * 1000;
-/** F6: 빌드 자동 수정 최대 시도 횟수 (0 = F6 비활성화 — 수정 내용 덮어쓰기 방지!) */
-const MAX_BUILD_FIX_ATTEMPTS = 0;
+/** F6: 빌드 자동 수정 최대 시도 횟수 */
+const MAX_BUILD_FIX_ATTEMPTS = 3;
 
 /** ── 빌드 큐 (In-Memory) ───────────────────────────────── */
 const MAX_CONCURRENT_BUILDS = 2;
@@ -853,10 +853,23 @@ export default nextConfig;
 
     if (!modifyResult || modifyResult.length === 0) return 0;
 
-    // 수정된 파일을 파일시스템에 적용
+    // 수정된 파일을 파일시스템에 적용 (단, 사용자가 최근 수정한 파일은 보호!)
     let fixedCount = 0;
     const updatedFiles = [...files];
+
+    // 사용자 최근 수정 파일 보호: projectContext에서 lastModifiedFiles 확인
+    const projectData = await this.prisma.project.findUnique({
+      where: { id: projectId },
+      select: { projectContext: true },
+    });
+    const lastModifiedFiles: string[] = (projectData?.projectContext as any)?.lastModifiedFiles || [];
+
     for (const fixed of modifyResult) {
+      // 사용자가 방금 수정한 파일이면 F6이 건드리지 않음!!
+      if (lastModifiedFiles.some(mf => fixed.path.includes(mf) || mf.includes(fixed.path))) {
+        this.logger.warn(`[F6] 사용자 수정 파일 보호: ${fixed.path} (건드리지 않음)`);
+        continue;
+      }
       // 파일시스템에 쓰기
       const filePath = path.join(outputDir, fixed.path);
       fs.mkdirSync(path.dirname(filePath), { recursive: true });
