@@ -687,8 +687,9 @@ export default nextConfig;
       // 모든 HTML 파일에 Tailwind CDN + CSS 변수 주입
       // Tailwind 빌드 성공 여부와 무관하게 CDN을 넣으면 확실하게 동작
       const tailwindTag = '<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>';
+      const editorTag = '<script src="/foundry-editor.js"></script>';
       const styleTag = cssVars ? `<style type="text/tailwindcss">\n@import "tailwindcss";\n${cssVars}\n</style>` : '';
-      const injection = `${tailwindTag}\n${styleTag}`;
+      const injection = `${tailwindTag}\n${editorTag}\n${styleTag}`;
 
       const htmlFiles: string[] = [];
       const findHtml = (dir: string) => {
@@ -732,6 +733,12 @@ export default nextConfig;
       if (!fs.existsSync(indexPath) && fs.existsSync(fallback404)) {
         fs.copyFileSync(fallback404, indexPath);
         appendLog('index.html 없음 → 404.html 복사로 SPA fallback 생성');
+      }
+
+      // foundry-editor.js 복사 (비주얼 에디터)
+      const editorSrc = path.join(__dirname, '..', '..', 'public', 'foundry-editor.js');
+      if (fs.existsSync(editorSrc)) {
+        fs.copyFileSync(editorSrc, path.join(deployTarget, 'foundry-editor.js'));
       }
 
       appendLog(`Static 파일 배포 완료 → ${deployTarget}`);

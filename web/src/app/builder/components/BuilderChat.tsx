@@ -124,6 +124,8 @@ interface BuilderChatProps {
   showCostModal: 'deploy' | 'download' | 'generate' | null;
   setShowCostModal: (m: 'deploy' | 'download' | 'generate' | null) => void;
   onModifyComplete: () => void; // 수정 완료 후 자동 재배포 트리거
+  // 비주얼 에디터
+  selectedElement?: { component?: string; file?: string; tagName?: string; textContent?: string } | null;
 }
 
 export default function BuilderChat({
@@ -145,6 +147,7 @@ export default function BuilderChat({
   handleManualSave, saving, lastSaved,
   showCostModal, setShowCostModal,
   onModifyComplete,
+  selectedElement,
 }: BuilderChatProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -416,8 +419,11 @@ export default function BuilderChat({
 
           const modifyResult = await callModifyFiles({
             projectId,
-            message: userMsg.content,
+            message: selectedElement?.component
+              ? `[${selectedElement.component}] ${selectedElement.file || ''}\n${userMsg.content}`
+              : userMsg.content,
             modelTier: selectedModelTier,
+            targetFiles: selectedElement?.file ? [selectedElement.file] : undefined,
           });
 
           authFetch('/credits/balance').then(r => r.ok ? r.json() : null).then(d => {

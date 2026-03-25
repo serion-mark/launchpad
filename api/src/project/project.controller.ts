@@ -83,6 +83,16 @@ export class ProjectController {
     return this.projectService.rollback(id, req.user.userId, body.version);
   }
 
+  // ── Phase A-1: 인라인 편집 ───────────────────────────
+  @Patch(':id/inline-edit')
+  inlineEdit(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { filePath: string; oldText: string; newText: string },
+  ) {
+    return this.projectService.inlineEdit(id, req.user.userId, body);
+  }
+
   // ── Phase 10: GitHub 연동 ───────────────────────────
   @Post(':id/github/push')
   pushToGitHub(@Req() req: any, @Param('id') id: string) {

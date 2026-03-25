@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 
 @Injectable()
@@ -137,6 +137,35 @@ export class ProjectService {
       currentVersion: newVersion,
       restoredFrom: targetVersion,
     };
+  }
+
+  // ── Phase A-1: 인라인 편집 (AI 없음, 단순 텍스트 치환) ──
+  async inlineEdit(id: string, userId: string, body: { filePath: string; oldText: string; newText: string }) {
+    const project = await this.prisma.project.findUnique({ where: { id } });
+    if (!project) throw new NotFoundException('프로젝트를 찾을 수 없습니다');
+    if (project.userId !== userId) throw new ForbiddenException();
+
+    const files = (project.generatedCode as any[]) || [];
+    const fileIdx = files.findIndex((f: any) => f.path === body.filePath);
+    if (fileIdx === -1) throw new NotFoundException(`파일을 찾을 수 없습니다: ${body.filePath}`);
+
+    const file = files[fileIdx];
+    if (!file.content.includes(body.oldText)) {
+      throw new BadRequestException('해당 텍스트를 파일에서 찾을 수 없습니다');
+    }
+
+    file.content = file.content.replace(body.oldText, body.newText);
+    files[fileIdx] = file;
+
+    await this.prisma.project.update({
+      where: { id },
+      data: {
+        generatedCode: files as any,
+        totalModifications: { increment: 1 },
+      },
+    });
+
+    return { success: true, filePath: body.filePath };
   }
 
   // ── Phase 11: 호스팅 과금 ─────────────────────────

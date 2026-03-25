@@ -6,6 +6,7 @@ import { authFetch, getUser, getToken, API_BASE } from '@/lib/api';
 import { QUESTIONNAIRES } from './constants';
 import BuilderChat from './components/BuilderChat';
 import BuilderPreview from './components/BuilderPreview';
+import type { SelectedElement } from './components/BuilderPreview';
 import CreditConfirmModal from './components/CreditConfirmModal';
 import type { Message, BuildPhase, ProjectData } from './components/BuilderChat';
 
@@ -89,6 +90,8 @@ function BuilderContent() {
   // ── iframe 리로드 + 재배포 상태 ──────────────────
   const [iframeKey, setIframeKey] = useState(Date.now());
   const [isRedeploying, setIsRedeploying] = useState(false);
+  // 비주얼 에디터: 선택된 요소
+  const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
 
   const selectedModelTier: AppModelTier = 'smart';
   const templateId = project?.template || 'custom';
@@ -626,6 +629,7 @@ function BuilderContent() {
         showCostModal={showCostModal}
         setShowCostModal={setShowCostModal}
         onModifyComplete={handleModifyComplete}
+        selectedElement={selectedElement}
       />
 
       {/* 오른쪽: 미리보기 */}
@@ -652,6 +656,8 @@ function BuilderContent() {
         projectFeatures={projectFeatures}
         iframeKey={iframeKey}
         isRedeploying={isRedeploying}
+        selectedElement={selectedElement}
+        setSelectedElement={setSelectedElement}
       />
 
       {/* 저장 완료 토스트 */}

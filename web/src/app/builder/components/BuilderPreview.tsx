@@ -1,13 +1,30 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { authFetch } from '@/lib/api';
 import LivePreview from './LivePreview';
 import VersionHistory from './VersionHistory';
 import CodeHealthPanel from './CodeHealthPanel';
+import InlineEditor from './InlineEditor';
 import type { Message, BuildPhase, ProjectData } from './BuilderChat';
 
 type AppModelTier = 'flash' | 'smart' | 'pro';
+
+// 비주얼 에디터: 클릭된 요소 정보
+export interface SelectedElement {
+  tagName: string;
+  textContent: string;
+  innerText: string;
+  className: string;
+  id: string;
+  component: string;
+  file: string;
+  rect: { x: number; y: number; width: number; height: number };
+  styles: Record<string, string>;
+  isImage: boolean;
+  imageSrc: string;
+  isText: boolean;
+}
 
 interface BuilderPreviewProps {
   projectId: string;
@@ -34,6 +51,9 @@ interface BuilderPreviewProps {
   iframeKey: number;
   // 재배포 상태
   isRedeploying: boolean;
+  // 비주얼 에디터
+  selectedElement: SelectedElement | null;
+  setSelectedElement: (el: SelectedElement | null) => void;
 }
 
 export default function BuilderPreview({
@@ -49,9 +69,38 @@ export default function BuilderPreview({
   saveChatHistory,
   answers, projectFeatures,
   iframeKey, isRedeploying,
+  selectedElement, setSelectedElement,
 }: BuilderPreviewProps) {
 
   const isPreviewFocused = buildPhase === 'done' || buildPhase === 'generating';
+
+  // ── 비주얼 에디터: 편집 모드 ──
+  const [editMode, setEditMode] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // iframe에 편집 모드 메시지 전송
+  const toggleEditMode = useCallback(() => {
+    const next = !editMode;
+    setEditMode(next);
+    if (!next) setSelectedElement(null);
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        { type: next ? 'enable-edit-mode' : 'disable-edit-mode' },
+        '*'
+      );
+    }
+  }, [editMode, setSelectedElement]);
+
+  // iframe에서 element-clicked 수신
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === 'element-clicked' && e.data.element) {
+        setSelectedElement(e.data.element);
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, [setSelectedElement]);
 
   // done 상태 배포 URL 결정
   const deployedUrl = project?.deployedUrl || null;
@@ -95,6 +144,15 @@ export default function BuilderPreview({
             <button onClick={() => setPreviewMode('mobile')} className={`rounded px-2.5 py-1 text-[10px] font-medium transition-colors ${previewMode === 'mobile' ? 'bg-[#3182f6] text-white' : 'text-[#6b7684] hover:text-[#f2f4f6]'}`}>📱</button>
             <button onClick={() => setPreviewMode('desktop')} className={`rounded px-2.5 py-1 text-[10px] font-medium transition-colors ${previewMode === 'desktop' ? 'bg-[#3182f6] text-white' : 'text-[#6b7684] hover:text-[#f2f4f6]'}`}>🖥</button>
           </div>
+          {buildPhase === 'done' && deployedUrl && (
+            <button
+              onClick={toggleEditMode}
+              className={`rounded px-2.5 py-1 text-[10px] font-medium transition-colors ${editMode ? 'bg-[#ff6b35] text-white' : 'bg-[#1e1e28] text-[#6b7684] hover:text-[#f2f4f6]'}`}
+              title={editMode ? '편집 모드 끄기' : '편집 모드 켜기'}
+            >
+              {editMode ? '✏️ 편집 중' : '✏️ 편집'}
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {buildPhase === 'done' && deployedUrl && (
@@ -127,6 +185,7 @@ export default function BuilderPreview({
               style={previewMode === 'mobile' ? { maxWidth: '375px' } : undefined}
             >
               <iframe
+                ref={iframeRef}
                 key={iframeKey}
                 src={deployedUrl}
                 className="h-full w-full border-0 bg-white"
@@ -135,8 +194,25 @@ export default function BuilderPreview({
               />
             </div>
             <div className="absolute top-2 right-2 flex items-center gap-1.5 rounded-full bg-emerald-600/90 px-2.5 py-1 text-[10px] font-bold text-white shadow-lg">
-              <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />LIVE
+              <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />{editMode ? 'EDIT' : 'LIVE'}
             </div>
+            {/* 비주얼 에디터: InlineEditor */}
+            {editMode && selectedElement && (
+              <InlineEditor
+                selectedElement={selectedElement}
+                projectId={projectId}
+                iframeRef={iframeRef}
+                onClose={() => setSelectedElement(null)}
+                onSendToChat={(prompt) => {
+                  // page.tsx에서 setInput prop을 전달받으면 활용
+                  setSelectedElement(null);
+                  setEditMode(false);
+                  if (iframeRef.current?.contentWindow) {
+                    iframeRef.current.contentWindow.postMessage({ type: 'disable-edit-mode' }, '*');
+                  }
+                }}
+              />
+            )}
           </div>
         )}
 
