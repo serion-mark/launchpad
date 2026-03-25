@@ -57,8 +57,10 @@ interface BuilderPreviewProps {
   setSelectedElement: (el: SelectedElement | null) => void;
   onModifyComplete: () => void;
   onSendToChat: (ctx: string) => void;
-  hasUnsavedChanges: boolean;
+  unsavedCount: number;
   onInlineEditSaved: () => void;
+  isSaving: boolean;
+  onSavingChange: (saving: boolean) => void;
 }
 
 export default function BuilderPreview({
@@ -77,14 +79,17 @@ export default function BuilderPreview({
   selectedElement, setSelectedElement,
   onModifyComplete,
   onSendToChat,
-  hasUnsavedChanges,
+  unsavedCount,
   onInlineEditSaved,
+  isSaving,
+  onSavingChange,
 }: BuilderPreviewProps) {
 
   const isPreviewFocused = buildPhase === 'done' || buildPhase === 'generating';
 
   // ── 비주얼 에디터: 편집 모드 ──
   const [editMode, setEditMode] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // iframe에 편집 모드 메시지 전송
@@ -97,6 +102,12 @@ export default function BuilderPreview({
         { type: next ? 'enable-edit-mode' : 'disable-edit-mode' },
         '*'
       );
+    }
+    // 온보딩: 처음 편집 모드 켤 때만
+    if (next && typeof window !== 'undefined' && !localStorage.getItem('foundry-edit-onboarded')) {
+      setShowOnboarding(true);
+      localStorage.setItem('foundry-edit-onboarded', '1');
+      setTimeout(() => setShowOnboarding(false), 4000);
     }
   }, [editMode, setSelectedElement]);
 
@@ -164,13 +175,13 @@ export default function BuilderPreview({
           )}
         </div>
         <div className="flex items-center gap-2">
-          {buildPhase === 'done' && deployedUrl && hasUnsavedChanges && (
+          {buildPhase === 'done' && deployedUrl && unsavedCount > 0 && (
             <button
               onClick={onModifyComplete}
-              disabled={isRedeploying}
+              disabled={isRedeploying || isSaving}
               className="rounded-md bg-[#ff6b35] px-3 py-1 text-[10px] font-bold text-white hover:bg-[#e55a2b] disabled:opacity-50 transition-colors animate-pulse"
             >
-              {isRedeploying ? '적용 중...' : '수정사항 적용'}
+              {isRedeploying ? '적용 중...' : isSaving ? '저장 중...' : `수정사항 적용 (${unsavedCount})`}
             </button>
           )}
           {buildPhase === 'done' && deployedUrl && (
@@ -214,6 +225,13 @@ export default function BuilderPreview({
             <div className="absolute top-2 right-2 flex items-center gap-1.5 rounded-full bg-emerald-600/90 px-2.5 py-1 text-[10px] font-bold text-white shadow-lg">
               <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />{editMode ? 'EDIT' : 'LIVE'}
             </div>
+            {/* 온보딩 툴팁 */}
+            {showOnboarding && (
+              <div className="absolute top-12 left-1/2 -translate-x-1/2 z-50 rounded-xl bg-[#3182f6] px-4 py-2.5 text-xs font-medium text-white shadow-lg whitespace-nowrap">
+                요소를 클릭하면 직접 수정할 수 있습니다
+                <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-[#3182f6] rotate-45" />
+              </div>
+            )}
             {/* 비주얼 에디터: InlineEditor */}
             {editMode && selectedElement && (
               <InlineEditor
@@ -230,6 +248,7 @@ export default function BuilderPreview({
                   }
                 }}
                 onInlineEditSaved={onInlineEditSaved}
+                onSavingChange={onSavingChange}
               />
             )}
           </div>

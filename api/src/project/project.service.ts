@@ -151,10 +151,17 @@ export class ProjectService {
 
     const file = files[fileIdx];
     if (!file.content.includes(body.oldText)) {
-      throw new BadRequestException('해당 텍스트를 파일에서 찾을 수 없습니다');
+      // 치환 실패: 매칭 안 됨 (DOM과 소스코드 불일치)
+      return { success: false, matchFound: false, filePath: body.filePath };
     }
 
+    const before = file.content;
     file.content = file.content.replace(body.oldText, body.newText);
+
+    if (before === file.content) {
+      return { success: false, matchFound: false, filePath: body.filePath };
+    }
+
     files[fileIdx] = file;
 
     await this.prisma.project.update({
@@ -165,7 +172,7 @@ export class ProjectService {
       },
     });
 
-    return { success: true, filePath: body.filePath };
+    return { success: true, matchFound: true, filePath: body.filePath };
   }
 
   // ── Phase 11: 호스팅 과금 ─────────────────────────

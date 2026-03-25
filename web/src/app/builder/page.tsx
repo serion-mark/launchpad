@@ -92,7 +92,8 @@ function BuilderContent() {
   const [isRedeploying, setIsRedeploying] = useState(false);
   // 비주얼 에디터: 선택된 요소 + 미저장 변경사항
   const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [unsavedCount, setUnsavedCount] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
 
   const selectedModelTier: AppModelTier = 'smart';
   const templateId = project?.template || 'custom';
@@ -561,7 +562,7 @@ function BuilderContent() {
       }
     } catch { /* */ }
     setIsRedeploying(false);
-    setHasUnsavedChanges(false);
+    setUnsavedCount(0);
   };
 
   // ── generatedFiles 계산 ──────────────────────────
@@ -664,8 +665,10 @@ function BuilderContent() {
         onSendToChat={(ctx) => {
           setInput(`📍 ${ctx}\n`);
         }}
-        hasUnsavedChanges={hasUnsavedChanges}
-        onInlineEditSaved={() => setHasUnsavedChanges(true)}
+        unsavedCount={unsavedCount}
+        onInlineEditSaved={() => setUnsavedCount(c => c + 1)}
+        isSaving={isSaving}
+        onSavingChange={setIsSaving}
       />
 
       {/* 저장 완료 토스트 */}
