@@ -229,6 +229,27 @@ export default nextConfig;
     fs.writeFileSync(path.join(outputDir, 'next.config.mjs'), config, 'utf-8');
   }
 
+  /** postcss.config 보장: 없거나 잘못되면 Tailwind v4 설정으로 덮어쓰기 */
+  private ensurePostcssConfig(outputDir: string) {
+    const correctContent = `const config = {\n  plugins: {\n    "@tailwindcss/postcss": {},\n  },\n};\n\nexport default config;\n`;
+    // .mjs 우선, 다른 확장자 제거
+    for (const name of ['postcss.config.js', 'postcss.config.cjs', 'postcss.config.ts']) {
+      const p = path.join(outputDir, name);
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    }
+    const mjsPath = path.join(outputDir, 'postcss.config.mjs');
+    if (fs.existsSync(mjsPath)) {
+      const existing = fs.readFileSync(mjsPath, 'utf-8');
+      // tailwindcss/nesting 등 v3 플러그인이 있거나 @tailwindcss/postcss가 없으면 교체
+      if (!existing.includes('@tailwindcss/postcss') || existing.includes('tailwindcss/nesting')) {
+        fs.writeFileSync(mjsPath, correctContent, 'utf-8');
+        this.logger.warn('[postcss] v3 설정 감지 → v4 설정으로 교체');
+      }
+    } else {
+      fs.writeFileSync(mjsPath, correctContent, 'utf-8');
+    }
+  }
+
   /** ★ Tailwind v4 보장: globals.css에 @tailwind base 있으면 @import "tailwindcss" 로 교체 */
   private ensureTailwindV4(outputDir: string) {
     const candidates = [
@@ -595,12 +616,8 @@ export default nextConfig;
         if (fs.existsSync(srcAppDir)) removeDynamicRoutes(srcAppDir);
       }
 
-      // Tailwind CSS 빌드 보장: postcss.config.mjs 없으면 생성
-      const postcssPath = path.join(outputDir, 'postcss.config.mjs');
-      if (!fs.existsSync(postcssPath)) {
-        fs.writeFileSync(postcssPath, `const config = {\n  plugins: {\n    "@tailwindcss/postcss": {},\n  },\n};\n\nexport default config;\n`, 'utf-8');
-        appendLog('postcss.config.mjs 자동 생성 (Tailwind 빌드 보장)');
-      }
+      // Tailwind CSS 빌드 보장: postcss.config 교정
+      this.ensurePostcssConfig(outputDir);
 
       // middleware.ts 제거 (Next.js 16에서 deprecated → proxy 전환 필요하지만 static export에선 불필요)
       const middlewarePaths = ['middleware.ts', 'middleware.js', 'src/middleware.ts', 'src/middleware.js'];
@@ -625,14 +642,19 @@ export default nextConfig;
       // npm install 동안 사용자가 인라인 편집했을 수 있으므로 최신 코드로 갱신
       await this.syncLatestCodeToDisk(projectId, outputDir, appendLog);
 
+      // ★ 첫 빌드 전 필수 교정 — sync 후, build 전에 반드시 실행!
+      this.ensureNextConfig(outputDir);
+      this.ensurePostcssConfig(outputDir);
+      this.ensureTailwindV4(outputDir);
+
       for (let attempt = 0; attempt <= MAX_BUILD_FIX_ATTEMPTS; attempt++) {
         // ★ A-5: 재시도 시 DB→디스크 동기화 (F6이 DB에 머지 저장한 최신 코드 반영)
         if (attempt > 0) {
           await this.syncLatestCodeToDisk(projectId, outputDir, appendLog);
         }
-        // 매 시도 전 next.config 보장 (F6 AI 수정이 config를 덮어쓸 수 있음)
+        // 매 시도 전 config 보장 (F6 AI 수정이 덮어쓸 수 있음)
         this.ensureNextConfig(outputDir);
-        // ★ Tailwind v4 보장: globals.css에 @tailwind base 있으면 → @import "tailwindcss" 로 교체
+        this.ensurePostcssConfig(outputDir);
         this.ensureTailwindV4(outputDir);
         appendLog(attempt === 0 ? 'next build 시작...' : `next build 재시도 (${attempt}/${MAX_BUILD_FIX_ATTEMPTS})...`);
         try {
