@@ -231,8 +231,13 @@ export class ProjectService {
       return { success: false, matchFound: false, filePath: body.filePath || 'unknown' };
     }
 
-    // 1단계: filePath로 파일 찾기 → 없으면 전체 검색
-    let fileIdx = body.filePath ? files.findIndex((f: any) => f.path === body.filePath) : -1;
+    // ★ 경로 정규화: 슬래시 중복 제거 (src/app//page.tsx → src/app/page.tsx)
+    const normalizedPath = body.filePath?.replace(/\/+/g, '/').replace(/^\//, '');
+
+    // 1단계: filePath로 파일 찾기 → 정규화된 경로로도 검색
+    let fileIdx = normalizedPath
+      ? files.findIndex((f: any) => f.path === normalizedPath || f.path.replace(/\/+/g, '/') === normalizedPath)
+      : -1;
 
     // 2단계: 단순 includes 매칭 시도
     if (fileIdx >= 0 && files[fileIdx].content.includes(oldText)) {
