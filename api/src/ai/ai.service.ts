@@ -2047,6 +2047,7 @@ ${lastLines}`,
 - useRouter from 'next/router' 금지 → 'next/navigation'에서 import
 - getServerSideProps/getStaticProps 금지 → useEffect + useState 패턴 사용
 - Image 컴포넌트 최적화 에러 시 → img 태그 사용 또는 next.config에 unoptimized:true
+- globals.css import는 절대 제거하지 마! (import './globals.css' 또는 import '@/app/globals.css') — 이걸 삭제하면 전체 CSS가 깨짐
 
 빌드 에러 로그:
 ${errorLog.slice(0, 1500)}

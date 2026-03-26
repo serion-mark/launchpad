@@ -711,6 +711,10 @@ function StartPage() {
   const [progress, setProgress] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
   const [refImages, setRefImages] = useState<{ file: File; preview: string }[]>([]);
+  // ★ A-5: 서브도메인 입력
+  const [customSubdomain, setCustomSubdomain] = useState('');
+  const [subdomainStatus, setSubdomainStatus] = useState<'idle' | 'checking' | 'available' | 'unavailable'>('idle');
+  const [subdomainMessage, setSubdomainMessage] = useState('');
   // 자연어 자유 입력
   const [freeInput, setFreeInput] = useState('');
   const [previewMode, setPreviewMode] = useState<'mobile' | 'desktop'>('mobile');
@@ -894,6 +898,8 @@ function StartPage() {
             smartAnalysisResults: smartAnalysis.results.optimization ? smartAnalysis.results : null,
           },
           description: [customRequirements, smartAnalysisText].filter(Boolean).join('') || undefined,
+          // ★ A-5: 사용자 지정 서브도메인 (중복 확인 통과한 경우에만)
+          ...(customSubdomain && subdomainStatus === 'available' ? { subdomain: customSubdomain } : {}),
         }),
       });
 
@@ -1560,6 +1566,62 @@ function StartPage() {
                         </span>
                       ))}
                   </div>
+                </div>
+
+                {/* ★ A-5: 서브도메인 입력 */}
+                <div className="mb-5 rounded-xl bg-[#2c2c35] p-4">
+                  <h4 className="mb-3 text-sm font-bold text-[#8b95a1]">서브도메인 (선택)</h4>
+                  <p className="text-xs text-[#6b7684] mb-3">배포 후 접속할 URL을 직접 정할 수 있습니다. 비워두면 자동 생성됩니다.</p>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 flex items-center rounded-lg bg-[#1b1b21] border border-[#3c3c45] overflow-hidden">
+                      <input
+                        type="text"
+                        value={customSubdomain}
+                        onChange={(e) => {
+                          const val = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+                          setCustomSubdomain(val);
+                          setSubdomainStatus('idle');
+                          setSubdomainMessage('');
+                        }}
+                        placeholder="my-beauty-shop"
+                        className="flex-1 bg-transparent px-3 py-2 text-sm text-[#f2f4f6] placeholder-[#4e4e5a] outline-none"
+                      />
+                      <span className="text-xs text-[#6b7684] pr-3 whitespace-nowrap">.foundry.ai.kr</span>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        if (!customSubdomain || customSubdomain.length < 3) {
+                          setSubdomainStatus('unavailable');
+                          setSubdomainMessage('3자 이상 입력해주세요');
+                          return;
+                        }
+                        setSubdomainStatus('checking');
+                        try {
+                          const res = await authFetch(`/projects/check-subdomain?name=${encodeURIComponent(customSubdomain)}`);
+                          const data = await res.json();
+                          if (data.available) {
+                            setSubdomainStatus('available');
+                            setSubdomainMessage('사용 가능합니다');
+                          } else {
+                            setSubdomainStatus('unavailable');
+                            setSubdomainMessage(data.reason || '이미 사용 중입니다');
+                          }
+                        } catch {
+                          setSubdomainStatus('unavailable');
+                          setSubdomainMessage('확인에 실패했습니다');
+                        }
+                      }}
+                      disabled={!customSubdomain || subdomainStatus === 'checking'}
+                      className="rounded-lg bg-[#3182f6] px-3 py-2 text-xs font-bold text-white hover:bg-[#1b64da] disabled:opacity-40 transition-colors whitespace-nowrap"
+                    >
+                      {subdomainStatus === 'checking' ? '확인 중...' : '중복 확인'}
+                    </button>
+                  </div>
+                  {subdomainMessage && (
+                    <p className={`mt-2 text-xs font-medium ${subdomainStatus === 'available' ? 'text-[#30d158]' : 'text-[#ef4444]'}`}>
+                      {subdomainMessage}
+                    </p>
+                  )}
                 </div>
 
                 <div className="mb-5 rounded-xl bg-[#2c2c35] p-4">

@@ -601,6 +601,10 @@ export default nextConfig;
       await this.syncLatestCodeToDisk(projectId, outputDir, appendLog);
 
       for (let attempt = 0; attempt <= MAX_BUILD_FIX_ATTEMPTS; attempt++) {
+        // ★ A-5: 재시도 시 DB→디스크 동기화 (F6이 DB에 머지 저장한 최신 코드 반영)
+        if (attempt > 0) {
+          await this.syncLatestCodeToDisk(projectId, outputDir, appendLog);
+        }
         // 매 시도 전 next.config 보장 (F6 AI 수정이 config를 덮어쓸 수 있음)
         this.ensureNextConfig(outputDir);
         appendLog(attempt === 0 ? 'next build 시작...' : `next build 재시도 (${attempt}/${MAX_BUILD_FIX_ATTEMPTS})...`);
@@ -679,6 +683,43 @@ export default nextConfig;
           }
           if (patternFixed > 0) {
             appendLog(`[패턴수정] ${patternFixed}개 파일 자동 수정 완료`);
+
+            // ★ A-5: 패턴 수정된 파일을 DB에도 반영 (머지 방식)
+            // 디스크만 수정하고 DB 미반영 시, F6 AI가 옛날 DB 코드를 읽어 작업하는 뒷문 봉쇄
+            try {
+              const latestForPattern = await this.prisma.project.findUnique({
+                where: { id: projectId },
+                select: { generatedCode: true, projectContext: true },
+              });
+              if (latestForPattern?.generatedCode) {
+                const patternFiles = latestForPattern.generatedCode as { path: string; content: string }[];
+                const lastModified: string[] = (latestForPattern.projectContext as any)?.lastModifiedFiles || [];
+                let patternDbUpdated = 0;
+
+                for (const bf of allBuildFiles) {
+                  const relPath = path.relative(outputDir, bf).replace(/\\/g, '/');
+                  // 사용자 인라인 편집 파일 보호
+                  if (lastModified.some(mf => relPath.includes(mf) || mf.includes(relPath))) continue;
+
+                  const diskContent = fs.readFileSync(bf, 'utf-8');
+                  const idx = patternFiles.findIndex(f => f.path === relPath || relPath.endsWith(f.path) || f.path.endsWith(relPath));
+                  if (idx >= 0 && patternFiles[idx].content !== diskContent) {
+                    patternFiles[idx] = { ...patternFiles[idx], content: diskContent };
+                    patternDbUpdated++;
+                  }
+                }
+
+                if (patternDbUpdated > 0) {
+                  await this.prisma.project.update({
+                    where: { id: projectId },
+                    data: { generatedCode: patternFiles as any },
+                  });
+                  appendLog(`[패턴수정] ${patternDbUpdated}개 파일 DB 동기화 완료`);
+                }
+              }
+            } catch (syncErr: any) {
+              this.logger.warn(`[패턴수정] DB 동기화 실패 (빌드 계속): ${syncErr.message}`);
+            }
           }
 
           // F6: AI 자동 수정 시도
@@ -939,11 +980,28 @@ export default nextConfig;
       else updatedFiles.push(fixed);
     }
 
+    // ★ A-5: globals.css import 자동 복구 — F6이 layout.tsx에서 import를 삭제했으면 복구
+    for (const f of updatedFiles) {
+      if (f.path.match(/layout\.tsx?$/) && !f.content.includes('globals.css')) {
+        f.content = `import './globals.css';\n${f.content}`;
+        const layoutPath = path.join(outputDir, f.path);
+        if (fs.existsSync(layoutPath)) {
+          fs.writeFileSync(layoutPath, f.content, 'utf-8');
+        }
+        this.logger.warn(`[F6] globals.css import 자동 복구: ${f.path}`);
+        fixedCount++;
+      }
+    }
+
     // DB 업데이트 (F6이 수정한 파일만 반영, 나머지는 최신 상태 유지)
-    await this.prisma.project.update({
-      where: { id: projectId },
-      data: { generatedCode: updatedFiles as any },
-    });
+    if (fixedCount > 0) {
+      await this.prisma.project.update({
+        where: { id: projectId },
+        data: { generatedCode: updatedFiles as any },
+      });
+      const fixedNames = modifyResult.filter(f => !lastModifiedFiles.some(mf => f.path.includes(mf) || mf.includes(f.path))).map(f => f.path);
+      this.logger.log(`[F6] 수정 파일: ${fixedNames.join(', ')} (${fixedCount}개만 DB 업데이트)`);
+    }
 
     return fixedCount;
   }

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Req, Query } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ProjectService } from './project.service';
 import { DeployService } from './deploy.service';
@@ -18,6 +18,13 @@ export class ProjectController {
     return this.projectService.list(req.user.userId);
   }
 
+  // ★ A-5: 서브도메인 중복 확인 API (반드시 :id 경로 위에!)
+  @Get('check-subdomain')
+  checkSubdomain(@Query('name') name: string) {
+    if (!name) return { available: false, reason: '서브도메인을 입력해주세요' };
+    return this.projectService.checkSubdomainAvailable(name.toLowerCase().trim());
+  }
+
   @Post()
   create(@Req() req: any, @Body() body: {
     name: string;
@@ -25,6 +32,7 @@ export class ProjectController {
     template: string;
     theme?: string;
     features?: any;
+    subdomain?: string;
   }) {
     return this.projectService.create(req.user.userId, body);
   }
