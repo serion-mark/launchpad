@@ -298,6 +298,7 @@ Foundry는 Static Export 전용 Next.js 앱을 생성합니다.
 🎨 테마 CSS 변수 규칙 (반드시 준수!):
 - globals.css에는 @import "tailwindcss" + :root(CSS 변수) + @theme inline(Tailwind 4.0 연동) + body 스타일이 모두 포함됨 (자동 생성)
 - globals.css를 절대 직접 생성하지 마세요! 시스템이 자동으로 올바른 globals.css를 생성합니다.
+- ⚠️ Tailwind v4: @tailwind base/components/utilities 금지! 반드시 @import "tailwindcss"; 사용!
 - 모든 컴포넌트에서 아래 CSS 변수를 사용:
   --color-primary: 주요 액션 색상 (버튼, 링크)
   --color-primary-hover: 주요 색상 hover
@@ -2135,6 +2136,7 @@ ${lastLines}`,
 - getServerSideProps/getStaticProps 금지 → useEffect + useState 패턴 사용
 - Image 컴포넌트 최적화 에러 시 → img 태그 사용 또는 next.config에 unoptimized:true
 - globals.css import는 절대 제거하지 마! (import './globals.css' 또는 import '@/app/globals.css') — 이걸 삭제하면 전체 CSS가 깨짐
+- globals.css는 반드시 @import "tailwindcss"; 한 줄로 시작해! @tailwind base/components/utilities는 v3 방식이라 빌드 실패함!
 
 빌드 에러 로그:
 ${errorLog.slice(0, 1500)}

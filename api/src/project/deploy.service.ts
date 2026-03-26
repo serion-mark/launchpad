@@ -229,6 +229,31 @@ export default nextConfig;
     fs.writeFileSync(path.join(outputDir, 'next.config.mjs'), config, 'utf-8');
   }
 
+  /** ★ Tailwind v4 보장: globals.css에 @tailwind base 있으면 @import "tailwindcss" 로 교체 */
+  private ensureTailwindV4(outputDir: string) {
+    const candidates = [
+      path.join(outputDir, 'src', 'app', 'globals.css'),
+      path.join(outputDir, 'app', 'globals.css'),
+    ];
+    for (const cssPath of candidates) {
+      if (!fs.existsSync(cssPath)) continue;
+      let css = fs.readFileSync(cssPath, 'utf-8');
+      if (css.includes('@tailwind base') || css.includes('@tailwind components') || css.includes('@tailwind utilities')) {
+        // v3 → v4 교체
+        css = css
+          .replace(/@tailwind\s+base\s*;?\n?/g, '')
+          .replace(/@tailwind\s+components\s*;?\n?/g, '')
+          .replace(/@tailwind\s+utilities\s*;?\n?/g, '');
+        // @import "tailwindcss" 가 없으면 맨 앞에 추가
+        if (!css.includes('@import "tailwindcss"') && !css.includes("@import 'tailwindcss'")) {
+          css = `@import "tailwindcss";\n\n${css}`;
+        }
+        fs.writeFileSync(cssPath, css, 'utf-8');
+        this.logger.warn(`[Tailwind v4] globals.css @tailwind → @import "tailwindcss" 교체: ${cssPath}`);
+      }
+    }
+  }
+
   /**
    * package.json 보정 — 빌드에 필요한 의존성 보장
    */
@@ -607,6 +632,8 @@ export default nextConfig;
         }
         // 매 시도 전 next.config 보장 (F6 AI 수정이 config를 덮어쓸 수 있음)
         this.ensureNextConfig(outputDir);
+        // ★ Tailwind v4 보장: globals.css에 @tailwind base 있으면 → @import "tailwindcss" 로 교체
+        this.ensureTailwindV4(outputDir);
         appendLog(attempt === 0 ? 'next build 시작...' : `next build 재시도 (${attempt}/${MAX_BUILD_FIX_ATTEMPTS})...`);
         try {
           execSync('npx next build 2>&1', {
