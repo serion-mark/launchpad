@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter } from 'events';
+import * as path from 'path';
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { CreditService, type ModelTier as CreditModelTier } from '../credit/credit.service';
@@ -1090,25 +1091,105 @@ ${JSON.stringify(dbTables, null, 2)}
         }
       }
 
-      // ── Step 3: 프론트엔드 페이지 생성 (Supabase 연동) ──
-      this.logger.log(`[${params.projectId}] Step 3: 프론트엔드 페이지 생성 (Supabase)`);
+      // ── Step 3: 프론트엔드 페이지 생성 (파일별 개별 생성) ──
+      // Phase B-1: 파일 1개씩 개별 생성 → 잘림 없음, F4 불필요, 품질 향상
+      this.logger.log(`[${params.projectId}] Step 3: 프론트엔드 페이지 생성 (파일별 분리)`);
       steps.push({ step: 'frontend', status: 'in_progress', fileCount: 0 });
 
       const pages = architecture.pages || [];
-      emitter?.emit('progress', { step: 'frontend', progress: '3/4', message: '프론트엔드 페이지 생성 중...', fileCount: allFiles.length, totalFiles: (pages.length || 5) + 15 } as GenerationProgress);
       let frontendFileCount = 0;
 
       // 테이블 이름 목록 (프론트엔드에서 참조)
       const tableNames = dbTables.map((t: any) => t.name).join(', ');
 
-      for (const page of pages) {
-        const frontendResult = await this.callWithFallback(tier, FRONTEND_SYSTEM_PROMPT, [{
-          role: 'user',
-          content: `Next.js + Supabase 페이지를 생성해주세요.
+      // ★ B-1: 아키텍처에서 생성할 파일 목록을 평탄화
+      // 각 page → page.tsx 1개 (컴포넌트는 같은 파일에 인라인)
+      // 복잡한 컴포넌트가 3개 이상이면 별도 파일로 분리
+      interface FileTask {
+        filePath: string;       // 예: src/app/dashboard/page.tsx
+        pageName: string;       // 예: 대시보드
+        pageDescription: string;
+        components: string[];   // 이 파일에 포함될 컴포넌트
+        isComponent: boolean;   // page.tsx인지 컴포넌트 파일인지
+      }
 
-페이지: ${page.name} (${page.path})
-설명: ${page.description}
-컴포넌트: ${(page.components || []).join(', ')}
+      const fileTasks: FileTask[] = [];
+      for (const page of pages) {
+        const comps = page.components || [];
+        const basePath = `src/app${page.path}`;
+
+        if (comps.length <= 3) {
+          // 컴포넌트 3개 이하: page.tsx 1파일에 모두 포함
+          fileTasks.push({
+            filePath: `${basePath}/page.tsx`,
+            pageName: page.name,
+            pageDescription: page.description || '',
+            components: comps,
+            isComponent: false,
+          });
+        } else {
+          // 컴포넌트 4개 이상: page.tsx + 컴포넌트 파일 분리
+          // page.tsx: 메인 레이아웃 + import
+          fileTasks.push({
+            filePath: `${basePath}/page.tsx`,
+            pageName: page.name,
+            pageDescription: page.description || '',
+            components: comps.slice(0, 2), // 핵심 2개만 인라인
+            isComponent: false,
+          });
+          // 나머지 컴포넌트: 2개씩 묶어서 파일로
+          const remaining = comps.slice(2);
+          for (let i = 0; i < remaining.length; i += 2) {
+            const batch = remaining.slice(i, i + 2);
+            const fileName = batch[0].replace(/([A-Z])/g, '-$1').toLowerCase().replace(/^-/, '');
+            fileTasks.push({
+              filePath: `${basePath}/components/${fileName}.tsx`,
+              pageName: page.name,
+              pageDescription: `${page.name}의 컴포넌트: ${batch.join(', ')}`,
+              components: batch,
+              isComponent: true,
+            });
+          }
+        }
+      }
+
+      const totalFrontendFiles = fileTasks.length;
+      emitter?.emit('progress', { step: 'frontend', progress: '3/4', message: `프론트엔드 ${totalFrontendFiles}개 파일 생성 시작...`, fileCount: allFiles.length, totalFiles: totalFrontendFiles + 15 } as GenerationProgress);
+
+      // ★ B-1: 파일별 개별 생성 루프
+      const generatedFileList: string[] = []; // 이미 생성된 파일 목록 (import 일관성용)
+
+      for (let fi = 0; fi < fileTasks.length; fi++) {
+        const task = fileTasks[fi];
+
+        // 이미 생성된 파일 컨텍스트 (최근 5개만 — 토큰 절약)
+        const recentContext = generatedFileList.slice(-5).map(fp => `- ${fp}`).join('\n');
+
+        const filePrompt = task.isComponent
+          ? `다음 컴포넌트 파일 1개만 생성해주세요. 다른 파일은 생성하지 마세요!
+
+파일 경로: ${task.filePath}
+소속 페이지: ${task.pageName}
+생성할 컴포넌트: ${task.components.join(', ')}
+
+앱 이름: ${architecture.appName || ''}
+테마: ${params.theme || 'basic-light'}
+DB 테이블: ${tableNames}
+
+⚠️ 규칙:
+- [FILE: ${task.filePath}] 형식으로 이 파일 1개만 출력!
+- export로 컴포넌트를 내보내세요 (page.tsx에서 import할 수 있도록)
+- 'use client' 첫 줄 필수
+- Supabase 클라이언트: import { createClient } from '@/utils/supabase/client'
+
+${recentContext ? `이미 생성된 파일 (import 참고):\n${recentContext}` : ''}`
+
+          : `다음 페이지 파일 1개만 생성해주세요. 다른 파일은 생성하지 마세요!
+
+파일 경로: ${task.filePath}
+페이지: ${task.pageName} (${pages.find(p => task.filePath.includes(p.path))?.path || '/'})
+설명: ${task.pageDescription}
+포함할 컴포넌트: ${task.components.join(', ') || '없음 (단순 페이지)'}
 
 앱 이름: ${architecture.appName || ''}
 테마: ${params.theme || 'basic-light'}
@@ -1117,37 +1198,43 @@ DB 테이블: ${tableNames}
 Supabase SQL 스키마:
 ${schemaContent}
 
-⚠️ 반드시 Supabase 클라이언트로 데이터 조회/저장하세요:
-import { createClient } from '@/utils/supabase/client'
-const supabase = createClient()
+⚠️ 규칙:
+- [FILE: ${task.filePath}] 형식으로 이 파일 1개만 출력!
+- 컴포넌트는 같은 파일 안에 정의하세요 (별도 파일 X)
+- 'use client' 첫 줄 필수
+- Supabase 클라이언트: import { createClient } from '@/utils/supabase/client'
+- 로그인/회원가입: supabase.auth.signInWithPassword / signUp
+- 데이터 CRUD: supabase.from('테이블명').select/insert/update/delete
 
-로그인/회원가입 페이지인 경우:
-- supabase.auth.signInWithPassword({ email, password })
-- supabase.auth.signUp({ email, password, options: { data: { name } } })
-- 성공 시 router.push('/dashboard')
+${recentContext ? `이미 생성된 파일 (import 참고):\n${recentContext}` : ''}
+${smartAnalysisContext ? `\n${smartAnalysisContext}\n위 분석을 참고하세요.` : ''}`;
 
-데이터 페이지인 경우:
-- const { data } = await supabase.from('테이블명').select('*').eq('user_id', user.id)
-- await supabase.from('테이블명').insert([{ ... }])
-${smartAnalysisContext ? `\n${smartAnalysisContext}\n위 분석을 참고하여 이 페이지의 UI/UX를 설계하세요.` : ''}`,
+        const frontendResult = await this.callWithFallback(tier, FRONTEND_SYSTEM_PROMPT, [{
+          role: 'user',
+          content: filePrompt,
         }]);
 
         if (frontendResult.fellBack) fellBack = true;
 
-        const frontendFiles = this.parseFileOutput(frontendResult.content, `src/app${page.path}`);
-        if (frontendFiles.length === 0) {
-          allFiles.push({ path: `src/app${page.path}/page.tsx`, content: frontendResult.content });
+        // 파일 파싱 — 1개 파일만 기대하지만 AI가 여러 개 줄 수도 있으므로 parseFileOutput 사용
+        const parsedFiles = this.parseFileOutput(frontendResult.content, path.dirname(task.filePath));
+        if (parsedFiles.length === 0) {
+          // AI가 [FILE:] 태그 없이 코드만 출력한 경우
+          allFiles.push({ path: task.filePath, content: frontendResult.content });
+          generatedFileList.push(task.filePath);
           frontendFileCount++;
         } else {
-          allFiles.push(...frontendFiles);
-          frontendFileCount += frontendFiles.length;
+          allFiles.push(...parsedFiles);
+          generatedFileList.push(...parsedFiles.map(f => f.path));
+          frontendFileCount += parsedFiles.length;
         }
-        // SSE에 생성된 파일 내용 포함 (실시간 미리보기용)
-        const latestFiles = frontendFiles.length > 0 ? frontendFiles : [{ path: `src/app${page.path}/page.tsx`, content: frontendResult.content }];
+
+        // SSE 진행률
+        const latestFiles = parsedFiles.length > 0 ? parsedFiles : [{ path: task.filePath, content: frontendResult.content }];
         emitter?.emit('progress', {
           step: 'frontend', progress: '3/4',
-          message: `페이지 생성 완료: ${page.name}`,
-          detail: page.path,
+          message: `파일 생성 완료 (${fi + 1}/${totalFrontendFiles}): ${path.basename(task.filePath)}`,
+          detail: task.filePath,
           fileCount: allFiles.length,
           generatedFiles: latestFiles.map(f => ({ path: f.path, content: f.content })),
         } as GenerationProgress);
