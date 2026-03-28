@@ -656,6 +656,30 @@ export default nextConfig;
         this.ensureNextConfig(outputDir);
         this.ensurePostcssConfig(outputDir);
         this.ensureTailwindV4(outputDir);
+
+        // ★ tsc 사전 검증 — 빌드(2분) 전에 문법 에러를 3초 만에 잡아서 F6 개입 최소화
+        try {
+          execSync('npx tsc --noEmit --pretty false 2>&1', {
+            cwd: outputDir,
+            timeout: 30_000,
+            stdio: 'pipe',
+          });
+          appendLog('tsc 검증 통과');
+        } catch (tscErr: any) {
+          const tscOutput = (tscErr.stdout?.toString() || tscErr.stderr?.toString() || '').slice(0, 3000);
+          appendLog(`tsc 에러 발견 → AI 사전 수정 시도`);
+          try {
+            const fixed = await this.aiBuildFix(projectId, userId, outputDir, tscOutput);
+            if (fixed) {
+              appendLog(`[tsc] AI가 ${fixed}개 파일 사전 수정 완료`);
+              await this.syncLatestCodeToDisk(projectId, outputDir, appendLog);
+              this.ensureNextConfig(outputDir);
+              this.ensurePostcssConfig(outputDir);
+              this.ensureTailwindV4(outputDir);
+            }
+          } catch { /* tsc 수정 실패해도 빌드는 시도 */ }
+        }
+
         appendLog(attempt === 0 ? 'next build 시작...' : `next build 재시도 (${attempt}/${MAX_BUILD_FIX_ATTEMPTS})...`);
         try {
           execSync('npx next build 2>&1', {
