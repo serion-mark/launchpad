@@ -3,19 +3,12 @@
 import LandingNav from './components/LandingNav';
 import Footer from './components/Footer';
 import ChatWidget from './components/ChatWidget';
-import AppMockup from './components/AppMockup';
-
-type MockupType = 'pos' | 'matching' | 'lms' | 'shop' | 'facility' | 'farm' | 'expert' | 'health' | 'social' | 'smartfarm';
-
-// ── 포트폴리오 예시 데이터 (대표 4개) ──
-const PORTFOLIO_ITEMS: {
-  name: string; category: string; icon: string; desc: string; time: string;
-  features: string[]; badge: string; mockup: MockupType; screenshot?: string; liveUrl?: string;
-}[] = [
-  { name: '헤어드림 POS', category: '미용실', icon: '✂️', desc: '예약 + 매출 + 고객CRM + 디자이너 정산', time: '~30분', features: ['예약관리', '매출통계', '알림톡'], badge: '지역', mockup: 'pos' },
-  { name: '펫메이트', category: 'O2O 매칭', icon: '🐾', desc: '반려동물 돌봄 매칭 + 실시간 상태 추적', time: '~30분', features: ['매칭시스템', '실시간추적', '리뷰'], badge: '테크', mockup: 'matching', screenshot: '/screenshots/petmate.png', liveUrl: 'https://foundry.ai.kr/petmate/dashboard' },
-  { name: '백설공주 사과농장', category: '지역특산품', icon: '🍎', desc: '산지직송 농산물몰 + 정기배송 + 체험예약', time: '~30분', features: ['산지직송', '정기배송', '체험예약'], badge: '지역', mockup: 'farm' },
-  { name: '취미모아', category: '소셜/매칭', icon: '💕', desc: '취미 기반 동호회 매칭 + 모임 관리', time: '~30분', features: ['프로필매칭', '그룹채팅', '모임일정'], badge: '테크', mockup: 'social' },
+// ── 포트폴리오 예시 데이터 (대표 4개 — 실제 라이브 앱) ──
+const PORTFOLIO_ITEMS = [
+  { name: '백설공주 사과농장', category: '지역특산품', screenshot: '/portfolio/apple-farm.png', url: 'https://app-7063.foundry.ai.kr', desc: '로컬 농산물 주간배송 주문 서비스', features: ['산지직송', '정기배송', '체험예약'], view: 'pc' as const },
+  { name: '카페노트', category: '매장관리', screenshot: '/portfolio/cafe-note.png', url: 'https://cafe-note.foundry.ai.kr', desc: '1인 카페 매출·재고 대시보드', features: ['매출통계', '재고관리', '대시보드'], view: 'pc' as const },
+  { name: '꿀잠체크', category: '헬스케어', screenshot: '/portfolio/sleep-check.png', url: 'https://sleep-check.foundry.ai.kr', desc: 'AI 수면 패턴 분석 셀프 진단', features: ['AI진단', '수면분석', '리포트'], view: 'mobile' as const },
+  { name: '스마트몰', category: '쇼핑몰', screenshot: '/portfolio/smart-mall.png', url: 'https://smart-mall.foundry.ai.kr', desc: '건강기능식품 멤버십 쇼핑몰', features: ['상품관리', '멤버십', '결제'], view: 'mobile' as const },
 ];
 
 // ── 크레딧 충전 패키지 ──
@@ -200,36 +193,37 @@ export default function LandingPage() {
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {PORTFOLIO_ITEMS.map(item => (
-              <div key={item.name} className="rounded-2xl border border-[#2c2c35] bg-[#17171c] overflow-hidden hover:border-[#3182f6]/30 transition-colors">
-                <div className="bg-gradient-to-br from-[#3182f6]/10 to-[#a855f7]/10 p-4 relative">
-                  <span className={`absolute top-3 right-3 z-10 rounded-full px-2 py-0.5 text-[10px] font-bold ${item.badge === '지역' ? 'bg-[#30d158]/10 text-[#30d158]' : 'bg-[#a855f7]/10 text-[#a855f7]'}`}>{item.badge}</span>
-                  {item.screenshot ? (
-                    <div className="relative">
-                      <img src={item.screenshot} alt={item.name} className="w-full rounded-lg border border-[#2c2c35]/50" />
-                      {item.liveUrl && (
-                        <a href={item.liveUrl} target="_blank" rel="noopener noreferrer" className="absolute bottom-2 right-2 rounded-full bg-[#30d158] px-2 py-0.5 text-[9px] font-bold text-white hover:bg-[#28b84c] transition-colors">
-                          LIVE
-                        </a>
-                      )}
+              <a key={item.name} href={item.url} target="_blank" rel="noopener noreferrer" className="group rounded-2xl border border-[#2c2c35] bg-[#17171c] overflow-hidden hover:border-[#3182f6]/30 transition-colors">
+                {/* 스크린샷 */}
+                <div className="relative h-44 overflow-hidden bg-gradient-to-b from-[#2c2c35] to-[#1b1b21] flex items-center justify-center py-2">
+                  {item.view === 'mobile' ? (
+                    <div className="relative h-full w-auto rounded-lg overflow-hidden shadow-xl border border-[#3c3c45]">
+                      <img src={item.screenshot} alt={item.name} className="h-full w-auto object-contain group-hover:scale-105 transition-transform duration-300" />
                     </div>
                   ) : (
-                    <AppMockup type={item.mockup} />
+                    <div className="relative w-[90%] rounded-md overflow-hidden shadow-xl border border-[#3c3c45]">
+                      <div className="bg-[#2c2c35] px-2 py-1 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#ff5f57]" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#febc2e]" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#28c840]" />
+                      </div>
+                      <img src={item.screenshot} alt={item.name} className="w-full object-cover object-top group-hover:scale-105 transition-transform duration-300" />
+                    </div>
                   )}
-                  <div className="mt-2 text-center">
-                    <h3 className="text-base font-bold">{item.name}</h3>
-                    <span className="mt-1 inline-block rounded-full bg-[#2c2c35] px-2.5 py-0.5 text-[10px] text-[#8b95a1]">{item.category}</span>
-                  </div>
+                  <span className="absolute top-2 right-2 z-10 rounded-full bg-[#30d158] px-2 py-0.5 text-[9px] font-bold text-white">접속하기</span>
                 </div>
-                <div className="p-5">
+                {/* 본문 */}
+                <div className="p-4">
+                  <h3 className="text-sm font-bold mb-0.5 group-hover:text-[#3182f6] transition-colors">{item.name}</h3>
+                  <span className="inline-block rounded-full bg-[#2c2c35] px-2 py-0.5 text-[10px] text-[#8b95a1] mb-2">{item.category}</span>
                   <p className="mb-3 text-xs text-[#8b95a1] leading-relaxed">{item.desc}</p>
-                  <div className="flex flex-wrap gap-1 mb-3">
+                  <div className="flex flex-wrap gap-1">
                     {item.features.map(f => (
                       <span key={f} className="rounded-md bg-[#3182f6]/10 px-2 py-0.5 text-[10px] font-medium text-[#3182f6]">{f}</span>
                     ))}
                   </div>
-                  <a href="/start" className="block text-center text-xs font-bold text-[#3182f6] hover:underline">이 앱 만들기 &rarr;</a>
                 </div>
-              </div>
+              </a>
             ))}
           </div>
 
