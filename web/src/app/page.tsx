@@ -319,7 +319,7 @@ export default function LandingPage() {
 
           {/* CTA */}
           <div className="text-center">
-            <p className="text-[#8b95a1] mb-4">10분 만에 MVP를 만들어보세요</p>
+            <p className="text-[#8b95a1] mb-4">30분 만에 MVP를 만들어보세요</p>
             <a
               href="/start"
               className="inline-block rounded-2xl bg-[#3182f6] px-10 py-4 text-lg font-bold text-white hover:bg-[#1b64da] transition-colors shadow-lg shadow-[#3182f6]/25"
