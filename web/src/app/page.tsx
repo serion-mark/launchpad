@@ -239,6 +239,97 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── MVP 섹션: 왜 MVP를 먼저 만들어야 하나? ── */}
+      <section className="px-4 py-20 md:py-28 bg-[#0c0c12]">
+        <div className="mx-auto max-w-6xl">
+          {/* 타이틀 */}
+          <div className="text-center mb-12 md:mb-16">
+            <div className="text-5xl mb-4">💡</div>
+            <h2 className="text-2xl md:text-4xl font-bold leading-tight tracking-tight">
+              외주사·개발자를 만나기 전에,<br />
+              <span className="text-[#3182f6]">MVP를 먼저 만들어 가세요.</span>
+            </h2>
+          </div>
+
+          {/* 비교 카드 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16">
+            {/* 왼쪽: MVP 없이 */}
+            <div className="rounded-2xl bg-[#13131a] border border-[#2c2c35] p-6 md:p-8 hover:scale-[1.01] transition-transform">
+              <h3 className="text-xl font-bold text-[#ef4444] mb-6">❌ MVP 없이 미팅하면</h3>
+              <div className="space-y-5">
+                {[
+                  { icon: '💰', title: '견적', value: '3,000만 원~', sub: '외주 에이전시 평균 단가' },
+                  { icon: '🗣️', title: '소통', value: '"기획서 있으세요?" "화면 설계서는요?"', sub: '요구사항 전달 실패 → 기획 증발' },
+                  { icon: '⏰', title: '기간', value: '3~6개월', sub: '개발 시작까지만 2개월' },
+                  { icon: '😰', title: '결과', value: '"이거 아닌데..."', sub: '돈 쓰고 나서야 깨달음' },
+                ].map(item => (
+                  <div key={item.title} className="flex gap-3">
+                    <span className="text-xl shrink-0">{item.icon}</span>
+                    <div>
+                      <div className="text-xs text-[#6b7684] mb-0.5">{item.title}</div>
+                      <div className="text-sm font-bold text-[#f2f4f6]">{item.value}</div>
+                      <div className="text-xs text-[#ef4444]/70 mt-0.5">{item.sub}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 오른쪽: MVP 들고 */}
+            <div className="rounded-2xl bg-[#1a1a2e] border border-[#3182f6]/40 p-6 md:p-8 hover:scale-[1.01] transition-transform">
+              <h3 className="text-xl font-bold text-[#10b981] mb-6">✅ MVP 들고 미팅하면</h3>
+              <div className="space-y-5">
+                {[
+                  { icon: '💰', title: '견적', value: '1,500만 원', sub: 'MVP가 기획서 역할 → 견적 50% 절감' },
+                  { icon: '🗣️', title: '소통', value: '"이거 기반으로 해주세요"', sub: '화면 보여주면 끝 → 소통 비용 제로' },
+                  { icon: '⏰', title: '기간', value: '1~2개월', sub: '이미 구조가 잡혀있으니 바로 개발' },
+                  { icon: '😊', title: '결과', value: '"딱 이거 맞아요!"', sub: '원하는 결과물 → 실패 방지' },
+                ].map(item => (
+                  <div key={item.title} className="flex gap-3">
+                    <span className="text-xl shrink-0">{item.icon}</span>
+                    <div>
+                      <div className="text-xs text-[#6b7684] mb-0.5">{item.title}</div>
+                      <div className="text-sm font-bold text-[#f2f4f6]">{item.value}</div>
+                      <div className="text-xs text-[#10b981]/70 mt-0.5">{item.sub}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Foundry가 드리는 것 */}
+          <div className="text-center mb-8">
+            <h3 className="text-xl md:text-2xl font-bold">Foundry가 드리는 것</h3>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+            {[
+              { icon: '📱', title: '기획서 대신 실제 화면', desc: '말로 설명할 필요 없이, 동작하는 앱을 보여주세요' },
+              { icon: '💰', title: '외주 견적 협상의 무기', desc: 'MVP가 있으면 견적이 절반으로 줄어듭니다' },
+              { icon: '🧪', title: '고객 반응 먼저 테스트', desc: '돈 쓰기 전에, 진짜 고객이 원하는지 확인하세요' },
+              { icon: '📦', title: '코드 다운로드', desc: '생성된 코드를 받아서 개발자에게 바로 전달 가능' },
+            ].map(item => (
+              <div key={item.title} className="rounded-xl border border-[#2c2c35] bg-[#13131a] p-5 text-center hover:border-[#3182f6]/30 transition-colors">
+                <div className="text-3xl mb-3">{item.icon}</div>
+                <h4 className="text-sm font-bold mb-2">{item.title}</h4>
+                <p className="text-xs text-[#8b95a1] leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA */}
+          <div className="text-center">
+            <p className="text-[#8b95a1] mb-4">10분 만에 MVP를 만들어보세요</p>
+            <a
+              href="/start"
+              className="inline-block rounded-2xl bg-[#3182f6] px-10 py-4 text-lg font-bold text-white hover:bg-[#1b64da] transition-colors shadow-lg shadow-[#3182f6]/25"
+            >
+              무료로 시작하기 &rarr;
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* ── 가격 요약 ──────────────────────────── */}
       <section className="px-5 py-20 md:py-28">
         <div className="mx-auto max-w-5xl">
