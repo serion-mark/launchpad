@@ -735,6 +735,24 @@ function StartPage() {
         .then(data => { if (data?.balance != null) setCreditBalance(data.balance); })
         .catch(() => {});
     }
+
+    // AI 회의실에서 "이걸로 앱 만들기" 클릭 시 회의 결과 자동 반영
+    const meetingContext = sessionStorage.getItem('meeting_context');
+    if (meetingContext) {
+      sessionStorage.removeItem('meeting_context');
+      const customTemplate = TEMPLATES.find(t => t.id === 'custom');
+      if (customTemplate) {
+        setSelectedTemplate(customTemplate);
+        const requiredIds = new Set(customTemplate.features.filter(f => f.required).map(f => f.id));
+        setSelectedFeatures(requiredIds);
+        const nameMatch = meetingContext.match(/서비스명[:\]]\s*(.+?)[\n\r]/) || meetingContext.match(/^(.+?)[\s\-—–(\[]/) || [null, '새 프로젝트'];
+        const appName = nameMatch[1]?.trim().slice(0, 30) || '새 프로젝트';
+        setProjectName(appName);
+        setAnswers({ biz_name: appName, biz_desc: meetingContext.slice(0, 500) });
+        setCustomRequirements(`AI 회의실 분석 결과:\n${meetingContext}`);
+        setStep('questionnaire');
+      }
+    }
   }, []);
 
   const sendChatMessage = async () => {
