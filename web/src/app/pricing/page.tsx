@@ -12,7 +12,7 @@ const PLANS = [
     credits: 5000,
     perCredit: '9.8원/cr',
     desc: 'AI 회의실 + 스마트 분석 체험',
-    features: ['크레딧 5,000 지급', 'AI 회의실 + 스마트 분석 체험', 'AI 채팅 상담', '이메일 지원'],
+    features: ['크레딧 5,000 지급', 'AI 회의실 + 스마트 분석 체험', 'AI 채팅 상담', '이메일 지원', 'ZIP 다운로드 (10,000cr 별도)'],
     note: '앱 생성은 스탠다드부터 가능!',
     highlight: false,
   },
@@ -23,7 +23,7 @@ const PLANS = [
     perCredit: '7.5원/cr',
     desc: '앱 1개 + 수정 여유',
     badge: '가장 인기',
-    features: ['크레딧 20,000 지급', '앱 1개 + 수정 여유', 'AI 회의실 + 스마트 분석', 'ZIP 다운로드 가능', '이메일 지원'],
+    features: ['크레딧 20,000 지급', '앱 1개 + 수정 여유', 'AI 회의실 + 스마트 분석', 'ZIP 다운로드 포함!', '이메일 지원'],
     highlight: true,
   },
   {
@@ -32,7 +32,7 @@ const PLANS = [
     credits: 50000,
     perCredit: '6.0원/cr',
     desc: '앱 3개 이상 + 충분한 수정',
-    features: ['크레딧 50,000 지급', '앱 3개 이상 생성', 'AI 회의실 + 스마트 분석', 'ZIP 다운로드 가능', '우선 이메일 지원', 'cr당 최저 단가 (6.0원)'],
+    features: ['크레딧 50,000 지급', '앱 3개 이상 생성', 'AI 회의실 + 스마트 분석', 'ZIP 다운로드 포함!', '우선 이메일 지원', 'cr당 최저 단가 (6.0원)'],
     highlight: false,
   },
 ];
@@ -103,9 +103,11 @@ export default function PricingPage() {
 
               <ul className="mb-8 flex-1 space-y-2.5">
                 {plan.features.map(f => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-[#8b95a1]">
-                    <span className="mt-0.5 text-[#30d158]">✓</span>
-                    {f}
+                  <li key={f} className={`flex items-start gap-2 text-sm ${f.includes('별도') ? 'text-[#6b7684]' : 'text-[#8b95a1]'}`}>
+                    <span className={`mt-0.5 ${f.includes('별도') ? 'text-[#ef4444]' : f.includes('포함!') ? 'text-[#3182f6]' : 'text-[#30d158]'}`}>
+                      {f.includes('별도') ? '✗' : '✓'}
+                    </span>
+                    {f.includes('포함!') ? <span className="font-semibold text-[#f2f4f6]">{f}</span> : f}
                   </li>
                 ))}
               </ul>

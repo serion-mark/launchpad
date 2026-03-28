@@ -60,7 +60,8 @@ export default function CreditConfirmModal({
             <h3 className="text-lg font-bold text-[#f2f4f6] mb-1">📦 소스코드 다운로드</h3>
             <p className="text-sm text-[#8b95a1] mb-4">전체 소스코드를 ZIP으로 다운로드합니다. 코드 소유권 100% 보장.</p>
             <div className="rounded-xl bg-[#2c2c35] p-4 mb-4 space-y-3">
-              <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">다운로드 비용</span><span className="text-[#ffd60a] font-bold">3,000 크레딧</span></div>
+              <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">다운로드 비용</span><span className="text-[#ffd60a] font-bold">10,000 크레딧</span></div>
+              <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">스탠다드/프로/모두의창업</span><span className="text-[#30d158] font-bold">무료 포함!</span></div>
               <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">포함 내용</span><span className="text-[#f2f4f6]">프론트+백엔드+DB 전체</span></div>
               <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">ERD + API 명세</span><span className="text-[#30d158]">✅ 포함</span></div>
               <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">코드 소유권</span><span className="text-[#30d158]">✅ 100% 사용자 소유</span></div>
@@ -68,14 +69,14 @@ export default function CreditConfirmModal({
             <div className="rounded-xl bg-[#ffd60a]/10 border border-[#ffd60a]/20 p-3 mb-4">
               <p className="text-xs text-[#ffd60a]">💡 <b>절약 팁:</b> 배포(월 29,000원)로 먼저 사용해보고, 만족하면 다운로드하세요. 배포 중에도 수정이 가능합니다!</p>
             </div>
-            {creditBalance !== null && creditBalance < 3000 && (
+            {creditBalance !== null && creditBalance < 10000 && (
               <div className="rounded-xl bg-[#f43f5e]/10 border border-[#f43f5e]/20 p-3 mb-4">
                 <p className="text-xs text-[#f43f5e]">⚠️ 크레딧 부족 (현재 {creditBalance.toLocaleString()}) — <a href="/credits" className="underline font-bold">충전하러 가기</a></p>
               </div>
             )}
             <div className="flex gap-3">
               <button onClick={() => setShowCostModal(null)} className="flex-1 rounded-xl bg-[#2c2c35] py-3 text-sm font-medium text-[#8b95a1] hover:bg-[#3a3a45]">취소</button>
-              <button onClick={() => { setShowCostModal(null); onDownload(); }} className="flex-1 rounded-xl bg-[#a855f7] py-3 text-sm font-bold text-white hover:bg-[#9333ea]" disabled={creditBalance !== null && creditBalance < 3000}>3,000 크레딧 다운로드</button>
+              <button onClick={() => { setShowCostModal(null); onDownload(); }} className="flex-1 rounded-xl bg-[#a855f7] py-3 text-sm font-bold text-white hover:bg-[#9333ea]" disabled={creditBalance !== null && creditBalance < 10000}>10,000 크레딧 다운로드</button>
             </div>
           </>
         )}

@@ -19,7 +19,7 @@ export const CREDIT_COSTS = {
   ai_modify: 500,            // AI 수정 (레거시 호환)
   ai_chat: 30,               // AI 대화 (질문/일반대화)
   premium_theme: 1000,       // 프리미엄 테마 적용
-  code_download: 0,          // 코드 다운로드 (무료 — 앱 생성 시 포함)
+  code_download: 10000,       // 코드 다운로드 (10,000cr — 스탠다드/프로/모두의창업은 무료)
   server_deploy: 0,          // 서버 배포 (24시간 무료 체험 → 월 과금)
   free_trial: 0,             // 맛보기 설계안 (무료 1회)
   // AI 회의실 + 스마트 분석 + 이미지 생성

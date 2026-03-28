@@ -3,6 +3,8 @@ import { AuthGuard } from '@nestjs/passport';
 import { ProjectService } from './project.service';
 import { DeployService } from './deploy.service';
 import { GitHubService } from './github.service';
+import { CreditService } from '../credit/credit.service';
+import { PrismaService } from '../prisma.service';
 
 @Controller('projects')
 @UseGuards(AuthGuard('jwt'))
@@ -11,6 +13,8 @@ export class ProjectController {
     private projectService: ProjectService,
     private deployService: DeployService,
     private githubService: GitHubService,
+    private creditService: CreditService,
+    private prisma: PrismaService,
   ) {}
 
   @Get()
@@ -74,10 +78,23 @@ export class ProjectController {
     return this.deployService.getBuildStatus(id, req.user.userId);
   }
 
-  // ── 코드 다운로드 (매니페스트 조회 → 프론트에서 JSZip 조립) ──
+  // ── 코드 다운로드 (플랜별 과금 → 매니페스트 조회 → 프론트에서 JSZip 조립) ──
   @Get(':id/download')
-  download(@Req() req: any, @Param('id') id: string) {
-    return this.deployService.getDownloadManifest(id, req.user.userId);
+  async download(@Req() req: any, @Param('id') id: string) {
+    const userId = req.user.userId;
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    // 스탠다드/프로/모두의창업 → 무료 다운로드
+    const isFreeDownload =
+      user?.plan === 'standard' || user?.plan === 'pro' ||
+      (user?.planPrice && user.planPrice >= 490000);
+
+    if (!isFreeDownload) {
+      // 10,000cr 차감 (크레딧 부족 시 에러 throw)
+      await this.creditService.deduct(userId, 'code_download', id);
+    }
+
+    return this.deployService.getDownloadManifest(id, userId);
   }
 
   // ── Sprint 3: 버전 히스토리 ───────────────────────

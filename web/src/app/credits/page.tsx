@@ -288,13 +288,15 @@ export default function CreditsPage() {
           {[
             { key: 'credit' as const, label: '🔋 크레딧 충전' },
             { key: 'modu' as const, label: '🏛️ 모두의 창업' },
-            { key: 'independence' as const, label: '🚀 독립 패키지' },
+            { key: 'independence' as const, label: '🚀 독립 패키지 (준비 중)', disabled: true },
           ].map(tab => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => { if (!('disabled' in tab && tab.disabled)) setActiveTab(tab.key); }}
               className={`rounded-xl px-5 py-2.5 text-sm font-bold transition-colors ${
-                activeTab === tab.key
+                'disabled' in tab && tab.disabled
+                  ? 'bg-[#2c2c35] text-[#4e5968] cursor-not-allowed opacity-50'
+                  : activeTab === tab.key
                   ? 'bg-[#3182f6] text-white'
                   : 'bg-[#2c2c35] text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#3a3a45]'
               }`}
