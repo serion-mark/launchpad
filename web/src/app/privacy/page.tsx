@@ -11,7 +11,7 @@ export default function PrivacyPage() {
 
           <p className="text-xs text-[#6b7684]">시행일: 2026년 3월 21일</p>
 
-          <p>서리온(이하 &quot;회사&quot;)은 Foundry 서비스 이용자의 개인정보를 중요시하며, 「개인정보 보호법」을 준수합니다.</p>
+          <p>세리온(이하 &quot;회사&quot;)은 Foundry 서비스 이용자의 개인정보를 중요시하며, 「개인정보 보호법」을 준수합니다.</p>
 
           <h2>1. 수집하는 개인정보 항목</h2>
           <p><strong>필수 수집:</strong> 이메일 주소, 비밀번호(해시), 이름(닉네임)</p>
@@ -59,7 +59,7 @@ export default function PrivacyPage() {
 
           <p className="mt-10 text-xs text-[#6b7684]">
             시행일: 2026년 3월 21일<br />
-            서리온 대표: 김형석
+            세리온 대표: 김형석
           </p>
         </div>
       </main>

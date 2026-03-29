@@ -35,11 +35,13 @@ export default function Footer() {
 
           {/* 고객지원 */}
           <div>
-            <h4 className="mb-3 text-sm font-bold text-[#8b95a1]">고객지원</h4>
+            <h4 className="mb-3 text-sm font-bold text-[#8b95a1]">사업자 정보</h4>
             <ul className="space-y-2 text-sm text-[#6b7684]">
-              <li>이메일: mark@serion.ai.kr</li>
-              <li>사업자: 서리온</li>
-              <li>대표: 김형석</li>
+              <li>세리온 | 대표: 김형석</li>
+              <li>사업자등록번호: 754-13-02876</li>
+              <li>통신판매업: 제2025-경기김포-8949호</li>
+              <li>경기도 김포시 고촌읍 장차로13번길 25, 3층 302-498호</li>
+              <li>전화: 010-2164-3181 | 이메일: mark@serion.ai.kr</li>
             </ul>
           </div>
         </div>
