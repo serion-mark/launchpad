@@ -112,16 +112,37 @@ export default function ChatWidget() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const sendMessage = (text: string) => {
-    if (!text.trim()) return;
+  const [isLoading, setIsLoading] = useState(false);
+
+  const sendMessage = async (text: string) => {
+    if (!text.trim() || isLoading) return;
 
     const userMsg: Message = { role: 'user', text: text.trim() };
-    const { answer, link } = findAnswer(text);
-    const botMsg: Message = { role: 'bot', text: answer, link };
-
-    setMessages(prev => [...prev, userMsg, botMsg]);
+    setMessages(prev => [...prev, userMsg]);
     setInput('');
     setShowQuickButtons(false);
+    setIsLoading(true);
+
+    try {
+      const chatHistory = messages
+        .filter(m => m.role === 'user' || m.role === 'bot')
+        .slice(-10)
+        .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
+
+      const res = await fetch('/api/ai/homepage-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: text.trim(), chatHistory }),
+      });
+
+      if (!res.ok) throw new Error('API error');
+      const data = await res.json();
+      setMessages(prev => [...prev, { role: 'bot', text: data.content }]);
+    } catch {
+      setMessages(prev => [...prev, { role: 'bot', text: '죄송합니다, 일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' }]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -192,6 +213,17 @@ export default function ChatWidget() {
                 </div>
               </div>
             ))}
+            {isLoading && (
+              <div className="flex justify-start">
+                <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-[#2c2c35] px-4 py-2.5 text-sm text-[#8b95a1]">
+                  <span className="inline-flex gap-1">
+                    <span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
+                    <span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span>
+                    <span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span>
+                  </span>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
 
@@ -221,7 +253,7 @@ export default function ChatWidget() {
             />
             <button
               type="submit"
-              disabled={!input.trim()}
+              disabled={!input.trim() || isLoading}
               className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#3182f6] text-white disabled:opacity-40 hover:bg-[#1b64da] transition-colors"
             >
               <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
