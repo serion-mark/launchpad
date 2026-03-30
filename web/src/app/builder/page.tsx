@@ -414,6 +414,7 @@ function BuilderContent() {
       completionMsg += `⏰ 체험 종료: ${new Date(result.trialDeploy.trialExpiresAt).toLocaleString('ko-KR')}\n`;
       completionMsg += `\n지금 바로 앱을 확인해보세요!\n`;
     }
+    completionMsg += `\n⚠️ **미리보기 안내:** 서버 배포에 2~3분 소요됩니다. 우측 미리보기에 오류가 표시되면 잠시 후 자동으로 갱신됩니다. 새로고침 하시면 바로 확인 가능합니다.\n`;
     completionMsg += `\n수정이 필요하면 채팅으로 말씀해주세요.`;
     if (!result.trialDeploy) {
       completionMsg += `\n완료되면 **"다운로드"** 또는 **"배포"** 버튼을 이용하세요!`;

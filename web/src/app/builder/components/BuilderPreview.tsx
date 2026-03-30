@@ -230,8 +230,20 @@ export default function BuilderPreview({
           </div>
         )}
 
-        {/* ── done: 배포 URL iframe (핵심!!) ── */}
-        {buildPhase === 'done' && deployedUrl && (
+        {/* ── done: 배포 중 (buildStatus가 아직 done이 아닐 때) ── */}
+        {buildPhase === 'done' && deployedUrl && project?.buildStatus !== 'done' && project?.status !== 'deployed' && (
+          <div className="flex h-full items-center justify-center text-center">
+            <div className="max-w-[320px]">
+              <div className="mb-4 text-4xl animate-spin">⏳</div>
+              <p className="text-sm font-medium text-[#f2f4f6]">서버에 배포 중입니다...</p>
+              <p className="text-xs mt-2 text-[#6b7684]">약 2~3분 소요됩니다. 잠시만 기다려주세요.</p>
+              <p className="text-xs mt-1 text-[#4e5968]">완료되면 자동으로 미리보기가 표시됩니다</p>
+            </div>
+          </div>
+        )}
+
+        {/* ── done: 배포 URL iframe (배포 완료 후에만!) ── */}
+        {buildPhase === 'done' && deployedUrl && (project?.buildStatus === 'done' || project?.status === 'deployed') && (
           <div className="relative h-full w-full flex items-center justify-center">
             <div
               className={`h-full overflow-hidden ${previewMode === 'mobile' ? 'w-[375px]' : 'w-full'}`}
