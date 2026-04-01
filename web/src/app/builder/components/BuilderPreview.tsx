@@ -171,7 +171,7 @@ export default function BuilderPreview({
   }, [buildPhase, projectId, deployedUrl, project?.status]);
 
   return (
-    <div className={`hidden lg:flex flex-col border-l border-[#1e1e28] bg-[#0c0c12] transition-all duration-500 ease-in-out ${isPreviewFocused ? 'flex-1' : 'w-[45%]'}`}>
+    <div data-tutorial="preview" className={`hidden lg:flex flex-col border-l border-[#1e1e28] bg-[#0c0c12] transition-all duration-500 ease-in-out ${isPreviewFocused ? 'flex-1' : 'w-[45%]'}`}>
       {/* 미리보기 헤더 */}
       <div className="flex items-center justify-between border-b border-[#1e1e28] bg-[#13131a] px-4 py-2.5">
         <div className="flex items-center gap-2.5">

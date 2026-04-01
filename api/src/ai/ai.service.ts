@@ -314,6 +314,38 @@ Foundry는 Static Export 전용 Next.js 앱을 생성합니다.
 - 예외: Tailwind 유틸리티 클래스(bg-white, text-gray-50 등)는 중성색에 한해 허용
 - body 태그에 bg-gray-50, bg-white 등 하드코딩 배경색 절대 금지! globals.css의 body 스타일이 자동 적용됨
 
+🟢 데모 모드 (매우 중요! — 비로그인 체험 지원):
+- 모든 페이지는 로그인 없이도 접근 가능해야 합니다!
+- AuthGuard, ProtectedRoute, 인증 리다이렉트(로그인 안 하면 /login으로 이동) 사용 금지!
+- 비로그인 상태에서도 샘플 데이터가 보여야 합니다 (Supabase에서 로드 실패 시 하드코딩 샘플 데이터 fallback)
+- 로그인하면 추가 기능(수정/삭제/내 데이터)이 활성화되는 방식으로 구현
+- 비로그인 사용자에게는 데이터 수정/삭제 버튼 대신 "로그인하면 이용 가능합니다" 안내
+- 메인 페이지(app/page.tsx)에 "체험하기" 버튼 추가 (로그인 없이 둘러보기)
+- 네비게이션에 로그인/회원가입 링크는 유지하되, 비로그인이어도 모든 페이지 탐색 가능
+- 패턴 예시:
+  const [user, setUser] = useState<any>(null)
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user))
+  }, [])
+  // user가 null이어도 페이지 렌더링! 리다이렉트 금지!
+
+🟢 샘플 데이터 fallback 패턴 (비로그인 체험용):
+- 모든 데이터 조회 페이지에서 Supabase 로드 실패 또는 비로그인 시 샘플 데이터 표시
+- 패턴:
+  const SAMPLE_DATA = [
+    { id: '1', name: '샘플 항목 1', ... },
+    { id: '2', name: '샘플 항목 2', ... },
+    { id: '3', name: '샘플 항목 3', ... },
+  ]
+  const [items, setItems] = useState(SAMPLE_DATA)
+  useEffect(() => {
+    if (!user) return  // 비로그인이면 샘플 데이터 유지
+    supabase.from('table').select('*').then(({ data }) => {
+      if (data && data.length > 0) setItems(data)
+    })
+  }, [user])
+- 샘플 데이터는 해당 업종/템플릿에 맞는 현실적인 한국어 데이터로 생성
+
 🟢 Supabase 인증 패턴 (이것만 사용):
 - 인증 상태: const { data: { user } } = await supabase.auth.getUser()
 - 로그인: await supabase.auth.signInWithPassword({ email, password })

@@ -8,6 +8,7 @@ import BuilderChat from './components/BuilderChat';
 import BuilderPreview from './components/BuilderPreview';
 import type { SelectedElement } from './components/BuilderPreview';
 import CreditConfirmModal from './components/CreditConfirmModal';
+import BuilderTutorial from './components/BuilderTutorial';
 import type { Message, BuildPhase, ProjectData } from './components/BuilderChat';
 
 type AppModelTier = 'flash' | 'smart' | 'pro';
@@ -80,6 +81,9 @@ function BuilderContent() {
   const [lastSaved, setLastSaved] = useState<string>('');
   const [showSaveToast, setShowSaveToast] = useState(false);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // ── 튜토리얼 상태 ──────────────────────────────
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // ── 생성 관련 상태 ──────────────────────────────
   const [generateProgress, setGenerateProgress] = useState<string[]>([]);
@@ -167,6 +171,17 @@ function BuilderContent() {
       } catch { /* */ }
     })();
   }, [projectId]);
+
+  // 튜토리얼: buildPhase=done + 첫 방문 + 새 프로젝트
+  useEffect(() => {
+    if (buildPhase === 'done' && !localStorage.getItem('foundry_tutorial_done')) {
+      // 새로 생성 완료된 프로젝트 (수정 이력 없음)
+      if (project && (!project.totalModifications || project.totalModifications === 0)) {
+        const timer = setTimeout(() => setShowTutorial(true), 800);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [buildPhase, project]);
 
   // /start에서 넘어온 경우: 자동 코드 생성
   useEffect(() => {
@@ -673,6 +688,11 @@ function BuilderContent() {
         isSaving={isSaving}
         onSavingChange={setIsSaving}
       />
+
+      {/* 빌더 튜토리얼 (첫 방문 가이드) */}
+      {showTutorial && (
+        <BuilderTutorial onComplete={() => setShowTutorial(false)} />
+      )}
 
       {/* 저장 완료 토스트 */}
       {showSaveToast && (

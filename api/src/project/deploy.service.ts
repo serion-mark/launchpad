@@ -845,8 +845,9 @@ export default nextConfig;
       // Tailwind 빌드 성공 여부와 무관하게 CDN을 넣으면 확실하게 동작
       const tailwindTag = '<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>';
       const editorTag = '<script src="/foundry-editor.js"></script>';
+      const widgetTag = `<script src="/foundry-widget.js" data-foundry-project="${projectId}"></script>`;
       const styleTag = cssVars ? `<style type="text/tailwindcss">\n@import "tailwindcss";\n${cssVars}\n</style>` : '';
-      const injection = `${tailwindTag}\n${editorTag}\n${styleTag}`;
+      const injection = `${tailwindTag}\n${editorTag}\n${widgetTag}\n${styleTag}`;
 
       const htmlFiles: string[] = [];
       const findHtml = (dir: string) => {
@@ -896,6 +897,12 @@ export default nextConfig;
       const editorSrc = path.join(__dirname, '..', '..', 'public', 'foundry-editor.js');
       if (fs.existsSync(editorSrc)) {
         fs.copyFileSync(editorSrc, path.join(deployTarget, 'foundry-editor.js'));
+      }
+
+      // foundry-widget.js 복사 (Foundry 안내 위젯)
+      const widgetSrc = path.join(__dirname, '..', '..', 'public', 'foundry-widget.js');
+      if (fs.existsSync(widgetSrc)) {
+        fs.copyFileSync(widgetSrc, path.join(deployTarget, 'foundry-widget.js'));
       }
 
       appendLog(`Static 파일 배포 완료 → ${deployTarget}`);

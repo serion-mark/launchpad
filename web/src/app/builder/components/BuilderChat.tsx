@@ -806,6 +806,7 @@ export default function BuilderChat({
             {buildPhase === 'done' && (
               <>
                 <button
+                  data-tutorial="deploy-btn"
                   onClick={unsavedCount > 0 ? onModifyComplete : () => setShowCostModal('deploy')}
                   disabled={unsavedCount > 0 && isSaving}
                   className={`flex-1 rounded-xl px-3 py-2.5 text-sm font-bold text-white transition-all disabled:opacity-50 ${
@@ -816,7 +817,7 @@ export default function BuilderChat({
                 >
                   {unsavedCount > 0 ? (isSaving ? '저장 중...' : `수정사항 적용 (${unsavedCount})`) : '온라인 게시'}
                 </button>
-                <button onClick={() => setShowCostModal('download')} className="flex-1 rounded-xl bg-gradient-to-r from-[#a855f7] to-[#9333ea] px-3 py-2.5 text-sm font-bold text-white hover:shadow-lg hover:shadow-[#a855f7]/20 transition-all">다운로드</button>
+                <button data-tutorial="download-btn" onClick={() => setShowCostModal('download')} className="flex-1 rounded-xl bg-gradient-to-r from-[#a855f7] to-[#9333ea] px-3 py-2.5 text-sm font-bold text-white hover:shadow-lg hover:shadow-[#a855f7]/20 transition-all">다운로드</button>
                 <button
                   onClick={async () => {
                     if (!projectId) return;
@@ -847,7 +848,7 @@ export default function BuilderChat({
       )}
 
       {/* 입력 */}
-      <div className="border-t border-[#1e1e28] bg-[#13131a] px-4 py-3">
+      <div data-tutorial="chat-input" className="border-t border-[#1e1e28] bg-[#13131a] px-4 py-3">
         <div className="flex gap-2">
           <input
             ref={inputRef}
