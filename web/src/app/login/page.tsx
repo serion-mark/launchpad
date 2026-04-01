@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Logo from '@/app/components/Logo';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
 
@@ -61,24 +62,24 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#17171c] px-5">
+    <div className="flex min-h-screen items-center justify-center bg-[var(--bg-card)] px-5">
       <div className="w-full max-w-md">
         {/* 로고 */}
         <div className="mb-10 text-center">
           <a href="/">
-            <img src="/logo.svg" alt="Foundry" className="h-9 mx-auto" />
+            <Logo className="h-9 mx-auto" />
           </a>
-          <p className="mt-3 text-[#8b95a1]">AI로 MVP를 30분 만에 만드세요</p>
+          <p className="mt-3 text-[var(--text-secondary)]">AI로 MVP를 30분 만에 만드세요</p>
         </div>
 
         {/* 카드 */}
-        <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-8">
+        <div className="rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-8">
           {/* 탭 */}
-          <div className="mb-7 flex rounded-xl bg-[#2c2c35] p-1">
+          <div className="mb-7 flex rounded-xl bg-[var(--bg-elevated)] p-1">
             <button
               onClick={() => setMode('login')}
               className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors ${
-                mode === 'login' ? 'bg-[#3182f6] text-white' : 'text-[#8b95a1] hover:text-[#f2f4f6]'
+                mode === 'login' ? 'bg-[var(--toss-blue)] text-white' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
               로그인
@@ -86,7 +87,7 @@ export default function LoginPage() {
             <button
               onClick={() => setMode('signup')}
               className={`flex-1 rounded-lg py-2.5 text-sm font-semibold transition-colors ${
-                mode === 'signup' ? 'bg-[#3182f6] text-white' : 'text-[#8b95a1] hover:text-[#f2f4f6]'
+                mode === 'signup' ? 'bg-[var(--toss-blue)] text-white' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
               회원가입
@@ -96,31 +97,31 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'signup' && (
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-[#8b95a1]">이름</label>
+                <label className="mb-1.5 block text-sm font-medium text-[var(--text-secondary)]">이름</label>
                 <input
                   type="text"
                   value={name}
                   onChange={e => setName(e.target.value)}
                   placeholder="홍길동"
-                  className="w-full rounded-xl border border-[#2c2c35] bg-[#2c2c35] px-4 py-3.5 text-sm text-[#f2f4f6] placeholder-[#6b7684] outline-none focus:border-[#3182f6] transition-colors"
+                  className="w-full rounded-xl border border-[var(--border-primary)] bg-[var(--bg-elevated)] px-4 py-3.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none focus:border-[var(--toss-blue)] transition-colors"
                 />
               </div>
             )}
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-[#8b95a1]">이메일</label>
+              <label className="mb-1.5 block text-sm font-medium text-[var(--text-secondary)]">이메일</label>
               <input
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="email@example.com"
                 required
-                className="w-full rounded-xl border border-[#2c2c35] bg-[#2c2c35] px-4 py-3.5 text-sm text-[#f2f4f6] placeholder-[#6b7684] outline-none focus:border-[#3182f6] transition-colors"
+                className="w-full rounded-xl border border-[var(--border-primary)] bg-[var(--bg-elevated)] px-4 py-3.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none focus:border-[var(--toss-blue)] transition-colors"
               />
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-[#8b95a1]">비밀번호</label>
+              <label className="mb-1.5 block text-sm font-medium text-[var(--text-secondary)]">비밀번호</label>
               <input
                 type="password"
                 value={password}
@@ -128,12 +129,12 @@ export default function LoginPage() {
                 placeholder="8자 이상"
                 required
                 minLength={8}
-                className="w-full rounded-xl border border-[#2c2c35] bg-[#2c2c35] px-4 py-3.5 text-sm text-[#f2f4f6] placeholder-[#6b7684] outline-none focus:border-[#3182f6] transition-colors"
+                className="w-full rounded-xl border border-[var(--border-primary)] bg-[var(--bg-elevated)] px-4 py-3.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none focus:border-[var(--toss-blue)] transition-colors"
               />
             </div>
 
             {error && (
-              <div className="rounded-xl bg-[#f45452]/10 border border-[#f45452]/20 px-4 py-3 text-sm text-[#f45452]">
+              <div className="rounded-xl bg-[var(--toss-red)]/10 border border-[var(--toss-red)]/20 px-4 py-3 text-sm text-[var(--toss-red)]">
                 {error}
               </div>
             )}
@@ -141,7 +142,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-[#3182f6] py-3.5 text-[15px] font-bold text-white hover:bg-[#1b64da] transition-colors disabled:opacity-40"
+              className="w-full rounded-xl bg-[var(--toss-blue)] py-3.5 text-[15px] font-bold text-white hover:bg-[var(--toss-blue-hover)] transition-colors disabled:opacity-40"
             >
               {loading ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입'}
             </button>
@@ -150,8 +151,8 @@ export default function LoginPage() {
           {/* 소셜 로그인 */}
           <div className="mt-7">
             <div className="relative mb-5">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[#2c2c35]" /></div>
-              <div className="relative flex justify-center text-xs"><span className="bg-[#1b1b21] px-3 text-[#6b7684]">간편 로그인</span></div>
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[var(--border-primary)]" /></div>
+              <div className="relative flex justify-center text-xs"><span className="bg-[var(--bg-secondary)] px-3 text-[var(--text-tertiary)]">간편 로그인</span></div>
             </div>
             {/* 카카오 로그인 */}
             <button
@@ -168,7 +169,7 @@ export default function LoginPage() {
               <button disabled className="flex items-center justify-center rounded-xl bg-white py-3 text-black opacity-40 cursor-not-allowed" title="준비 중">
                 <span className="text-sm font-bold">G</span>
               </button>
-              <button disabled className="flex items-center justify-center rounded-xl bg-black py-3 text-white border border-[#2c2c35] opacity-40 cursor-not-allowed" title="준비 중">
+              <button disabled className="flex items-center justify-center rounded-xl bg-black py-3 text-white border border-[var(--border-primary)] opacity-40 cursor-not-allowed" title="준비 중">
                 <span className="text-sm font-bold">A</span>
               </button>
             </div>

@@ -71,43 +71,43 @@ export default function ModelSelector({ selectedTier, onSelect, creditBalance, e
       <div className="relative">
         <button
           onClick={() => setShowDetail(!showDetail)}
-          className="flex items-center gap-1.5 rounded-lg bg-[#2c2c35] px-3 py-1.5 text-xs font-medium text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors"
+          className="flex items-center gap-1.5 rounded-lg bg-[var(--bg-elevated)] px-3 py-1.5 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--border-hover)] transition-colors"
         >
           <span>{selected.icon}</span>
           <span>{selected.label}</span>
-          <span className="text-[#6b7684]">▾</span>
+          <span className="text-[var(--text-tertiary)]">▾</span>
         </button>
         {showDetail && (
           <>
             <div className="fixed inset-0 z-40" onClick={() => setShowDetail(false)} />
-            <div className="absolute right-0 top-full mt-2 z-50 w-72 rounded-xl bg-[#1b1b21] border border-[#2c2c35] p-3 shadow-xl">
+            <div className="absolute right-0 top-full mt-2 z-50 w-72 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] p-3 shadow-xl">
               {MODEL_OPTIONS.map(opt => (
                 <button
                   key={opt.tier}
                   onClick={() => { onSelect(opt.tier); setShowDetail(false); }}
                   className={`flex w-full items-center gap-3 rounded-lg p-3 text-left transition-colors ${
-                    selectedTier === opt.tier ? 'bg-[#3182f6]/15 border border-[#3182f6]/30' : 'hover:bg-[#2c2c35]'
+                    selectedTier === opt.tier ? 'bg-[var(--toss-blue)]/15 border border-[var(--toss-blue)]/30' : 'hover:bg-[var(--bg-elevated)]'
                   }`}
                 >
                   <span className="text-xl">{opt.icon}</span>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-[#f2f4f6]">{opt.label}</span>
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">{opt.label}</span>
                       {!opt.available && (
-                        <span className="rounded bg-[#ffd60a]/15 px-1.5 py-0.5 text-[9px] text-[#ffd60a]">Flash 전환</span>
+                        <span className="rounded bg-[var(--toss-yellow)]/15 px-1.5 py-0.5 text-[9px] text-[var(--toss-yellow)]">Flash 전환</span>
                       )}
                     </div>
-                    <div className="text-[10px] text-[#8b95a1]">
+                    <div className="text-[10px] text-[var(--text-secondary)]">
                       {opt.available ? `${opt.creditPerFile}cr/파일 · ${opt.speed}` : opt.fallbackNote}
                     </div>
                   </div>
-                  {selectedTier === opt.tier && <span className="text-[#3182f6]">✓</span>}
+                  {selectedTier === opt.tier && <span className="text-[var(--toss-blue)]">✓</span>}
                 </button>
               ))}
               {creditBalance !== null && (
-                <div className="mt-2 rounded-lg bg-[#2c2c35] p-2.5 text-center">
-                  <span className="text-[10px] text-[#8b95a1]">잔액 </span>
-                  <span className="text-xs font-bold text-[#ffd60a]">{creditBalance.toLocaleString()} cr</span>
+                <div className="mt-2 rounded-lg bg-[var(--bg-elevated)] p-2.5 text-center">
+                  <span className="text-[10px] text-[var(--text-secondary)]">잔액 </span>
+                  <span className="text-xs font-bold text-[var(--toss-yellow)]">{creditBalance.toLocaleString()} cr</span>
                 </div>
               )}
             </div>
@@ -125,7 +125,7 @@ export default function ModelSelector({ selectedTier, onSelect, creditBalance, e
 
   return (
     <div className="space-y-3">
-      <div className="text-sm font-semibold text-[#f2f4f6]">AI 모델 선택</div>
+      <div className="text-sm font-semibold text-[var(--text-primary)]">AI 모델 선택</div>
       <div className="grid grid-cols-3 gap-3">
         {MODEL_OPTIONS.map(opt => {
           const cost = estimatedCost(opt.tier);
@@ -137,49 +137,49 @@ export default function ModelSelector({ selectedTier, onSelect, creditBalance, e
               onClick={() => onSelect(opt.tier)}
               className={`relative rounded-xl border p-4 text-left transition-all ${
                 selectedTier === opt.tier
-                  ? 'border-[#3182f6] bg-[#3182f6]/10'
-                  : 'border-[#2c2c35] bg-[#1b1b21] hover:border-[#3a3a45]'
+                  ? 'border-[var(--toss-blue)] bg-[var(--toss-blue)]/10'
+                  : 'border-[var(--border-primary)] bg-[var(--bg-secondary)] hover:border-[var(--border-hover)]'
               }`}
             >
               <div className="mb-2 text-2xl">{opt.icon}</div>
-              <div className="text-sm font-bold text-[#f2f4f6]">{opt.label}</div>
-              <div className="mt-0.5 text-[10px] text-[#8b95a1]">{opt.description}</div>
+              <div className="text-sm font-bold text-[var(--text-primary)]">{opt.label}</div>
+              <div className="mt-0.5 text-[10px] text-[var(--text-secondary)]">{opt.description}</div>
 
               <div className="mt-3 space-y-1">
                 <div className="flex justify-between text-[10px]">
-                  <span className="text-[#6b7684]">속도</span>
-                  <span className="text-[#f2f4f6]">{opt.speed}</span>
+                  <span className="text-[var(--text-tertiary)]">속도</span>
+                  <span className="text-[var(--text-primary)]">{opt.speed}</span>
                 </div>
                 <div className="flex justify-between text-[10px]">
-                  <span className="text-[#6b7684]">품질</span>
-                  <span className="text-[#f2f4f6]">{opt.quality}</span>
+                  <span className="text-[var(--text-tertiary)]">품질</span>
+                  <span className="text-[var(--text-primary)]">{opt.quality}</span>
                 </div>
                 <div className="flex justify-between text-[10px]">
-                  <span className="text-[#6b7684]">예상 비용</span>
-                  <span className={`font-bold ${canAfford ? 'text-[#ffd60a]' : 'text-[#f45452]'}`}>
+                  <span className="text-[var(--text-tertiary)]">예상 비용</span>
+                  <span className={`font-bold ${canAfford ? 'text-[var(--toss-yellow)]' : 'text-[var(--toss-red)]'}`}>
                     ~{cost.toLocaleString()} cr
                   </span>
                 </div>
               </div>
 
               {!opt.available && (
-                <div className="mt-2 rounded-lg bg-[#ffd60a]/10 px-2 py-1 text-center">
-                  <span className="text-[9px] text-[#ffd60a]">⚡ Flash로 자동 전환</span>
+                <div className="mt-2 rounded-lg bg-[var(--toss-yellow)]/10 px-2 py-1 text-center">
+                  <span className="text-[9px] text-[var(--toss-yellow)]">⚡ Flash로 자동 전환</span>
                 </div>
               )}
 
               {selectedTier === opt.tier && (
-                <div className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#3182f6] text-[10px] text-white">✓</div>
+                <div className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--toss-blue)] text-[10px] text-white">✓</div>
               )}
             </button>
           );
         })}
       </div>
       {creditBalance !== null && (
-        <div className="text-center text-[10px] text-[#6b7684]">
-          현재 잔액: <span className="font-bold text-[#ffd60a]">{creditBalance.toLocaleString()} cr</span>
+        <div className="text-center text-[10px] text-[var(--text-tertiary)]">
+          현재 잔액: <span className="font-bold text-[var(--toss-yellow)]">{creditBalance.toLocaleString()} cr</span>
           {creditBalance < estimatedCost(selectedTier) && (
-            <> · <a href="/credits" className="text-[#f45452] underline">크레딧 충전하기</a></>
+            <> · <a href="/credits" className="text-[var(--toss-red)] underline">크레딧 충전하기</a></>
           )}
         </div>
       )}

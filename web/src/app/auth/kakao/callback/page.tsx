@@ -38,10 +38,10 @@ export default function KakaoCallbackPage() {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#17171c] px-5">
+      <div className="flex min-h-screen items-center justify-center bg-[var(--bg-card)] px-5">
         <div className="text-center">
-          <p className="text-[#f45452] mb-4">{error}</p>
-          <a href="/login" className="text-[#3182f6] hover:underline text-sm">
+          <p className="text-[var(--toss-red)] mb-4">{error}</p>
+          <a href="/login" className="text-[var(--toss-blue)] hover:underline text-sm">
             로그인 페이지로 돌아가기
           </a>
         </div>
@@ -50,10 +50,10 @@ export default function KakaoCallbackPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#17171c]">
+    <div className="flex min-h-screen items-center justify-center bg-[var(--bg-card)]">
       <div className="text-center">
-        <div className="inline-block h-8 w-8 animate-spin rounded-full border-2 border-[#3182f6] border-t-transparent" />
-        <p className="mt-4 text-[#8b95a1] text-sm">카카오 로그인 처리 중...</p>
+        <div className="inline-block h-8 w-8 animate-spin rounded-full border-2 border-[var(--toss-blue)] border-t-transparent" />
+        <p className="mt-4 text-[var(--text-secondary)] text-sm">카카오 로그인 처리 중...</p>
       </div>
     </div>
   );

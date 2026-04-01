@@ -142,15 +142,15 @@ export default function LivePreview({ files, previewMode, visualEditMode = false
     <div className="flex h-full flex-col">
       {/* 페이지 탭 */}
       {pages.length > 1 && (
-        <div className="flex gap-1 overflow-x-auto border-b border-[#2c2c35] px-3 py-2 scrollbar-none">
+        <div className="flex gap-1 overflow-x-auto border-b border-[var(--border-primary)] px-3 py-2 scrollbar-none">
           {pages.map(p => (
             <button
               key={p.route}
               onClick={() => setActivePage(p.route)}
               className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                 activePage === p.route
-                  ? 'bg-[#3182f6] text-white'
-                  : 'text-[#8b95a1] hover:bg-[#2c2c35] hover:text-[#f2f4f6]'
+                  ? 'bg-[var(--toss-blue)] text-white'
+                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]'
               }`}
             >
               {p.route === '/' ? '홈' : routeToKorean(p.route)}
@@ -161,24 +161,24 @@ export default function LivePreview({ files, previewMode, visualEditMode = false
 
       {/* Visual Edit 모드 인디케이터 */}
       {visualEditMode && (
-        <div className="flex items-center gap-2 bg-[#f59e0b]/10 border-b border-[#f59e0b]/30 px-3 py-1.5">
-          <span className="text-[11px] text-[#f59e0b] font-medium">Visual Edit 모드 — 요소를 클릭하여 수정</span>
+        <div className="flex items-center gap-2 bg-[var(--toss-yellow)]/10 border-b border-[var(--toss-yellow)]/30 px-3 py-1.5">
+          <span className="text-[11px] text-[var(--toss-yellow)] font-medium">Visual Edit 모드 — 요소를 클릭하여 수정</span>
         </div>
       )}
 
       {/* iframe 미리보기 */}
-      <div className="flex flex-1 items-center justify-center overflow-auto bg-[#1b1b21] p-4">
+      <div className="flex flex-1 items-center justify-center overflow-auto bg-[var(--bg-secondary)] p-4">
         <div
           className={`overflow-hidden border bg-white shadow-2xl transition-all duration-300 ${
-            visualEditMode ? 'border-[#f59e0b]' : 'border-[#2c2c35]'
+            visualEditMode ? 'border-[var(--toss-yellow)]' : 'border-[var(--border-primary)]'
           } ${
             previewMode === 'mobile' ? 'w-[375px] rounded-[2.5rem]' : 'w-full max-w-[900px] rounded-xl'
           }`}
           style={{ height: previewMode === 'mobile' ? '700px' : '600px' }}
         >
           {previewMode === 'mobile' && (
-            <div className="flex h-[44px] items-center justify-center bg-[#f8fafc] border-b border-[#e2e8f0]">
-              <div className="h-[5px] w-[120px] rounded-full bg-[#1b1b21]" />
+            <div className="flex h-[44px] items-center justify-center bg-[var(--bg-secondary)] border-b border-[var(--border-primary)]">
+              <div className="h-[5px] w-[120px] rounded-full bg-[var(--bg-secondary)]" />
             </div>
           )}
           <iframe

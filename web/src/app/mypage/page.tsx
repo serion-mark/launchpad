@@ -44,21 +44,21 @@ export default function MyPage() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-[#0f0f14]">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       <LandingNav />
       <div className="mx-auto max-w-6xl px-4 py-8 md:px-8">
-        <h1 className="text-2xl font-bold text-[#f2f4f6] mb-6">마이페이지</h1>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-6">마이페이지</h1>
 
         {/* 탭 네비게이션 */}
-        <div className="flex gap-1 overflow-x-auto pb-1 mb-6 border-b border-[#2c2c35]">
+        <div className="flex gap-1 overflow-x-auto pb-1 mb-6 border-b border-[var(--border-primary)]">
           {TABS.map(tab => (
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
               className={`flex items-center gap-1.5 whitespace-nowrap px-4 py-3 text-sm font-medium rounded-t-lg transition-colors ${
                 activeTab === tab.id
-                  ? 'text-[#3182f6] border-b-2 border-[#3182f6] bg-[#3182f6]/5'
-                  : 'text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#1b1b21]'
+                  ? 'text-[var(--toss-blue)] border-b-2 border-[var(--toss-blue)] bg-[var(--toss-blue)]/5'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
               }`}
             >
               <span>{tab.icon}</span>

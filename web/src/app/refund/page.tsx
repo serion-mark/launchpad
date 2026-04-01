@@ -3,13 +3,13 @@ import Footer from '../components/Footer';
 
 export default function RefundPage() {
   return (
-    <div className="min-h-screen bg-[#17171c] text-[#f2f4f6]">
+    <div className="min-h-screen bg-[var(--bg-card)] text-[var(--text-primary)]">
       <LandingNav />
       <main className="mx-auto max-w-3xl px-5 py-12 md:py-20">
         <h1 className="mb-8 text-3xl font-bold">환불 정책 및 코드 소유권</h1>
-        <div className="prose prose-invert prose-sm max-w-none space-y-6 text-[#8b95a1] leading-relaxed [&_h2]:text-[#f2f4f6] [&_h2]:text-lg [&_h2]:font-bold [&_h2]:mt-8 [&_h2]:mb-3 [&_strong]:text-[#f2f4f6]">
+        <div className="prose prose-invert prose-sm max-w-none space-y-6 text-[var(--text-secondary)] leading-relaxed [&_h2]:text-[var(--text-primary)] [&_h2]:text-lg [&_h2]:font-bold [&_h2]:mt-8 [&_h2]:mb-3 [&_strong]:text-[var(--text-primary)]">
 
-          <p className="text-xs text-[#6b7684]">시행일: 2026년 3월 21일 | 최종 수정: 2026년 3월 23일</p>
+          <p className="text-xs text-[var(--text-tertiary)]">시행일: 2026년 3월 21일 | 최종 수정: 2026년 3월 23일</p>
 
           {/* ── 크레딧 환불 ── */}
           <h2>1. 크레딧 환불</h2>
@@ -53,8 +53,8 @@ export default function RefundPage() {
           <p>3. 환불 수단: 원래 결제 수단으로 환불</p>
 
           {/* ── 코드 소유권 ── */}
-          <div className="mt-12 rounded-2xl border border-[#3182f6]/30 bg-[#3182f6]/5 p-6">
-            <h2 className="!mt-0 text-[#3182f6]">7. 코드 소유권 보증</h2>
+          <div className="mt-12 rounded-2xl border border-[var(--toss-blue)]/30 bg-[var(--toss-blue)]/5 p-6">
+            <h2 className="!mt-0 text-[var(--toss-blue)]">7. 코드 소유권 보증</h2>
             <p>Foundry는 생성된 코드에 대해 다음을 보증합니다:</p>
             <p><strong>1. 100% 소유권:</strong> 서비스를 통해 생성된 모든 코드의 저작권 및 소유권은 이용자에게 귀속됩니다.</p>
             <p><strong>2. 자유로운 사용:</strong> 이용자는 생성된 코드를 수정, 복제, 배포, 판매할 수 있습니다.</p>
@@ -68,7 +68,7 @@ export default function RefundPage() {
           <p>2. 생성된 코드의 버그, 보안 취약점에 대한 책임은 이용자에게 있습니다.</p>
           <p>3. 생성된 코드를 이용한 서비스 운영에서 발생하는 법적 분쟁에 대해 회사는 책임지지 않습니다.</p>
 
-          <p className="mt-10 text-xs text-[#6b7684]">
+          <p className="mt-10 text-xs text-[var(--text-tertiary)]">
             시행일: 2026년 3월 21일<br />
             최종 수정: 2026년 3월 29일<br />
             세리온 대표: 김형석 | 이메일: mark@serion.ai.kr

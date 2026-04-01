@@ -32,9 +32,9 @@ type Props = {
 };
 
 const SEVERITY_COLORS = {
-  low: { bg: 'bg-[#3b82f6]/20', text: 'text-[#60a5fa]', label: '낮음' },
-  medium: { bg: 'bg-[#f59e0b]/20', text: 'text-[#fbbf24]', label: '보통' },
-  high: { bg: 'bg-[#ef4444]/20', text: 'text-[#f87171]', label: '높음' },
+  low: { bg: 'bg-[var(--toss-blue)]/20', text: 'text-[var(--toss-blue)]', label: '낮음' },
+  medium: { bg: 'bg-[var(--toss-yellow)]/20', text: 'text-[var(--toss-yellow)]', label: '보통' },
+  high: { bg: 'bg-[var(--toss-red)]/20', text: 'text-[var(--toss-red)]', label: '높음' },
 };
 
 function getScoreColor(score: number) {
@@ -89,12 +89,12 @@ export default function CodeHealthPanel({ projectId, modelTier, onCleanupComplet
   };
 
   return (
-    <div className="bg-[#1e1e26] rounded-xl border border-[#2a2a35] overflow-hidden">
+    <div className="bg-[var(--bg-subtle)] rounded-xl border border-[var(--border-primary)] overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
           <span className="text-sm">🩺</span>
-          <span className="text-xs font-semibold text-[#f2f4f6]">코드 헬스체크</span>
+          <span className="text-xs font-semibold text-[var(--text-primary)]">코드 헬스체크</span>
           {result && (
             <span
               className="text-[10px] font-bold px-2 py-0.5 rounded-full"
@@ -105,7 +105,7 @@ export default function CodeHealthPanel({ projectId, modelTier, onCleanupComplet
           )}
         </div>
         <button
-          className="text-[10px] font-medium px-3 py-1.5 rounded-lg bg-[#2a2a35] hover:bg-[#33333f] text-[#8b8fa3] hover:text-[#f2f4f6] transition-colors disabled:opacity-50"
+          className="text-[10px] font-medium px-3 py-1.5 rounded-lg bg-[var(--bg-elevated)] hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50"
           onClick={runCheck}
           disabled={loading || cleaning}
         >
@@ -117,7 +117,7 @@ export default function CodeHealthPanel({ projectId, modelTier, onCleanupComplet
       {result && expanded && (
         <div className="px-4 pb-4 space-y-3">
           {/* Score Bar */}
-          <div className="relative h-2 bg-[#17171c] rounded-full overflow-hidden">
+          <div className="relative h-2 bg-[var(--bg-card)] rounded-full overflow-hidden">
             <div
               className="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
               style={{ width: `${result.score}%`, backgroundColor: getScoreColor(result.score) }}
@@ -125,7 +125,7 @@ export default function CodeHealthPanel({ projectId, modelTier, onCleanupComplet
           </div>
 
           {/* Summary */}
-          <p className="text-xs text-[#c0c4d0]">{result.summary}</p>
+          <p className="text-xs text-[var(--text-primary)]">{result.summary}</p>
 
           {/* Issues */}
           {result.issues.length > 0 && (
@@ -133,12 +133,12 @@ export default function CodeHealthPanel({ projectId, modelTier, onCleanupComplet
               {result.issues.map((issue, i) => {
                 const sev = SEVERITY_COLORS[issue.severity];
                 return (
-                  <div key={i} className="flex items-center justify-between bg-[#17171c] rounded-lg px-3 py-2">
+                  <div key={i} className="flex items-center justify-between bg-[var(--bg-card)] rounded-lg px-3 py-2">
                     <div className="flex items-center gap-2">
                       <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded ${sev.bg} ${sev.text}`}>
                         {sev.label}
                       </span>
-                      <span className="text-xs text-[#c0c4d0]">{issue.description}</span>
+                      <span className="text-xs text-[var(--text-primary)]">{issue.description}</span>
                     </div>
                   </div>
                 );
@@ -149,7 +149,7 @@ export default function CodeHealthPanel({ projectId, modelTier, onCleanupComplet
           {/* Cleanup Button */}
           {result.suggestCleanup && (
             <button
-              className="w-full py-2.5 rounded-xl bg-[#6c5ce7]/20 hover:bg-[#6c5ce7]/30 text-[#a78bfa] text-xs font-semibold transition-colors border border-[#6c5ce7]/30 disabled:opacity-50"
+              className="w-full py-2.5 rounded-xl bg-[var(--toss-purple)]/20 hover:bg-[var(--toss-purple)]/30 text-[var(--toss-purple)] text-xs font-semibold transition-colors border border-[var(--toss-purple)]/30 disabled:opacity-50"
               onClick={runCleanup}
               disabled={cleaning}
             >
@@ -159,7 +159,7 @@ export default function CodeHealthPanel({ projectId, modelTier, onCleanupComplet
 
           {result.issues.length === 0 && (
             <div className="text-center py-2">
-              <span className="text-xs text-[#4ade80]">✅ 깨끗한 코드입니다!</span>
+              <span className="text-xs text-[var(--toss-green)]">✅ 깨끗한 코드입니다!</span>
             </div>
           )}
         </div>

@@ -3,13 +3,13 @@ import Footer from '../components/Footer';
 
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-[#17171c] text-[#f2f4f6]">
+    <div className="min-h-screen bg-[var(--bg-card)] text-[var(--text-primary)]">
       <LandingNav />
       <main className="mx-auto max-w-3xl px-5 py-12 md:py-20">
         <h1 className="mb-8 text-3xl font-bold">개인정보 처리방침</h1>
-        <div className="prose prose-invert prose-sm max-w-none space-y-6 text-[#8b95a1] leading-relaxed [&_h2]:text-[#f2f4f6] [&_h2]:text-lg [&_h2]:font-bold [&_h2]:mt-8 [&_h2]:mb-3 [&_strong]:text-[#f2f4f6]">
+        <div className="prose prose-invert prose-sm max-w-none space-y-6 text-[var(--text-secondary)] leading-relaxed [&_h2]:text-[var(--text-primary)] [&_h2]:text-lg [&_h2]:font-bold [&_h2]:mt-8 [&_h2]:mb-3 [&_strong]:text-[var(--text-primary)]">
 
-          <p className="text-xs text-[#6b7684]">시행일: 2026년 3월 21일</p>
+          <p className="text-xs text-[var(--text-tertiary)]">시행일: 2026년 3월 21일</p>
 
           <p>세리온(이하 &quot;회사&quot;)은 Foundry 서비스 이용자의 개인정보를 중요시하며, 「개인정보 보호법」을 준수합니다.</p>
 
@@ -57,7 +57,7 @@ export default function PrivacyPage() {
           <h2>9. 개인정보 처리방침 변경</h2>
           <p>본 방침이 변경되는 경우, 변경 사항은 서비스 내 공지사항을 통해 고지합니다.</p>
 
-          <p className="mt-10 text-xs text-[#6b7684]">
+          <p className="mt-10 text-xs text-[var(--text-tertiary)]">
             시행일: 2026년 3월 21일<br />
             세리온 대표: 김형석
           </p>

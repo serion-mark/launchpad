@@ -3,6 +3,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { authFetch, getToken, API_BASE } from '@/lib/api';
 import MarkdownRenderer from '@/app/components/MarkdownRenderer';
+import Logo from '@/app/components/Logo';
+import ThemeToggle from '@/app/components/ThemeToggle';
 
 // ── 타입 ────────────────────────────────────────────────
 
@@ -403,16 +405,17 @@ export default function MeetingPage() {
   // ── 렌더링 ────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-[#17171c] text-[#f2f4f6]">
+    <div className="min-h-screen bg-[var(--bg-card)] text-[var(--text-primary)]">
       {/* 헤더 */}
-      <header className="border-b border-[#2c2c35] px-5 py-4">
+      <header className="border-b border-[var(--border-primary)] px-5 py-4">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <a href="/" className="flex items-center gap-2">
-            <img src="/logo.svg" alt="Foundry" className="h-8" />
+            <Logo className="h-8" />
           </a>
           <div className="flex items-center gap-4">
-            <a href="/dashboard" className="text-sm text-[#8b95a1] hover:text-white transition-colors">내 프로젝트</a>
-            <a href="/credits" className="text-sm text-[#8b95a1] hover:text-white transition-colors">크레딧</a>
+            <ThemeToggle />
+            <a href="/dashboard" className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">내 프로젝트</a>
+            <a href="/credits" className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">크레딧</a>
           </div>
         </div>
       </header>
@@ -421,20 +424,20 @@ export default function MeetingPage() {
         {/* 타이틀 */}
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold mb-2">🧠 AI 회의실</h1>
-          <p className="text-[#8b95a1]">AI 3개가 각자 관점으로 분석하고 서로 토론합니다</p>
+          <p className="text-[var(--text-secondary)]">AI 3개가 각자 관점으로 분석하고 서로 토론합니다</p>
         </div>
 
         {/* 비로그인 안내 */}
         {isLoggedIn === false && phase === 'idle' && (
-          <div className="mb-6 mx-auto max-w-2xl rounded-xl border border-[#f59e0b]/30 bg-[#f59e0b]/5 p-4 flex items-center justify-between">
+          <div className="mb-6 mx-auto max-w-2xl rounded-xl border border-[var(--toss-yellow)]/30 bg-[var(--toss-yellow)]/5 p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-xl">🔒</span>
               <div>
-                <p className="text-sm font-medium text-[#f59e0b]">로그인이 필요합니다</p>
-                <p className="text-xs text-[#8b95a1]">회원가입 시 500 크레딧 무료 제공 (스탠다드 회의 1회 가능)</p>
+                <p className="text-sm font-medium text-[var(--toss-yellow)]">로그인이 필요합니다</p>
+                <p className="text-xs text-[var(--text-secondary)]">회원가입 시 500 크레딧 무료 제공 (스탠다드 회의 1회 가능)</p>
               </div>
             </div>
-            <a href="/login" className="shrink-0 rounded-lg bg-[#f59e0b] px-4 py-2 text-sm font-bold text-black hover:brightness-110 transition-all">
+            <a href="/login" className="shrink-0 rounded-lg bg-[var(--toss-yellow)] px-4 py-2 text-sm font-bold text-black hover:brightness-110 transition-all">
               로그인
             </a>
           </div>
@@ -451,32 +454,32 @@ export default function MeetingPage() {
                   onClick={() => setPreset(p.id)}
                   className={`rounded-xl border p-4 text-left transition-all ${
                     preset === p.id
-                      ? 'border-[#3182f6] bg-[#3182f6]/10'
-                      : 'border-[#2c2c35] bg-[#1b1b21] hover:border-[#3c3c45]'
+                      ? 'border-[var(--toss-blue)] bg-[var(--toss-blue)]/10'
+                      : 'border-[var(--border-primary)] bg-[var(--bg-secondary)] hover:border-[var(--border-hover)]'
                   }`}
                 >
                   <div className="text-2xl mb-2">{p.icon}</div>
                   <div className="font-semibold text-sm">{p.label}</div>
-                  <div className="text-xs text-[#8b95a1] mt-1">{p.desc}</div>
+                  <div className="text-xs text-[var(--text-secondary)] mt-1">{p.desc}</div>
                 </button>
               ))}
             </div>
 
             {/* 주제 입력 */}
             <div>
-              <label className="block text-sm font-medium text-[#8b95a1] mb-2">주제 / 질문</label>
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">주제 / 질문</label>
               <textarea
                 value={topic}
                 onChange={e => setTopic(e.target.value)}
                 placeholder="예: AI 기반 미용실 POS 시스템의 시장성을 분석해줘"
                 rows={3}
-                className="w-full rounded-xl border border-[#2c2c35] bg-[#1b1b21] px-4 py-3 text-[15px] placeholder-[#6b7684] outline-none focus:border-[#3182f6] transition-colors resize-none"
+                className="w-full rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-4 py-3 text-[15px] placeholder-[var(--text-tertiary)] outline-none focus:border-[var(--toss-blue)] transition-colors resize-none"
               />
             </div>
 
             {/* 파일 첨부 (드래그앤드롭 + 클릭) */}
             <div>
-              <label className="block text-sm font-medium text-[#8b95a1] mb-2">첨부 자료 (선택)</label>
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">첨부 자료 (선택)</label>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -490,32 +493,32 @@ export default function MeetingPage() {
               {!fileName ? (
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('border-[#3182f6]', 'bg-[#3182f6]/5'); }}
-                  onDragLeave={e => { e.preventDefault(); e.currentTarget.classList.remove('border-[#3182f6]', 'bg-[#3182f6]/5'); }}
+                  onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add('border-[var(--toss-blue)]', 'bg-[var(--toss-blue)]/5'); }}
+                  onDragLeave={e => { e.preventDefault(); e.currentTarget.classList.remove('border-[var(--toss-blue)]', 'bg-[var(--toss-blue)]/5'); }}
                   onDrop={e => {
                     e.preventDefault();
-                    e.currentTarget.classList.remove('border-[#3182f6]', 'bg-[#3182f6]/5');
+                    e.currentTarget.classList.remove('border-[var(--toss-blue)]', 'bg-[var(--toss-blue)]/5');
                     const f = e.dataTransfer.files?.[0];
                     if (f) handleFileUpload(f);
                   }}
-                  className="w-full rounded-xl border-2 border-dashed border-[#2c2c35] bg-[#1b1b21] px-4 py-8 text-center cursor-pointer hover:border-[#3c3c45] transition-colors"
+                  className="w-full rounded-xl border-2 border-dashed border-[var(--border-primary)] bg-[var(--bg-secondary)] px-4 py-8 text-center cursor-pointer hover:border-[var(--border-hover)] transition-colors"
                 >
                   <div className="text-3xl mb-2">📄</div>
-                  <p className="text-sm text-[#8b95a1]">파일을 드래그하거나 클릭하여 업로드</p>
-                  <p className="text-xs text-[#4e5968] mt-1">PDF, TXT, MD, CSV, JSON (최대 10MB)</p>
+                  <p className="text-sm text-[var(--text-secondary)]">파일을 드래그하거나 클릭하여 업로드</p>
+                  <p className="text-xs text-[var(--text-disabled)] mt-1">PDF, TXT, MD, CSV, JSON (최대 10MB)</p>
                 </div>
               ) : (
-                <div className="rounded-xl border border-[#2c2c35] bg-[#1b1b21] px-4 py-3 flex items-center justify-between">
+                <div className="rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-4 py-3 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <span className="text-lg">📎</span>
                     <div>
-                      <p className="text-sm font-medium text-[#f2f4f6]">{fileName}</p>
-                      <p className="text-xs text-[#6b7684]">{fileLoading ? '읽는 중...' : `${(file.length / 1024).toFixed(1)}KB`}</p>
+                      <p className="text-sm font-medium text-[var(--text-primary)]">{fileName}</p>
+                      <p className="text-xs text-[var(--text-tertiary)]">{fileLoading ? '읽는 중...' : `${(file.length / 1024).toFixed(1)}KB`}</p>
                     </div>
                   </div>
                   <button
                     onClick={() => { setFile(''); setFileName(''); if (fileInputRef.current) fileInputRef.current.value = ''; }}
-                    className="rounded-lg px-3 py-1 text-xs text-[#8b95a1] hover:bg-[#2c2c35] hover:text-red-400 transition-colors"
+                    className="rounded-lg px-3 py-1 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-red-400 transition-colors"
                   >
                     삭제
                   </button>
@@ -529,25 +532,25 @@ export default function MeetingPage() {
                 onClick={() => setTier('standard')}
                 className={`flex-1 rounded-xl border p-4 text-center transition-all ${
                   tier === 'standard'
-                    ? 'border-[#3182f6] bg-[#3182f6]/10'
-                    : 'border-[#2c2c35] bg-[#1b1b21] hover:border-[#3c3c45]'
+                    ? 'border-[var(--toss-blue)] bg-[var(--toss-blue)]/10'
+                    : 'border-[var(--border-primary)] bg-[var(--bg-secondary)] hover:border-[var(--border-hover)]'
                 }`}
               >
                 <div className="text-lg font-bold">⚡ 스탠다드</div>
-                <div className="text-sm text-[#8b95a1] mt-1">Sonnet + GPT-4o + Gemini</div>
-                <div className="text-[#ffd60a] font-bold mt-2">300 cr</div>
+                <div className="text-sm text-[var(--text-secondary)] mt-1">Sonnet + GPT-4o + Gemini</div>
+                <div className="text-[var(--toss-yellow)] font-bold mt-2">300 cr</div>
               </button>
               <button
                 onClick={() => setTier('premium')}
                 className={`flex-1 rounded-xl border p-4 text-center transition-all ${
                   tier === 'premium'
-                    ? 'border-[#f59e0b] bg-[#f59e0b]/10'
-                    : 'border-[#2c2c35] bg-[#1b1b21] hover:border-[#3c3c45]'
+                    ? 'border-[var(--toss-yellow)] bg-[var(--toss-yellow)]/10'
+                    : 'border-[var(--border-primary)] bg-[var(--bg-secondary)] hover:border-[var(--border-hover)]'
                 }`}
               >
                 <div className="text-lg font-bold">🔥 프리미엄</div>
-                <div className="text-sm text-[#8b95a1] mt-1">최고급 + 쟁점 핑퐁 토론</div>
-                <div className="text-[#f59e0b] font-bold mt-2">1,500 cr</div>
+                <div className="text-sm text-[var(--text-secondary)] mt-1">최고급 + 쟁점 핑퐁 토론</div>
+                <div className="text-[var(--toss-yellow)] font-bold mt-2">1,500 cr</div>
               </button>
             </div>
 
@@ -565,16 +568,16 @@ export default function MeetingPage() {
         {/* 사전 질문 단계 */}
         {phase === 'pre_question' && (
           <div className="space-y-4">
-            <div className="rounded-xl border border-[#3182f6]/40 bg-[#3182f6]/10 p-5">
+            <div className="rounded-xl border border-[var(--toss-blue)]/40 bg-[var(--toss-blue)]/10 p-5">
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-lg">🤔</span>
-                <span className="font-bold text-[#3182f6]">회의 전 확인</span>
+                <span className="font-bold text-[var(--toss-blue)]">회의 전 확인</span>
               </div>
               {preQuestions ? (
-                <div className="text-sm text-[#d1d5db] leading-relaxed"><MarkdownRenderer content={preQuestions} /></div>
+                <div className="text-sm text-[var(--text-secondary)] leading-relaxed"><MarkdownRenderer content={preQuestions} /></div>
               ) : (
-                <div className="flex items-center gap-2 text-sm text-[#8b95a1]">
-                  <div className="h-3 w-3 rounded-full bg-[#3182f6] animate-pulse" />
+                <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                  <div className="h-3 w-3 rounded-full bg-[var(--toss-blue)] animate-pulse" />
                   질문 생성 중...
                 </div>
               )}
@@ -583,19 +586,19 @@ export default function MeetingPage() {
             {preQuestions && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-[#8b95a1] mb-2">답변 (선택)</label>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">답변 (선택)</label>
                   <textarea
                     value={preAnswers}
                     onChange={e => setPreAnswers(e.target.value)}
                     placeholder="분석 방향이나 중점 사항을 입력하세요 (건너뛰기 가능)"
                     rows={3}
-                    className="w-full rounded-xl border border-[#2c2c35] bg-[#1b1b21] px-4 py-3 text-[15px] placeholder-[#6b7684] outline-none focus:border-[#3182f6] transition-colors resize-none"
+                    className="w-full rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-4 py-3 text-[15px] placeholder-[var(--text-tertiary)] outline-none focus:border-[var(--toss-blue)] transition-colors resize-none"
                   />
                 </div>
                 <div className="flex gap-3">
                   <button
                     onClick={() => { setPhase('idle'); setPreQuestions(''); setPreAnswers(''); }}
-                    className="flex-1 rounded-xl border border-[#2c2c35] py-3 text-sm font-semibold text-[#8b95a1] hover:bg-[#2c2c35] hover:text-white transition-colors"
+                    className="flex-1 rounded-xl border border-[var(--border-primary)] py-3 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-white transition-colors"
                   >
                     ← 돌아가기
                   </button>
@@ -616,19 +619,19 @@ export default function MeetingPage() {
           <div className="space-y-4">
             {/* 상태 표시 */}
             {isRunning && (
-              <div className="rounded-xl border border-[#3182f6]/30 bg-[#3182f6]/5 p-4">
+              <div className="rounded-xl border border-[var(--toss-blue)]/30 bg-[var(--toss-blue)]/5 p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="relative h-4 w-4">
-                    <div className="absolute inset-0 rounded-full bg-[#3182f6] animate-ping opacity-30" />
-                    <div className="absolute inset-0.5 rounded-full bg-[#3182f6]" />
+                    <div className="absolute inset-0 rounded-full bg-[var(--toss-blue)] animate-ping opacity-30" />
+                    <div className="absolute inset-0.5 rounded-full bg-[var(--toss-blue)]" />
                   </div>
-                  <span className="text-sm font-bold text-[#3182f6]">{currentAI}</span>
-                  <span className="text-xs text-[#6b7684] ml-auto">
+                  <span className="text-sm font-bold text-[var(--toss-blue)]">{currentAI}</span>
+                  <span className="text-xs text-[var(--text-tertiary)] ml-auto">
                     {tier === 'premium' ? '프리미엄 회의 진행 중' : '스탠다드 회의 진행 중'}
                   </span>
                 </div>
                 {/* 진행 단계 표시 */}
-                <div className="flex items-center gap-2 text-xs text-[#6b7684]">
+                <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
                   {['Gemini', 'GPT', 'Claude', '최종종합', '보고서'].map((step, i) => {
                     const messageCount = messages.filter(m => m.phase === 'analysis').length;
                     const isReport = phase === 'report';
@@ -636,11 +639,11 @@ export default function MeetingPage() {
                     const stepActive = !stepDone && (isReport ? i === 4 : messageCount === i);
                     return (
                       <div key={step} className="flex items-center gap-1">
-                        {i > 0 && <div className={`w-4 h-px ${stepDone || stepActive ? 'bg-[#3182f6]' : 'bg-[#2c2c35]'}`} />}
+                        {i > 0 && <div className={`w-4 h-px ${stepDone || stepActive ? 'bg-[var(--toss-blue)]' : 'bg-[var(--bg-elevated)]'}`} />}
                         <span className={`px-2 py-0.5 rounded-full ${
-                          stepDone ? 'bg-[#3182f6]/20 text-[#3182f6]' :
-                          stepActive ? 'bg-[#3182f6] text-white animate-pulse' :
-                          'bg-[#2c2c35] text-[#4e5968]'
+                          stepDone ? 'bg-[var(--toss-blue)]/20 text-[var(--toss-blue)]' :
+                          stepActive ? 'bg-[var(--toss-blue)] text-white animate-pulse' :
+                          'bg-[var(--bg-elevated)] text-[var(--text-disabled)]'
                         }`}>{step}</span>
                       </div>
                     );
@@ -654,12 +657,12 @@ export default function MeetingPage() {
               {messages.map(msg => {
                 if (msg.phase === 'briefing') {
                   return (
-                    <div key={msg.id} className="rounded-xl border border-[#2c2c35] bg-[#1b1b21] p-5">
+                    <div key={msg.id} className="rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-5">
                       <div className="flex items-center gap-2 mb-3">
                         <span className="text-lg">📋</span>
-                        <span className="font-bold text-[#ffd60a]">브리핑</span>
+                        <span className="font-bold text-[var(--toss-yellow)]">브리핑</span>
                       </div>
-                      <div className="text-sm text-[#d1d5db] leading-relaxed"><MarkdownRenderer content={msg.content} /></div>
+                      <div className="text-sm text-[var(--text-secondary)] leading-relaxed"><MarkdownRenderer content={msg.content} /></div>
                     </div>
                   );
                 }
@@ -673,7 +676,7 @@ export default function MeetingPage() {
                         <span className={`font-bold ${colors.text}`}>{msg.ai}</span>
                         <span className={`text-xs px-2 py-0.5 rounded-full ${colors.badge} text-white`}>{msg.role}</span>
                       </div>
-                      <div className="text-sm text-[#d1d5db] leading-relaxed"><MarkdownRenderer content={msg.content} /></div>
+                      <div className="text-sm text-[var(--text-secondary)] leading-relaxed"><MarkdownRenderer content={msg.content} /></div>
                     </div>
                   );
                 }
@@ -681,28 +684,28 @@ export default function MeetingPage() {
                 if (msg.phase === 'debate' && msg.ai) {
                   const colors = AI_COLORS[msg.ai] || AI_COLORS.Claude;
                   return (
-                    <div key={msg.id} className={`rounded-xl border border-[#f59e0b]/30 bg-[#f59e0b]/5 p-5`}>
+                    <div key={msg.id} className={`rounded-xl border border-[var(--toss-yellow)]/30 bg-[var(--toss-yellow)]/5 p-5`}>
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-sm">⚡</span>
-                        <span className="text-xs text-[#f59e0b] font-medium">쟁점: {msg.dispute}</span>
+                        <span className="text-xs text-[var(--toss-yellow)] font-medium">쟁점: {msg.dispute}</span>
                       </div>
                       <div className="flex items-center gap-2 mb-2">
                         <span>{AI_ICONS[msg.ai]}</span>
                         <span className={`font-bold text-sm ${colors.text}`}>{msg.ai} 반론</span>
                       </div>
-                      <div className="text-sm text-[#d1d5db] leading-relaxed"><MarkdownRenderer content={msg.content} /></div>
+                      <div className="text-sm text-[var(--text-secondary)] leading-relaxed"><MarkdownRenderer content={msg.content} /></div>
                     </div>
                   );
                 }
 
                 if (msg.phase === 'report') {
                   return (
-                    <div key={msg.id} className="rounded-xl border border-[#3182f6]/40 bg-[#3182f6]/10 p-5">
+                    <div key={msg.id} className="rounded-xl border border-[var(--toss-blue)]/40 bg-[var(--toss-blue)]/10 p-5">
                       <div className="flex items-center gap-2 mb-3">
                         <span className="text-lg">📊</span>
-                        <span className="font-bold text-[#3182f6]">종합 보고서</span>
+                        <span className="font-bold text-[var(--toss-blue)]">종합 보고서</span>
                       </div>
-                      <div className="text-sm text-[#d1d5db] leading-relaxed"><MarkdownRenderer content={msg.content} /></div>
+                      <div className="text-sm text-[var(--text-secondary)] leading-relaxed"><MarkdownRenderer content={msg.content} /></div>
                     </div>
                   );
                 }
@@ -725,7 +728,7 @@ export default function MeetingPage() {
                 <div className="flex gap-3 pt-4">
                   <button
                     onClick={copyReport}
-                    className="flex-1 rounded-xl border border-[#2c2c35] py-3 text-sm font-semibold text-[#8b95a1] hover:bg-[#2c2c35] hover:text-white transition-colors"
+                    className="flex-1 rounded-xl border border-[var(--border-primary)] py-3 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-white transition-colors"
                   >
                     📥 보고서 복사
                   </button>
@@ -737,18 +740,18 @@ export default function MeetingPage() {
                   </button>
                   <button
                     onClick={() => { setPhase('idle'); setMessages([]); setChatMessages([]); }}
-                    className="flex-1 rounded-xl border border-[#2c2c35] py-3 text-sm font-semibold text-[#8b95a1] hover:bg-[#2c2c35] hover:text-white transition-colors"
+                    className="flex-1 rounded-xl border border-[var(--border-primary)] py-3 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-white transition-colors"
                   >
                     🔄 새 회의
                   </button>
                 </div>
 
                 {/* 추가 채팅 영역 */}
-                <div className="mt-6 rounded-xl border border-[#2c2c35] bg-[#1b1b21] p-5">
+                <div className="mt-6 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-5">
                   <div className="flex items-center gap-2 mb-4">
                     <span className="text-lg">💬</span>
-                    <span className="font-bold text-[#f2f4f6]">추가 질문</span>
-                    <span className="text-xs text-[#6b7684]">회의 결과를 바탕으로 후속 질문을 할 수 있습니다</span>
+                    <span className="font-bold text-[var(--text-primary)]">추가 질문</span>
+                    <span className="text-xs text-[var(--text-tertiary)]">회의 결과를 바탕으로 후속 질문을 할 수 있습니다</span>
                   </div>
 
                   {/* 대화 목록 */}
@@ -757,26 +760,26 @@ export default function MeetingPage() {
                       {chatMessages.map((msg, i) => {
                         if (msg.role === '나') {
                           return (
-                            <div key={i} className="rounded-lg p-3 text-sm bg-[#3182f6]/10 border border-[#3182f6]/30 ml-8">
-                              <span className="text-xs font-bold mb-1 block text-[#3182f6]">나</span>
-                              <div className="text-[#d1d5db] whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+                            <div key={i} className="rounded-lg p-3 text-sm bg-[var(--toss-blue)]/10 border border-[var(--toss-blue)]/30 ml-8">
+                              <span className="text-xs font-bold mb-1 block text-[var(--toss-blue)]">나</span>
+                              <div className="text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed">{msg.content}</div>
                             </div>
                           );
                         }
                         const aiName = msg.ai || 'AI';
-                        const colors = AI_COLORS[aiName] || { bg: 'bg-[#2c2c35]', border: 'border-[#3c3c45]', text: 'text-[#ffd60a]', badge: 'bg-[#6b7684]' };
+                        const colors = AI_COLORS[aiName] || { bg: 'bg-[var(--bg-elevated)]', border: 'border-[var(--border-hover)]', text: 'text-[var(--toss-yellow)]', badge: 'bg-[var(--text-tertiary)]' };
                         return (
                           <div key={i} className={`rounded-lg p-3 text-sm ${colors.bg} border ${colors.border} mr-8`}>
                             <span className={`text-xs font-bold mb-1 block ${colors.text}`}>
                               {AI_ICONS[aiName] || '🤖'} {aiName}
                             </span>
-                            <div className="text-[#d1d5db] leading-relaxed"><MarkdownRenderer content={msg.content} /></div>
+                            <div className="text-[var(--text-secondary)] leading-relaxed"><MarkdownRenderer content={msg.content} /></div>
                           </div>
                         );
                       })}
                       {chatLoading && (
-                        <div className="flex items-center gap-2 text-sm text-[#8b95a1] p-3">
-                          <div className="h-2 w-2 rounded-full bg-[#3182f6] animate-pulse" />
+                        <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)] p-3">
+                          <div className="h-2 w-2 rounded-full bg-[var(--toss-blue)] animate-pulse" />
                           {analysisMode ? '3개 AI 분석 중...' : '답변 생성 중...'}
                         </div>
                       )}
@@ -791,7 +794,7 @@ export default function MeetingPage() {
                         onChange={e => setChatInput(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitAnalysisDirection(); } }}
                         placeholder="분석 방향을 입력하거나, 바로 분석을 눌러주세요"
-                        className="flex-1 rounded-lg border border-[#f59e0b]/30 bg-[#17171c] px-4 py-2.5 text-sm placeholder-[#6b7684] outline-none focus:border-[#f59e0b] transition-colors"
+                        className="flex-1 rounded-lg border border-[var(--toss-yellow)]/30 bg-[var(--bg-card)] px-4 py-2.5 text-sm placeholder-[var(--text-tertiary)] outline-none focus:border-[var(--toss-yellow)] transition-colors"
                       />
                       <button
                         onClick={submitAnalysisDirection}
@@ -807,13 +810,13 @@ export default function MeetingPage() {
                         onChange={e => setChatInput(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }}
                         placeholder="후속 질문을 입력하세요"
-                        className="flex-1 rounded-lg border border-[#2c2c35] bg-[#17171c] px-4 py-2.5 text-sm placeholder-[#6b7684] outline-none focus:border-[#3182f6] transition-colors"
+                        className="flex-1 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-card)] px-4 py-2.5 text-sm placeholder-[var(--text-tertiary)] outline-none focus:border-[var(--toss-blue)] transition-colors"
                         disabled={chatLoading}
                       />
                       <button
                         onClick={sendChat}
                         disabled={!chatInput.trim() || chatLoading}
-                        className="rounded-lg bg-[#3182f6] px-4 py-2.5 text-sm font-bold text-white hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                        className="rounded-lg bg-[var(--toss-blue)] px-4 py-2.5 text-sm font-bold text-white hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
                       >
                         💬 채팅 (Claude)
                       </button>
@@ -833,7 +836,7 @@ export default function MeetingPage() {
             {phase === 'error' && (
               <button
                 onClick={() => { setPhase('idle'); setMessages([]); }}
-                className="w-full rounded-xl border border-[#2c2c35] py-3 text-sm font-semibold text-[#8b95a1] hover:bg-[#2c2c35] hover:text-white transition-colors"
+                className="w-full rounded-xl border border-[var(--border-primary)] py-3 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-white transition-colors"
               >
                 다시 시도
               </button>

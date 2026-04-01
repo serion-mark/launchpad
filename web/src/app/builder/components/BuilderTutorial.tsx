@@ -152,7 +152,7 @@ export default function BuilderTutorial({ onComplete }: BuilderTutorialProps) {
       {/* Highlight border */}
       {cutout && (
         <div
-          className="absolute border-2 border-[#3182f6] rounded-xl pointer-events-none"
+          className="absolute border-2 border-[var(--toss-blue)] rounded-xl pointer-events-none"
           style={{
             top: cutout.top,
             left: cutout.left,
@@ -168,7 +168,7 @@ export default function BuilderTutorial({ onComplete }: BuilderTutorialProps) {
         className="absolute z-10"
         style={{ ...getTooltipStyle(), pointerEvents: 'auto' }}
       >
-        <div className="bg-[#1b1b21] border border-[rgba(255,255,255,0.1)] rounded-2xl p-5 shadow-2xl max-w-[320px]"
+        <div className="bg-[var(--bg-secondary)] border border-[rgba(255,255,255,0.1)] rounded-2xl p-5 shadow-2xl max-w-[320px]"
           style={{ backdropFilter: 'blur(12px)' }}>
           {/* Step icon + title */}
           <div className="flex items-center gap-2.5 mb-3">
@@ -177,7 +177,7 @@ export default function BuilderTutorial({ onComplete }: BuilderTutorialProps) {
           </div>
 
           {/* Description */}
-          <p className="text-[#8b95a1] text-sm leading-relaxed whitespace-pre-line mb-5">
+          <p className="text-[var(--text-secondary)] text-sm leading-relaxed whitespace-pre-line mb-5">
             {step.description}
           </p>
 
@@ -190,9 +190,9 @@ export default function BuilderTutorial({ onComplete }: BuilderTutorialProps) {
                   key={i}
                   className={`w-2 h-2 rounded-full transition-all ${
                     i === currentStep
-                      ? 'bg-[#3182f6] w-5'
+                      ? 'bg-[var(--toss-blue)] w-5'
                       : i < currentStep
-                        ? 'bg-[#3182f6]/40'
+                        ? 'bg-[var(--toss-blue)]/40'
                         : 'bg-[rgba(255,255,255,0.15)]'
                   }`}
                 />
@@ -203,13 +203,13 @@ export default function BuilderTutorial({ onComplete }: BuilderTutorialProps) {
             <div className="flex gap-2">
               <button
                 onClick={handleDone}
-                className="px-3 py-1.5 text-xs text-[#6b7684] hover:text-[#8b95a1] transition-colors"
+                className="px-3 py-1.5 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
               >
                 건너뛰기
               </button>
               <button
                 onClick={handleNext}
-                className="px-5 py-2 bg-[#3182f6] hover:bg-[#1b6ff5] text-white text-sm font-semibold rounded-lg transition-colors"
+                className="px-5 py-2 bg-[var(--toss-blue)] hover:bg-[#1b6ff5] text-white text-sm font-semibold rounded-lg transition-colors"
               >
                 {isLast ? '시작하기!' : '다음 →'}
               </button>

@@ -20,21 +20,21 @@ const PRICING_PLANS = [
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-[#17171c] text-[#f2f4f6]">
+    <div className="min-h-screen bg-[var(--bg-card)] text-[var(--text-primary)]">
       <LandingNav />
 
       {/* ── 히어로 섹션 (2분할) ─────────────────── */}
       <section className="relative overflow-hidden px-5 pt-16 pb-20 md:pt-24 md:pb-28">
         {/* 배경 글로우 */}
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute left-1/4 top-0 h-[500px] w-[600px] rounded-full bg-[#3182f6]/8 blur-[120px]" />
-          <div className="absolute right-1/4 top-0 h-[500px] w-[600px] rounded-full bg-[#a855f7]/6 blur-[120px]" />
+          <div className="absolute left-1/4 top-0 h-[500px] w-[600px] rounded-full bg-[var(--toss-blue)]/8 blur-[120px]" />
+          <div className="absolute right-1/4 top-0 h-[500px] w-[600px] rounded-full bg-[var(--toss-purple)]/6 blur-[120px]" />
         </div>
 
         <div className="relative mx-auto max-w-6xl">
           {/* 상단 배지 */}
           <div className="mb-10 text-center">
-            <div className="inline-block rounded-full bg-[#3182f6]/10 px-4 py-1.5 text-sm font-medium text-[#3182f6]">
+            <div className="inline-block rounded-full bg-[var(--toss-blue)]/10 px-4 py-1.5 text-sm font-medium text-[var(--toss-blue)]">
               정부지원사업 창업자를 위한 AI MVP 빌더
             </div>
           </div>
@@ -42,18 +42,18 @@ export default function LandingPage() {
           {/* 2분할 그리드 */}
           <div className="grid gap-6 md:gap-8 md:grid-cols-2">
             {/* 왼쪽: MVP 만들기 */}
-            <div className="rounded-3xl border border-[#2c2c35] bg-[#17171c]/80 p-8 md:p-10 flex flex-col justify-between">
+            <div className="rounded-3xl border border-[var(--border-primary)] bg-[var(--bg-card)]/80 p-8 md:p-10 flex flex-col justify-between">
               <div>
                 <div className="mb-6 text-5xl">💡</div>
                 <h1 className="mb-5 text-[26px] sm:text-3xl md:text-4xl font-extrabold leading-[1.2] tracking-tight">
                   아이디어만<br />있으면 됩니다.<br />
-                  <span className="text-[#3182f6]">나머지는 AI가<br />만들어 드립니다.</span>
+                  <span className="text-[var(--toss-blue)]">나머지는 AI가<br />만들어 드립니다.</span>
                 </h1>
-                <p className="mb-5 text-base md:text-lg text-[#8b95a1] leading-relaxed">
+                <p className="mb-5 text-base md:text-lg text-[var(--text-secondary)] leading-relaxed">
                   개발자 없이, 질문에 답하기만 하면<br className="hidden md:block" />
                   작동하는 앱이 완성됩니다.
                 </p>
-                <p className="mb-8 text-sm font-semibold text-[#3182f6]">
+                <p className="mb-8 text-sm font-semibold text-[var(--toss-blue)]">
                   외주 3,000만원 &rarr; Foundry 30만원.<br />
                   기획서 100장보다 작동하는 앱 1개.
                 </p>
@@ -61,33 +61,33 @@ export default function LandingPage() {
               <div>
                 <a
                   href="/start"
-                  className="inline-block w-full sm:w-auto rounded-2xl bg-[#3182f6] px-10 py-4 text-center text-lg font-bold text-white hover:bg-[#1b64da] transition-colors shadow-lg shadow-[#3182f6]/25"
+                  className="inline-block w-full sm:w-auto rounded-2xl bg-[var(--toss-blue)] px-10 py-4 text-center text-lg font-bold text-white hover:bg-[var(--toss-blue-hover)] transition-colors shadow-lg shadow-[#3182f6]/25"
                 >
                   바로 시작 &rarr;
                 </a>
-                <p className="mt-4 text-xs text-[#6b7684]">회원가입 시 1,000cr 무료 지급 &middot; 카드 등록 불필요</p>
+                <p className="mt-4 text-xs text-[var(--text-tertiary)]">회원가입 시 1,000cr 무료 지급 &middot; 카드 등록 불필요</p>
               </div>
             </div>
 
             {/* 오른쪽: AI 회의실 */}
-            <div className="rounded-3xl border border-[#2c2c35] bg-[#12121a]/80 p-8 md:p-10 flex flex-col justify-between">
+            <div className="rounded-3xl border border-[var(--border-primary)] bg-[var(--bg-primary)]/80 p-8 md:p-10 flex flex-col justify-between">
               <div>
                 <div className="mb-6 text-5xl">🧠</div>
                 <h2 className="mb-5 text-[26px] sm:text-3xl md:text-4xl font-extrabold leading-[1.2] tracking-tight">
                   AI 한 명은 답하고,<br />
-                  <span className="text-[#a855f7]">파운더리AI는<br />토론합니다.</span>
+                  <span className="text-[var(--toss-purple)]">파운더리AI는<br />토론합니다.</span>
                 </h2>
-                <p className="mb-5 text-xl md:text-2xl font-bold text-[#f2f4f6]">
+                <p className="mb-5 text-xl md:text-2xl font-bold text-[var(--text-primary)]">
                   차이를 경험해보세요.
                 </p>
-                <p className="mb-8 text-base md:text-lg text-[#8b95a1] leading-relaxed">
+                <p className="mb-8 text-base md:text-lg text-[var(--text-secondary)] leading-relaxed">
                   사업계획서로 앱 만들기도 가능합니다
                 </p>
               </div>
               <div>
                 <a
                   href="/meeting"
-                  className="inline-block w-full sm:w-auto rounded-2xl border-2 border-[#a855f7] px-10 py-4 text-center text-lg font-bold text-[#a855f7] hover:bg-[#a855f7]/10 transition-colors"
+                  className="inline-block w-full sm:w-auto rounded-2xl border-2 border-[var(--toss-purple)] px-10 py-4 text-center text-lg font-bold text-[var(--toss-purple)] hover:bg-[var(--toss-purple)]/10 transition-colors"
                 >
                   회의 시작하기 &rarr;
                 </a>
@@ -99,7 +99,7 @@ export default function LandingPage() {
           <div className="mt-8 text-center">
             <a
               href="/portfolio"
-              className="rounded-2xl border border-[#2c2c35] px-8 py-3.5 text-base font-semibold text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#2c2c35] transition-colors"
+              className="rounded-2xl border border-[var(--border-primary)] px-8 py-3.5 text-base font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors"
             >
               이런 앱을 만들 수 있어요
             </a>
@@ -108,11 +108,11 @@ export default function LandingPage() {
       </section>
 
       {/* ── 강점/차별화 3카드 ────────────────────── */}
-      <section id="features" className="px-5 py-20 md:py-28 bg-[#1b1b21]">
+      <section id="features" className="px-5 py-20 md:py-28 bg-[var(--bg-secondary)]">
         <div className="mx-auto max-w-6xl">
           <div className="mb-14 text-center">
             <h2 className="mb-3 text-3xl md:text-4xl font-bold tracking-tight">왜 Foundry인가요?</h2>
-            <p className="text-[#8b95a1] text-lg">외주도, 노코드도 아닌 새로운 방법</p>
+            <p className="text-[var(--text-secondary)] text-lg">외주도, 노코드도 아닌 새로운 방법</p>
           </div>
 
           <div className="grid gap-6 md:gap-8 md:grid-cols-3">
@@ -122,30 +122,30 @@ export default function LandingPage() {
                 title: '가격 100배 절감',
                 desc: '외주 3,000만원짜리 MVP를 30만원에 만듭니다. 예창패/초창패 사업비로 충분합니다.',
                 badge: '3,000만원 → 30만원',
-                badgeColor: 'bg-[#30d158]/10 text-[#30d158]',
+                badgeColor: 'bg-[var(--toss-green)]/10 text-[var(--toss-green)]',
               },
               {
                 icon: '🚀',
                 title: '작동하는 실체',
                 desc: 'PPT 기획서가 아닙니다. 실제 접속 가능한 URL, 실제 작동하는 앱. IR 발표에서 바로 시연하세요.',
                 badge: 'PPT → 작동하는 앱',
-                badgeColor: 'bg-[#3182f6]/10 text-[#3182f6]',
+                badgeColor: 'bg-[var(--toss-blue)]/10 text-[var(--toss-blue)]',
               },
               {
                 icon: '📦',
                 title: '코드 100% 소유',
                 desc: 'Bubble처럼 갇히지 않습니다. ZIP으로 소스코드 전체 다운로드. 개발자에게 바로 인수인계 가능.',
                 badge: '종속 없이 자유롭게',
-                badgeColor: 'bg-[#a855f7]/10 text-[#a855f7]',
+                badgeColor: 'bg-[var(--toss-purple)]/10 text-[var(--toss-purple)]',
               },
             ].map(item => (
-              <div key={item.title} className="rounded-2xl border border-[#2c2c35] bg-[#17171c] p-8 hover:border-[#3182f6]/30 transition-colors">
+              <div key={item.title} className="rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-card)] p-8 hover:border-[var(--toss-blue)]/30 transition-colors">
                 <div className="mb-5 text-5xl">{item.icon}</div>
                 <div className={`mb-4 inline-block rounded-full px-3 py-1 text-xs font-bold ${item.badgeColor}`}>
                   {item.badge}
                 </div>
                 <h3 className="mb-3 text-xl font-bold">{item.title}</h3>
-                <p className="text-sm text-[#8b95a1] leading-relaxed">{item.desc}</p>
+                <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -157,7 +157,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl">
           <div className="mb-14 text-center">
             <h2 className="mb-3 text-3xl md:text-4xl font-bold tracking-tight">30분이면 완성</h2>
-            <p className="text-[#8b95a1] text-lg">AI와 대화하면 앱이 만들어집니다</p>
+            <p className="text-[var(--text-secondary)] text-lg">AI와 대화하면 앱이 만들어집니다</p>
           </div>
 
           <div className="grid gap-0 md:grid-cols-3">
@@ -167,8 +167,8 @@ export default function LandingPage() {
               { step: '3', title: '수정 & 완성', desc: '채팅으로 수정 요청. 배포 또는 ZIP 다운로드로 내 앱 완성!', color: '#a855f7' },
             ].map((s, i) => (
               <div key={s.step} className="relative flex flex-col items-center text-center p-6">
-                {i < 2 && <div className="hidden md:block absolute top-12 right-0 w-1/2 h-0.5 bg-[#2c2c35]" />}
-                {i > 0 && <div className="hidden md:block absolute top-12 left-0 w-1/2 h-0.5 bg-[#2c2c35]" />}
+                {i < 2 && <div className="hidden md:block absolute top-12 right-0 w-1/2 h-0.5 bg-[var(--bg-elevated)]" />}
+                {i > 0 && <div className="hidden md:block absolute top-12 left-0 w-1/2 h-0.5 bg-[var(--bg-elevated)]" />}
                 <div
                   className="relative z-10 mb-5 flex h-14 w-14 items-center justify-center rounded-2xl text-xl font-black text-white"
                   style={{ background: s.color }}
@@ -176,7 +176,7 @@ export default function LandingPage() {
                   {s.step}
                 </div>
                 <h3 className="mb-2 text-lg font-bold">{s.title}</h3>
-                <p className="text-sm text-[#8b95a1] leading-relaxed">{s.desc}</p>
+                <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{s.desc}</p>
               </div>
             ))}
           </div>
@@ -184,25 +184,25 @@ export default function LandingPage() {
       </section>
 
       {/* ── 포트폴리오 미리보기 ────────────────── */}
-      <section className="px-5 py-20 md:py-28 bg-[#1b1b21]">
+      <section className="px-5 py-20 md:py-28 bg-[var(--bg-secondary)]">
         <div className="mx-auto max-w-6xl">
           <div className="mb-14 text-center">
             <h2 className="mb-3 text-3xl md:text-4xl font-bold tracking-tight">이런 앱을 만들 수 있어요</h2>
-            <p className="text-[#8b95a1] text-lg">실제 Foundry로 생성한 앱 예시</p>
+            <p className="text-[var(--text-secondary)] text-lg">실제 Foundry로 생성한 앱 예시</p>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             {PORTFOLIO_ITEMS.map(item => (
-              <a key={item.name} href={item.url} target="_blank" rel="noopener noreferrer" className="group rounded-2xl border border-[#2c2c35] bg-[#17171c] overflow-hidden hover:border-[#3182f6]/30 transition-colors">
+              <a key={item.name} href={item.url} target="_blank" rel="noopener noreferrer" className="group rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-card)] overflow-hidden hover:border-[var(--toss-blue)]/30 transition-colors">
                 {/* 스크린샷 */}
-                <div className="relative h-44 overflow-hidden bg-gradient-to-b from-[#2c2c35] to-[#1b1b21] flex items-center justify-center py-2">
+                <div className="relative h-44 overflow-hidden bg-gradient-to-b from-[var(--bg-elevated)] to-[var(--bg-secondary)] flex items-center justify-center py-2">
                   {item.view === 'mobile' ? (
-                    <div className="relative h-full w-auto rounded-lg overflow-hidden shadow-xl border border-[#3c3c45]">
+                    <div className="relative h-full w-auto rounded-lg overflow-hidden shadow-xl border border-[var(--border-hover)]">
                       <img src={item.screenshot} alt={item.name} className="h-full w-auto object-contain group-hover:scale-105 transition-transform duration-300" />
                     </div>
                   ) : (
-                    <div className="relative w-[90%] rounded-md overflow-hidden shadow-xl border border-[#3c3c45]">
-                      <div className="bg-[#2c2c35] px-2 py-1 flex items-center gap-1">
+                    <div className="relative w-[90%] rounded-md overflow-hidden shadow-xl border border-[var(--border-hover)]">
+                      <div className="bg-[var(--bg-elevated)] px-2 py-1 flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-[#ff5f57]" />
                         <span className="w-1.5 h-1.5 rounded-full bg-[#febc2e]" />
                         <span className="w-1.5 h-1.5 rounded-full bg-[#28c840]" />
@@ -210,16 +210,16 @@ export default function LandingPage() {
                       <img src={item.screenshot} alt={item.name} className="w-full object-cover object-top group-hover:scale-105 transition-transform duration-300" />
                     </div>
                   )}
-                  <span className="absolute top-2 right-2 z-10 rounded-full bg-[#30d158] px-2 py-0.5 text-[9px] font-bold text-white">접속하기</span>
+                  <span className="absolute top-2 right-2 z-10 rounded-full bg-[var(--toss-green)] px-2 py-0.5 text-[9px] font-bold text-white">접속하기</span>
                 </div>
                 {/* 본문 */}
                 <div className="p-4">
-                  <h3 className="text-sm font-bold mb-0.5 group-hover:text-[#3182f6] transition-colors">{item.name}</h3>
-                  <span className="inline-block rounded-full bg-[#2c2c35] px-2 py-0.5 text-[10px] text-[#8b95a1] mb-2">{item.category}</span>
-                  <p className="mb-3 text-xs text-[#8b95a1] leading-relaxed">{item.desc}</p>
+                  <h3 className="text-sm font-bold mb-0.5 group-hover:text-[var(--toss-blue)] transition-colors">{item.name}</h3>
+                  <span className="inline-block rounded-full bg-[var(--bg-elevated)] px-2 py-0.5 text-[10px] text-[var(--text-secondary)] mb-2">{item.category}</span>
+                  <p className="mb-3 text-xs text-[var(--text-secondary)] leading-relaxed">{item.desc}</p>
                   <div className="flex flex-wrap gap-1">
                     {item.features.map(f => (
-                      <span key={f} className="rounded-md bg-[#3182f6]/10 px-2 py-0.5 text-[10px] font-medium text-[#3182f6]">{f}</span>
+                      <span key={f} className="rounded-md bg-[var(--toss-blue)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--toss-blue)]">{f}</span>
                     ))}
                   </div>
                 </div>
@@ -228,28 +228,28 @@ export default function LandingPage() {
           </div>
 
           <div className="mt-10 text-center">
-            <a href="/portfolio" className="text-sm font-semibold text-[#3182f6] hover:underline">더 많은 예시 보기 &rarr;</a>
+            <a href="/portfolio" className="text-sm font-semibold text-[var(--toss-blue)] hover:underline">더 많은 예시 보기 &rarr;</a>
           </div>
         </div>
       </section>
 
       {/* ── MVP 섹션: 왜 MVP를 먼저 만들어야 하나? ── */}
-      <section className="px-4 py-20 md:py-28 bg-[#0c0c12]">
+      <section className="px-4 py-20 md:py-28 bg-[var(--bg-primary)]">
         <div className="mx-auto max-w-6xl">
           {/* 타이틀 */}
           <div className="text-center mb-12 md:mb-16">
             <div className="text-5xl mb-4">💡</div>
             <h2 className="text-2xl md:text-4xl font-bold leading-tight tracking-tight">
               외주사·개발자를 만나기 전에,<br />
-              <span className="text-[#3182f6]">MVP를 먼저 만들어 가세요.</span>
+              <span className="text-[var(--toss-blue)]">MVP를 먼저 만들어 가세요.</span>
             </h2>
           </div>
 
           {/* 비교 카드 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16">
             {/* 왼쪽: MVP 없이 */}
-            <div className="rounded-2xl bg-[#13131a] border border-[#2c2c35] p-6 md:p-8 hover:scale-[1.01] transition-transform">
-              <h3 className="text-xl font-bold text-[#ef4444] mb-6">❌ MVP 없이 미팅하면</h3>
+            <div className="rounded-2xl bg-[var(--bg-header)] border border-[var(--border-primary)] p-6 md:p-8 hover:scale-[1.01] transition-transform">
+              <h3 className="text-xl font-bold text-[var(--toss-red)] mb-6">❌ MVP 없이 미팅하면</h3>
               <div className="space-y-5">
                 {[
                   { icon: '💰', title: '견적', value: '3,000만 원~', sub: '외주 에이전시 평균 단가' },
@@ -260,9 +260,9 @@ export default function LandingPage() {
                   <div key={item.title} className="flex gap-3">
                     <span className="text-xl shrink-0">{item.icon}</span>
                     <div>
-                      <div className="text-xs text-[#6b7684] mb-0.5">{item.title}</div>
-                      <div className="text-sm font-bold text-[#f2f4f6]">{item.value}</div>
-                      <div className="text-xs text-[#ef4444]/70 mt-0.5">{item.sub}</div>
+                      <div className="text-xs text-[var(--text-tertiary)] mb-0.5">{item.title}</div>
+                      <div className="text-sm font-bold text-[var(--text-primary)]">{item.value}</div>
+                      <div className="text-xs text-[var(--toss-red)]/70 mt-0.5">{item.sub}</div>
                     </div>
                   </div>
                 ))}
@@ -270,8 +270,8 @@ export default function LandingPage() {
             </div>
 
             {/* 오른쪽: MVP 들고 */}
-            <div className="rounded-2xl bg-[#1a1a2e] border border-[#3182f6]/40 p-6 md:p-8 hover:scale-[1.01] transition-transform">
-              <h3 className="text-xl font-bold text-[#10b981] mb-6">✅ MVP 들고 미팅하면</h3>
+            <div className="rounded-2xl bg-[var(--bg-subtle)] border border-[var(--toss-blue)]/40 p-6 md:p-8 hover:scale-[1.01] transition-transform">
+              <h3 className="text-xl font-bold text-[var(--toss-green)] mb-6">✅ MVP 들고 미팅하면</h3>
               <div className="space-y-5">
                 {[
                   { icon: '💰', title: '견적', value: '1,500만 원', sub: 'MVP가 기획서 역할 → 견적 50% 절감' },
@@ -282,9 +282,9 @@ export default function LandingPage() {
                   <div key={item.title} className="flex gap-3">
                     <span className="text-xl shrink-0">{item.icon}</span>
                     <div>
-                      <div className="text-xs text-[#6b7684] mb-0.5">{item.title}</div>
-                      <div className="text-sm font-bold text-[#f2f4f6]">{item.value}</div>
-                      <div className="text-xs text-[#10b981]/70 mt-0.5">{item.sub}</div>
+                      <div className="text-xs text-[var(--text-tertiary)] mb-0.5">{item.title}</div>
+                      <div className="text-sm font-bold text-[var(--text-primary)]">{item.value}</div>
+                      <div className="text-xs text-[var(--toss-green)]/70 mt-0.5">{item.sub}</div>
                     </div>
                   </div>
                 ))}
@@ -303,20 +303,20 @@ export default function LandingPage() {
               { icon: '🧪', title: '고객 반응 먼저 테스트', desc: '돈 쓰기 전에, 진짜 고객이 원하는지 확인하세요' },
               { icon: '📦', title: '코드 다운로드', desc: '생성된 코드를 받아서 개발자에게 바로 전달 가능' },
             ].map(item => (
-              <div key={item.title} className="rounded-xl border border-[#2c2c35] bg-[#13131a] p-5 text-center hover:border-[#3182f6]/30 transition-colors">
+              <div key={item.title} className="rounded-xl border border-[var(--border-primary)] bg-[var(--bg-header)] p-5 text-center hover:border-[var(--toss-blue)]/30 transition-colors">
                 <div className="text-3xl mb-3">{item.icon}</div>
                 <h4 className="text-sm font-bold mb-2">{item.title}</h4>
-                <p className="text-xs text-[#8b95a1] leading-relaxed">{item.desc}</p>
+                <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{item.desc}</p>
               </div>
             ))}
           </div>
 
           {/* CTA */}
           <div className="text-center">
-            <p className="text-[#8b95a1] mb-4">30분 만에 MVP를 만들어보세요</p>
+            <p className="text-[var(--text-secondary)] mb-4">30분 만에 MVP를 만들어보세요</p>
             <a
               href="/start"
-              className="inline-block rounded-2xl bg-[#3182f6] px-10 py-4 text-lg font-bold text-white hover:bg-[#1b64da] transition-colors shadow-lg shadow-[#3182f6]/25"
+              className="inline-block rounded-2xl bg-[var(--toss-blue)] px-10 py-4 text-lg font-bold text-white hover:bg-[var(--toss-blue-hover)] transition-colors shadow-lg shadow-[#3182f6]/25"
             >
               무료로 시작하기 &rarr;
             </a>
@@ -329,7 +329,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-5xl">
           <div className="mb-14 text-center">
             <h2 className="mb-3 text-3xl md:text-4xl font-bold tracking-tight">합리적인 가격</h2>
-            <p className="text-[#8b95a1] text-lg">크레딧을 충전하고, 필요한 만큼만 사용하세요</p>
+            <p className="text-[var(--text-secondary)] text-lg">크레딧을 충전하고, 필요한 만큼만 사용하세요</p>
           </div>
 
           <div className="grid gap-6 md:grid-cols-3">
@@ -338,26 +338,26 @@ export default function LandingPage() {
                 key={plan.name}
                 className={`rounded-2xl border p-8 transition-colors ${
                   plan.highlight
-                    ? 'border-[#3182f6] bg-[#3182f6]/5 ring-1 ring-[#3182f6]/30'
-                    : 'border-[#2c2c35] bg-[#1b1b21] hover:border-[#3a3a45]'
+                    ? 'border-[var(--toss-blue)] bg-[var(--toss-blue)]/5 ring-1 ring-[#3182f6]/30'
+                    : 'border-[var(--border-primary)] bg-[var(--bg-secondary)] hover:border-[var(--border-hover)]'
                 }`}
               >
                 {plan.highlight && (
-                  <div className="mb-4 inline-block rounded-full bg-[#3182f6] px-3 py-1 text-xs font-bold text-white">인기</div>
+                  <div className="mb-4 inline-block rounded-full bg-[var(--toss-blue)] px-3 py-1 text-xs font-bold text-white">인기</div>
                 )}
                 <h3 className="mb-1 text-xl font-bold">{plan.name}</h3>
-                <p className="mb-5 text-sm text-[#6b7684]">{plan.desc}</p>
+                <p className="mb-5 text-sm text-[var(--text-tertiary)]">{plan.desc}</p>
                 <div className="mb-2">
                   <span className="text-3xl font-extrabold">&#8361;{plan.price}</span>
-                  <span className="text-sm text-[#6b7684]"> / 1회</span>
+                  <span className="text-sm text-[var(--text-tertiary)]"> / 1회</span>
                 </div>
-                <p className="mb-6 text-sm text-[#3182f6] font-medium">{plan.credits} 크레딧 포함</p>
+                <p className="mb-6 text-sm text-[var(--toss-blue)] font-medium">{plan.credits} 크레딧 포함</p>
                 <a
                   href="/pricing"
                   className={`block rounded-xl py-3 text-center text-sm font-bold transition-colors ${
                     plan.highlight
-                      ? 'bg-[#3182f6] text-white hover:bg-[#1b64da]'
-                      : 'bg-[#2c2c35] text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#3a3a45]'
+                      ? 'bg-[var(--toss-blue)] text-white hover:bg-[var(--toss-blue-hover)]'
+                      : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-hover)]'
                   }`}
                 >
                   자세히 보기
@@ -366,27 +366,27 @@ export default function LandingPage() {
             ))}
           </div>
 
-          <p className="mt-6 text-center text-xs text-[#6b7684]">
+          <p className="mt-6 text-center text-xs text-[var(--text-tertiary)]">
             가격은 부가세 별도 &middot; 호스팅 월 29,000원 별도 &middot; 다운로드 5,000 크레딧
           </p>
         </div>
       </section>
 
       {/* ── 비교표 ────────────────────────────── */}
-      <section className="px-5 py-20 md:py-28 bg-[#1b1b21]">
+      <section className="px-5 py-20 md:py-28 bg-[var(--bg-secondary)]">
         <div className="mx-auto max-w-4xl">
           <div className="mb-14 text-center">
             <h2 className="mb-3 text-3xl md:text-4xl font-bold tracking-tight">외주 vs Foundry</h2>
-            <p className="text-[#8b95a1] text-lg">같은 MVP, 다른 비용</p>
+            <p className="text-[var(--text-secondary)] text-lg">같은 MVP, 다른 비용</p>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#2c2c35]">
-                  <th className="py-4 px-4 text-left text-[#6b7684] font-medium">항목</th>
-                  <th className="py-4 px-4 text-center text-[#f45452] font-bold">외주 개발</th>
-                  <th className="py-4 px-4 text-center text-[#3182f6] font-bold">Foundry</th>
+                <tr className="border-b border-[var(--border-primary)]">
+                  <th className="py-4 px-4 text-left text-[var(--text-tertiary)] font-medium">항목</th>
+                  <th className="py-4 px-4 text-center text-[var(--toss-red)] font-bold">외주 개발</th>
+                  <th className="py-4 px-4 text-center text-[var(--toss-blue)] font-bold">Foundry</th>
                 </tr>
               </thead>
               <tbody>
@@ -398,10 +398,10 @@ export default function LandingPage() {
                   ['기술 스택', '업체마다 다름', '최신 기술로 안정적으로 (글로벌 표준)'],
                   ['배포', '별도 협의', '원클릭 자동 배포'],
                 ].map(([label, outsource, foundry]) => (
-                  <tr key={label} className="border-b border-[#2c2c35]/50">
-                    <td className="py-3.5 px-4 text-[#8b95a1]">{label}</td>
-                    <td className="py-3.5 px-4 text-center text-[#6b7684]">{outsource}</td>
-                    <td className="py-3.5 px-4 text-center font-medium text-[#f2f4f6]">{foundry}</td>
+                  <tr key={label} className="border-b border-[var(--border-primary)]/50">
+                    <td className="py-3.5 px-4 text-[var(--text-secondary)]">{label}</td>
+                    <td className="py-3.5 px-4 text-center text-[var(--text-tertiary)]">{outsource}</td>
+                    <td className="py-3.5 px-4 text-center font-medium text-[var(--text-primary)]">{foundry}</td>
                   </tr>
                 ))}
               </tbody>
@@ -416,12 +416,12 @@ export default function LandingPage() {
           <h2 className="mb-5 text-3xl md:text-[44px] font-bold leading-tight tracking-tight">
             아이디어가 있다면, 앱은 이미 완성된 거예요
           </h2>
-          <p className="mb-10 text-lg text-[#8b95a1]">
+          <p className="mb-10 text-lg text-[var(--text-secondary)]">
             회원가입 시 1,000 크레딧 무료. 카드 등록 없이, 질문에 답하기만 하면 앱이 완성됩니다.
           </p>
           <a
             href="/start"
-            className="inline-block rounded-2xl bg-[#3182f6] px-12 py-5 text-xl font-bold text-white hover:bg-[#1b64da] transition-colors shadow-lg shadow-[#3182f6]/25"
+            className="inline-block rounded-2xl bg-[var(--toss-blue)] px-12 py-5 text-xl font-bold text-white hover:bg-[var(--toss-blue-hover)] transition-colors shadow-lg shadow-[#3182f6]/25"
           >
             지금 무료로 체험하기 &rarr;
           </a>

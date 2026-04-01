@@ -1,16 +1,67 @@
 @import "tailwindcss";
 
-/* ── 토스 다크 팔레트 ──────────────────────── */
+/* ── 라이트 모드 (기본) ──────────────────────── */
 :root {
-  --bg-primary: #17171c;
-  --bg-card: #1b1b21;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f5f9;
+  --bg-elevated: #f1f5f9;
+  --bg-input: #f1f5f9;
+  --bg-header: #ffffff;
+  --bg-footer: #f8fafc;
+  --bg-deep: #f0f2f5;
+  --bg-subtle: #e9ecef;
+
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-tertiary: #94a3b8;
+  --text-disabled: #cbd5e1;
+  --text-inverse: #ffffff;
+
+  --toss-blue: #3182f6;
+  --toss-blue-hover: #1b64da;
+  --toss-blue-light: rgba(49, 130, 246, 0.12);
+
+  --toss-green: #10b981;
+  --toss-red: #ef4444;
+  --toss-yellow: #f59e0b;
+  --toss-purple: #8b5cf6;
+
+  --border-primary: #e2e8f0;
+  --border-secondary: #f1f5f9;
+  --border-hover: #cbd5e1;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+}
+
+/* ── 다크 모드 ───────────────────────────────── */
+.dark {
+  --bg-primary: #0c0c12;
+  --bg-secondary: #1b1b21;
+  --bg-card: #17171c;
+  --bg-card-hover: #2c2c35;
   --bg-elevated: #2c2c35;
   --bg-input: #2c2c35;
+  --bg-header: #13131a;
+  --bg-footer: #0c0c12;
+  --bg-deep: #0a0a0f;
+  --bg-subtle: #1e1e28;
 
   --text-primary: #f2f4f6;
   --text-secondary: #8b95a1;
   --text-tertiary: #6b7684;
   --text-disabled: #4e5968;
+  --text-inverse: #1e293b;
 
   --toss-blue: #3182f6;
   --toss-blue-hover: #1b64da;
@@ -22,14 +73,12 @@
   --toss-purple: #a855f7;
 
   --border-primary: #2c2c35;
-  --border-secondary: #3a3a45;
+  --border-secondary: #1e1e28;
+  --border-hover: #3a3a45;
 
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
-
-  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.4);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.5);
 }
 
 @theme inline {
@@ -45,9 +94,10 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   letter-spacing: -0.01em;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* ── 토스 스크롤바 ─────────────────────────── */
+/* ── 스크롤바 ─────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 6px;
 }
@@ -55,14 +105,14 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border-secondary);
+  background: var(--border-hover);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-disabled);
 }
 
-/* ── 토스 selection ────────────────────────── */
+/* ── selection ────────────────────────────────── */
 ::selection {
   background: var(--toss-blue-light);
   color: var(--text-primary);

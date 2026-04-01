@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import Logo from '@/app/components/Logo';
+import ThemeToggle from '@/app/components/ThemeToggle';
 
 // ── 미용실 POS 데모 화면 ──
 const beautyScreens = [
@@ -229,36 +231,37 @@ export default function PreviewPage() {
   const currentScreen = screens[selectedScreen];
 
   return (
-    <div className="min-h-screen bg-[#17171c] text-[#f2f4f6]">
-      <header className="border-b border-[#2c2c35] px-5 py-4 md:px-8">
+    <div className="min-h-screen bg-[var(--bg-card)] text-[var(--text-primary)]">
+      <header className="border-b border-[var(--border-primary)] px-5 py-4 md:px-8">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-4 sm:gap-6">
-            <a href="/"><img src="/logo.svg" alt="Foundry" className="h-7" /></a>
-            <span className="text-sm text-[#8b95a1]">미리보기</span>
+            <a href="/"><Logo className="h-7" /></a>
+            <span className="text-sm text-[var(--text-secondary)]">미리보기</span>
           </div>
           <div className="flex items-center gap-2">
             {Object.keys(DEMO_SCREENS).map(tid => (
               <button key={tid} onClick={() => { setSelectedTemplate(tid); setSelectedScreen(0); }}
-                className={`rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${selectedTemplate === tid ? 'bg-[#3182f6] text-white' : 'bg-[#2c2c35] text-[#8b95a1] hover:text-[#f2f4f6]'}`}>
+                className={`rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${selectedTemplate === tid ? 'bg-[var(--toss-blue)] text-white' : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
                 {tid === 'beauty-salon' ? '✂️ 미용실' : tid === 'booking-crm' ? '🏥 예약' : '🛍 쇼핑몰'}
               </button>
             ))}
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setViewMode('desktop')} className={`rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${viewMode === 'desktop' ? 'bg-[#3a3a45] text-[#f2f4f6]' : 'bg-[#2c2c35] text-[#8b95a1]'}`}>🖥 데스크톱</button>
-            <button onClick={() => setViewMode('mobile')} className={`rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${viewMode === 'mobile' ? 'bg-[#3a3a45] text-[#f2f4f6]' : 'bg-[#2c2c35] text-[#8b95a1]'}`}>📱 모바일</button>
-            <a href="/start" className="ml-2 rounded-xl bg-[#3182f6] px-5 py-2 text-sm font-bold text-white hover:bg-[#1b64da] transition-colors sm:ml-4">내 프로젝트로 생성</a>
+            <button onClick={() => setViewMode('desktop')} className={`rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${viewMode === 'desktop' ? 'bg-[var(--border-hover)] text-[var(--text-primary)]' : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)]'}`}>🖥 데스크톱</button>
+            <button onClick={() => setViewMode('mobile')} className={`rounded-xl px-3.5 py-2 text-sm font-medium transition-colors ${viewMode === 'mobile' ? 'bg-[var(--border-hover)] text-[var(--text-primary)]' : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)]'}`}>📱 모바일</button>
+            <ThemeToggle />
+            <a href="/start" className="ml-2 rounded-xl bg-[var(--toss-blue)] px-5 py-2 text-sm font-bold text-white hover:bg-[var(--toss-blue-hover)] transition-colors sm:ml-4">내 프로젝트로 생성</a>
           </div>
         </div>
       </header>
 
       <div className="flex">
-        <aside className="w-40 border-r border-[#2c2c35] p-4 sm:w-48">
-          <h3 className="mb-3 text-xs font-bold uppercase text-[#6b7684]">화면 목록</h3>
+        <aside className="w-40 border-r border-[var(--border-primary)] p-4 sm:w-48">
+          <h3 className="mb-3 text-xs font-bold uppercase text-[var(--text-tertiary)]">화면 목록</h3>
           <div className="space-y-1">
             {screens.map((screen, i) => (
               <button key={i} onClick={() => setSelectedScreen(i)}
-                className={`w-full rounded-xl px-3.5 py-2.5 text-left text-sm transition-colors ${selectedScreen === i ? 'bg-[#3182f6]/15 text-[#3182f6] font-medium' : 'text-[#8b95a1] hover:bg-[#2c2c35] hover:text-[#f2f4f6]'}`}>
+                className={`w-full rounded-xl px-3.5 py-2.5 text-left text-sm transition-colors ${selectedScreen === i ? 'bg-[var(--toss-blue)]/15 text-[var(--toss-blue)] font-medium' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]'}`}>
                 {screen.name}
               </button>
             ))}
@@ -266,7 +269,7 @@ export default function PreviewPage() {
         </aside>
 
         <main className="flex-1 flex items-start justify-center p-5 sm:p-8">
-          <div className={`overflow-hidden rounded-2xl border border-[#2c2c35] bg-white shadow-2xl transition-all ${viewMode === 'mobile' ? 'w-[375px]' : 'w-full max-w-5xl'}`}
+          <div className={`overflow-hidden rounded-2xl border border-[var(--border-primary)] bg-white shadow-2xl transition-all ${viewMode === 'mobile' ? 'w-[375px]' : 'w-full max-w-5xl'}`}
             style={{ height: viewMode === 'mobile' ? '812px' : '600px' }}>
             {currentScreen && (
               <iframe

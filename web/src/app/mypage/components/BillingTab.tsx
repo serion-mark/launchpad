@@ -116,7 +116,7 @@ export default function BillingTab() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#3182f6] border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--toss-blue)] border-t-transparent" />
       </div>
     );
   }
@@ -124,17 +124,17 @@ export default function BillingTab() {
   return (
     <div className="space-y-6">
       {msg && (
-        <div className="rounded-xl bg-[#3182f6]/10 border border-[#3182f6]/20 px-4 py-3 text-sm text-[#3182f6]">
+        <div className="rounded-xl bg-[var(--toss-blue)]/10 border border-[var(--toss-blue)]/20 px-4 py-3 text-sm text-[var(--toss-blue)]">
           {msg}
         </div>
       )}
 
       {/* 사업자 정보 */}
-      <div className="rounded-2xl bg-[#17171c] border border-[#2c2c35] p-6">
+      <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border-primary)] p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-bold text-[#f2f4f6]">사업자 정보</h3>
+          <h3 className="text-base font-bold text-[var(--text-primary)]">사업자 정보</h3>
           {!editing && (
-            <button onClick={() => setEditing(true)} className="text-sm text-[#3182f6] hover:text-[#1b64da]">
+            <button onClick={() => setEditing(true)} className="text-sm text-[var(--toss-blue)] hover:text-[var(--toss-blue-hover)]">
               수정
             </button>
           )}
@@ -150,47 +150,47 @@ export default function BillingTab() {
               { key: 'businessPhone' as const, label: '전화번호' },
             ].map(field => (
               <div key={field.key}>
-                <label className="block text-sm text-[#8b95a1] mb-1">{field.label}</label>
+                <label className="block text-sm text-[var(--text-secondary)] mb-1">{field.label}</label>
                 <input
                   value={form[field.key] || ''}
                   onChange={e => setForm(prev => ({ ...prev, [field.key]: e.target.value }))}
-                  className="w-full rounded-lg bg-[#2c2c35] border border-[#3a3a45] px-4 py-2.5 text-sm text-[#f2f4f6] outline-none focus:border-[#3182f6]"
+                  className="w-full rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-hover)] px-4 py-2.5 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--toss-blue)]"
                   placeholder={field.label}
                 />
               </div>
             ))}
             <div className="flex gap-2 pt-2">
-              <button onClick={saveBusiness} disabled={saving} className="rounded-xl bg-[#3182f6] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1b64da] disabled:opacity-50">
+              <button onClick={saveBusiness} disabled={saving} className="rounded-xl bg-[var(--toss-blue)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--toss-blue-hover)] disabled:opacity-50">
                 {saving ? '저장 중...' : '저장'}
               </button>
-              <button onClick={() => setEditing(false)} className="text-sm text-[#8b95a1]">취소</button>
+              <button onClick={() => setEditing(false)} className="text-sm text-[var(--text-secondary)]">취소</button>
             </div>
           </div>
         ) : (
           <div className="space-y-2 text-sm">
-            <div className="flex"><span className="w-28 text-[#8b95a1]">상호</span><span className="text-[#f2f4f6]">{business?.businessName || '미설정'}</span></div>
-            <div className="flex"><span className="w-28 text-[#8b95a1]">사업자번호</span><span className="text-[#f2f4f6]">{business?.businessNumber || '미설정'}</span></div>
-            <div className="flex"><span className="w-28 text-[#8b95a1]">대표자</span><span className="text-[#f2f4f6]">{business?.representative || '미설정'}</span></div>
-            <div className="flex"><span className="w-28 text-[#8b95a1]">주소</span><span className="text-[#f2f4f6]">{business?.businessAddress || '미설정'}</span></div>
-            <div className="flex"><span className="w-28 text-[#8b95a1]">전화번호</span><span className="text-[#f2f4f6]">{business?.businessPhone || '미설정'}</span></div>
+            <div className="flex"><span className="w-28 text-[var(--text-secondary)]">상호</span><span className="text-[var(--text-primary)]">{business?.businessName || '미설정'}</span></div>
+            <div className="flex"><span className="w-28 text-[var(--text-secondary)]">사업자번호</span><span className="text-[var(--text-primary)]">{business?.businessNumber || '미설정'}</span></div>
+            <div className="flex"><span className="w-28 text-[var(--text-secondary)]">대표자</span><span className="text-[var(--text-primary)]">{business?.representative || '미설정'}</span></div>
+            <div className="flex"><span className="w-28 text-[var(--text-secondary)]">주소</span><span className="text-[var(--text-primary)]">{business?.businessAddress || '미설정'}</span></div>
+            <div className="flex"><span className="w-28 text-[var(--text-secondary)]">전화번호</span><span className="text-[var(--text-primary)]">{business?.businessPhone || '미설정'}</span></div>
           </div>
         )}
       </div>
 
       {/* 이용내역서 */}
-      <div className="rounded-2xl bg-[#17171c] border border-[#2c2c35] p-6">
-        <h3 className="text-base font-bold text-[#f2f4f6] mb-4">이용내역서</h3>
-        <p className="text-xs text-[#6b7684] mb-4">정부지원사업비 정산 증빙 자료로 사용 가능합니다</p>
+      <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border-primary)] p-6">
+        <h3 className="text-base font-bold text-[var(--text-primary)] mb-4">이용내역서</h3>
+        <p className="text-xs text-[var(--text-tertiary)] mb-4">정부지원사업비 정산 증빙 자료로 사용 가능합니다</p>
         <div className="space-y-2">
           {months.map(month => {
             const [y, m] = month.split('-');
             return (
-              <div key={month} className="flex items-center justify-between rounded-xl bg-[#1b1b21] px-4 py-3">
-                <span className="text-sm text-[#f2f4f6]">{y}년 {parseInt(m)}월 이용내역서</span>
+              <div key={month} className="flex items-center justify-between rounded-xl bg-[var(--bg-secondary)] px-4 py-3">
+                <span className="text-sm text-[var(--text-primary)]">{y}년 {parseInt(m)}월 이용내역서</span>
                 <button
                   onClick={() => downloadPdf(month)}
                   disabled={pdfLoading === month}
-                  className="rounded-lg bg-[#2c2c35] px-3 py-1.5 text-xs font-medium text-[#3182f6] hover:bg-[#3a3a45] disabled:opacity-50 transition-colors"
+                  className="rounded-lg bg-[var(--bg-elevated)] px-3 py-1.5 text-xs font-medium text-[var(--toss-blue)] hover:bg-[var(--border-hover)] disabled:opacity-50 transition-colors"
                 >
                   {pdfLoading === month ? '생성 중...' : 'PDF 다운로드'}
                 </button>
@@ -202,16 +202,16 @@ export default function BillingTab() {
 
       {/* 세금계산서 (결제 내역 기반) */}
       {charges.length > 0 && (
-        <div className="rounded-2xl bg-[#17171c] border border-[#2c2c35] p-6">
-          <h3 className="text-base font-bold text-[#f2f4f6] mb-4">결제 영수증</h3>
+        <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border-primary)] p-6">
+          <h3 className="text-base font-bold text-[var(--text-primary)] mb-4">결제 영수증</h3>
           <div className="space-y-2">
             {charges.map((c, i) => (
-              <div key={i} className="flex items-center justify-between rounded-xl bg-[#1b1b21] px-4 py-3">
+              <div key={i} className="flex items-center justify-between rounded-xl bg-[var(--bg-secondary)] px-4 py-3">
                 <div>
-                  <span className="text-sm text-[#f2f4f6]">
+                  <span className="text-sm text-[var(--text-primary)]">
                     {new Date(c.date).toLocaleDateString('ko-KR')} {c.packageName}
                   </span>
-                  <span className="ml-2 text-sm text-[#8b95a1]">{c.price.toLocaleString()}원</span>
+                  <span className="ml-2 text-sm text-[var(--text-secondary)]">{c.price.toLocaleString()}원</span>
                 </div>
               </div>
             ))}

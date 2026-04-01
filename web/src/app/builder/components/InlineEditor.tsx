@@ -144,27 +144,27 @@ export default function InlineEditor({
   const hasFile = !!el.file;
 
   return (
-    <div className="absolute bottom-4 left-4 right-4 z-50 rounded-xl border border-[#2c2c35] bg-[#1e1e26] shadow-2xl">
+    <div className="absolute bottom-4 left-4 right-4 z-50 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-subtle)] shadow-2xl">
       {/* 헤더 */}
-      <div className="flex items-center justify-between border-b border-[#2c2c35] px-4 py-2.5">
+      <div className="flex items-center justify-between border-b border-[var(--border-primary)] px-4 py-2.5">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-[#3182f6]">{elementLabel}</span>
-          <span className="text-[10px] text-[#4e5968]">{el.tagName}</span>
+          <span className="text-xs font-medium text-[var(--toss-blue)]">{elementLabel}</span>
+          <span className="text-[10px] text-[var(--text-disabled)]">{el.tagName}</span>
           {hasFile && (
-            <span className="text-[10px] text-[#4e5968] truncate max-w-[200px]">{el.file}</span>
+            <span className="text-[10px] text-[var(--text-disabled)] truncate max-w-[200px]">{el.file}</span>
           )}
         </div>
         <div className="flex items-center gap-2">
           {status === 'saved' && <span className="text-[10px] text-emerald-400">저장됨</span>}
-          {saving && <span className="text-[10px] text-[#ffd60a]">저장 중...</span>}
-          <button onClick={onClose} className="text-[#6b7684] hover:text-[#f2f4f6] text-sm">x</button>
+          {saving && <span className="text-[10px] text-[var(--toss-yellow)]">저장 중...</span>}
+          <button onClick={onClose} className="text-[var(--text-tertiary)] hover:text-[var(--text-primary)] text-sm">x</button>
         </div>
       </div>
 
       <div className="px-4 py-3 space-y-3">
         {/* 치환 실패 경고 */}
         {status === 'failed' && (
-          <div className="rounded-lg bg-[#ff6b35]/10 border border-[#ff6b35]/30 px-3 py-2 text-[11px] text-[#ff6b35]">
+          <div className="rounded-lg bg-[#ff6b35]/10 border border-[var(--toss-yellow)]/30 px-3 py-2 text-[11px] text-[var(--toss-yellow)]">
             소스코드에서 매칭되지 않아 저장에 실패했습니다. AI 수정을 이용해주세요.
           </div>
         )}
@@ -172,19 +172,19 @@ export default function InlineEditor({
         {/* 텍스트 편집 */}
         {el.isText && (
           <div>
-            <label className="text-[10px] font-medium text-[#8b95a1] uppercase tracking-wider">텍스트</label>
+            <label className="text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">텍스트</label>
             <div className="mt-1 flex gap-2">
               <input
                 type="text"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                className="flex-1 rounded-lg bg-[#13131a] border border-[#2c2c35] px-3 py-2 text-xs text-[#f2f4f6] focus:border-[#3182f6] focus:outline-none"
+                className="flex-1 rounded-lg bg-[var(--bg-header)] border border-[var(--border-primary)] px-3 py-2 text-xs text-[var(--text-primary)] focus:border-[var(--toss-blue)] focus:outline-none"
                 onKeyDown={(e) => { if (e.key === 'Enter') applyText(); }}
               />
               <button
                 onClick={applyText}
                 disabled={saving}
-                className="rounded-lg bg-[#3182f6] px-3 py-2 text-xs font-medium text-white hover:bg-[#2563eb] disabled:opacity-50 transition-colors"
+                className="rounded-lg bg-[var(--toss-blue)] px-3 py-2 text-xs font-medium text-white hover:bg-[var(--toss-blue)] disabled:opacity-50 transition-colors"
               >
                 적용
               </button>
@@ -195,7 +195,7 @@ export default function InlineEditor({
         {/* 색상 편집 */}
         <div className="flex gap-4">
           <div>
-            <label className="text-[10px] font-medium text-[#8b95a1] uppercase tracking-wider">글자색</label>
+            <label className="text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">글자색</label>
             <div className="mt-1 flex items-center gap-2">
               <input
                 type="color"
@@ -205,13 +205,13 @@ export default function InlineEditor({
                   setTextColor(e.target.value);
                   applyColor('color', e.target.value, oldVal);
                 }}
-                className="h-8 w-8 cursor-pointer rounded border border-[#2c2c35] bg-transparent"
+                className="h-8 w-8 cursor-pointer rounded border border-[var(--border-primary)] bg-transparent"
               />
-              <span className="text-[10px] text-[#6b7684]">{textColor}</span>
+              <span className="text-[10px] text-[var(--text-tertiary)]">{textColor}</span>
             </div>
           </div>
           <div>
-            <label className="text-[10px] font-medium text-[#8b95a1] uppercase tracking-wider">배경색</label>
+            <label className="text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">배경색</label>
             <div className="mt-1 flex items-center gap-2">
               <input
                 type="color"
@@ -221,9 +221,9 @@ export default function InlineEditor({
                   setBgColor(e.target.value);
                   applyColor('backgroundColor', e.target.value, oldVal);
                 }}
-                className="h-8 w-8 cursor-pointer rounded border border-[#2c2c35] bg-transparent"
+                className="h-8 w-8 cursor-pointer rounded border border-[var(--border-primary)] bg-transparent"
               />
-              <span className="text-[10px] text-[#6b7684]">{bgColor}</span>
+              <span className="text-[10px] text-[var(--text-tertiary)]">{bgColor}</span>
             </div>
           </div>
         </div>
@@ -231,18 +231,18 @@ export default function InlineEditor({
         {/* 이미지 편집 */}
         {el.isImage && (
           <div>
-            <label className="text-[10px] font-medium text-[#8b95a1] uppercase tracking-wider">이미지 URL</label>
+            <label className="text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">이미지 URL</label>
             <div className="mt-1 flex gap-2">
               <input
                 type="text"
                 value={imageSrc}
                 onChange={(e) => setImageSrc(e.target.value)}
-                className="flex-1 rounded-lg bg-[#13131a] border border-[#2c2c35] px-3 py-2 text-xs text-[#f2f4f6] focus:border-[#3182f6] focus:outline-none"
+                className="flex-1 rounded-lg bg-[var(--bg-header)] border border-[var(--border-primary)] px-3 py-2 text-xs text-[var(--text-primary)] focus:border-[var(--toss-blue)] focus:outline-none"
                 placeholder="https://..."
               />
               <button
                 onClick={applyImage}
-                className="rounded-lg bg-[#3182f6] px-3 py-2 text-xs font-medium text-white hover:bg-[#2563eb] transition-colors"
+                className="rounded-lg bg-[var(--toss-blue)] px-3 py-2 text-xs font-medium text-white hover:bg-[var(--toss-blue)] transition-colors"
               >
                 적용
               </button>
@@ -254,7 +254,7 @@ export default function InlineEditor({
         <div className="flex items-center gap-2 pt-1">
           <button
             onClick={handleSendToChat}
-            className="flex-1 rounded-lg bg-[#2c2c35] px-3 py-2 text-xs font-medium text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors"
+            className="flex-1 rounded-lg bg-[var(--bg-elevated)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--border-hover)] transition-colors"
           >
             AI에게 수정 요청
           </button>

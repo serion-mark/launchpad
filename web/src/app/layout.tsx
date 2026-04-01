@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ClientErrorBoundary } from "./ClientErrorBoundary";
+import ThemeScript from "./components/ThemeScript";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -27,8 +28,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" translate="no">
+    <html lang="ko" translate="no" suppressHydrationWarning>
       <head>
+        <ThemeScript />
         <meta name="google" content="notranslate" />
         <meta httpEquiv="Content-Language" content="ko" />
         <link

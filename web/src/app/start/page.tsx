@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { authFetch, getUser, getToken, logout, API_BASE } from '@/lib/api';
+import Logo from '@/app/components/Logo';
+import ThemeToggle from '@/app/components/ThemeToggle';
 import MarkdownRenderer from '@/app/components/MarkdownRenderer';
 
 // ── 템플릿 데이터 ──────────────────────────────────────
@@ -693,7 +695,7 @@ const THEMES = [
 // Suspense 래퍼 (useSearchParams는 Suspense 필요)
 export default function StartPageWrapper() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#0f0f14]"><div className="animate-spin h-8 w-8 border-b-2 border-blue-500 rounded-full" /></div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]"><div className="animate-spin h-8 w-8 border-b-2 border-blue-500 rounded-full" /></div>}>
       <StartPage />
     </Suspense>
   );
@@ -949,32 +951,33 @@ function StartPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#17171c] text-[#f2f4f6]">
+    <div className="min-h-screen bg-[var(--bg-card)] text-[var(--text-primary)]">
       {/* ── 헤더 ─────────────────────────────── */}
-      <header className="border-b border-[#2c2c35] px-5 py-4 md:px-8">
+      <header className="border-b border-[var(--border-primary)] px-5 py-4 md:px-8">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <h1>
-            <img src="/logo.svg" alt="Foundry" className="h-7 md:h-8" />
+            <Logo />
           </h1>
           <div className="flex items-center gap-2.5">
+            <ThemeToggle />
             {getUser() ? (
               <>
-                <a href="/dashboard" className="rounded-xl bg-[#2c2c35] px-4 py-2.5 text-sm font-semibold text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">
+                <a href="/dashboard" className="rounded-xl bg-[var(--bg-elevated)] px-4 py-2.5 text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--border-hover)] transition-colors">
                   내 프로젝트
                 </a>
-                <a href="/credits" className="rounded-xl bg-[#3182f6] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1b64da] transition-colors">
+                <a href="/credits" className="rounded-xl bg-[var(--toss-blue)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--toss-blue-hover)] transition-colors">
                   요금제
                 </a>
-                <button onClick={logout} className="rounded-xl bg-[#2c2c35] px-4 py-2.5 text-sm text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">
+                <button onClick={logout} className="rounded-xl bg-[var(--bg-elevated)] px-4 py-2.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-hover)] transition-colors">
                   로그아웃
                 </button>
               </>
             ) : (
               <>
-                <a href="/credits" className="rounded-xl bg-[#2c2c35] px-4 py-2.5 text-sm font-semibold text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">
+                <a href="/credits" className="rounded-xl bg-[var(--bg-elevated)] px-4 py-2.5 text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--border-hover)] transition-colors">
                   요금제
                 </a>
-                <a href="/login" className="rounded-xl bg-[#3182f6] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#1b64da] transition-colors">
+                <a href="/login" className="rounded-xl bg-[var(--toss-blue)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[var(--toss-blue-hover)] transition-colors">
                   로그인
                 </a>
               </>
@@ -990,20 +993,20 @@ function StartPage() {
           <div>
             {/* 온보딩 환영 배너 — 로그인 사용자 + 크레딧 있을 때만 */}
             {getUser() && creditBalance !== null && (
-              <div className="mx-auto mb-8 max-w-2xl rounded-2xl border border-[#3182f6]/30 bg-[#3182f6]/5 p-5">
+              <div className="mx-auto mb-8 max-w-2xl rounded-2xl border border-[var(--toss-blue)]/30 bg-[var(--toss-blue)]/5 p-5">
                 <div className="flex items-start gap-3">
                   <span className="text-2xl">👋</span>
                   <div>
-                    <p className="font-semibold text-[#f2f4f6] mb-1">
+                    <p className="font-semibold text-[var(--text-primary)] mb-1">
                       환영합니다! AI가 앱을 만들어 드립니다
                     </p>
-                    <p className="text-sm text-[#8b95a1] mb-2">
+                    <p className="text-sm text-[var(--text-secondary)] mb-2">
                       아래 대화창에 만들고 싶은 앱을 설명하거나, 템플릿을 선택하세요.
                     </p>
-                    <div className="inline-flex items-center gap-2 rounded-xl bg-[#2c2c35] px-3 py-1.5 text-sm">
-                      <span className="text-[#3182f6] font-bold">⚡ {creditBalance.toLocaleString()} 크레딧</span>
-                      <span className="text-[#6b7684]">|</span>
-                      <span className="text-[#8b95a1]">앱 약 {Math.floor(creditBalance / 3000)}개 제작 가능</span>
+                    <div className="inline-flex items-center gap-2 rounded-xl bg-[var(--bg-elevated)] px-3 py-1.5 text-sm">
+                      <span className="text-[var(--toss-blue)] font-bold">⚡ {creditBalance.toLocaleString()} 크레딧</span>
+                      <span className="text-[var(--text-tertiary)]">|</span>
+                      <span className="text-[var(--text-secondary)]">앱 약 {Math.floor(creditBalance / 3000)}개 제작 가능</span>
                     </div>
                   </div>
                 </div>
@@ -1014,14 +1017,14 @@ function StartPage() {
               <h2 className="mb-3 text-3xl md:text-[40px] font-bold leading-tight tracking-tight">
                 어떤 앱을 만들까요?
               </h2>
-              <p className="text-base md:text-lg text-[#8b95a1]">
+              <p className="text-base md:text-lg text-[var(--text-secondary)]">
                 아이디어를 입력하거나, 템플릿을 선택하세요
               </p>
             </div>
 
             {/* AI 대화형 앱 기획 */}
             <div className="mx-auto mb-10 max-w-2xl">
-              <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] overflow-hidden transition-all focus-within:border-[#3182f6]/50 focus-within:shadow-lg focus-within:shadow-[#3182f6]/5">
+              <div className="rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] overflow-hidden transition-all focus-within:border-[var(--toss-blue)]/50 focus-within:shadow-lg focus-within:shadow-[#3182f6]/5">
 
                 {/* 채팅 메시지 영역 */}
                 {chatMessages.length > 0 && (
@@ -1030,11 +1033,11 @@ function StartPage() {
                       <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                           msg.role === 'user'
-                            ? 'bg-[#3182f6] text-white rounded-br-md'
-                            : 'bg-[#2c2c35] text-[#e5e7eb] rounded-bl-md'
+                            ? 'bg-[var(--toss-blue)] text-white rounded-br-md'
+                            : 'bg-[var(--bg-elevated)] text-[var(--text-primary)] rounded-bl-md'
                         }`}>
                           {msg.role === 'assistant' && (
-                            <span className="text-[10px] text-[#6b7684] block mb-1">🤖 Foundry AI</span>
+                            <span className="text-[10px] text-[var(--text-tertiary)] block mb-1">🤖 Foundry AI</span>
                           )}
                           {msg.role === 'assistant'
                             ? <MarkdownRenderer content={msg.content} />
@@ -1045,11 +1048,11 @@ function StartPage() {
                     ))}
                     {chatLoading && (
                       <div className="flex justify-start">
-                        <div className="bg-[#2c2c35] rounded-2xl rounded-bl-md px-4 py-3">
+                        <div className="bg-[var(--bg-elevated)] rounded-2xl rounded-bl-md px-4 py-3">
                           <div className="flex gap-1.5">
-                            <div className="w-2 h-2 rounded-full bg-[#6b7684] animate-bounce" style={{ animationDelay: '0ms' }} />
-                            <div className="w-2 h-2 rounded-full bg-[#6b7684] animate-bounce" style={{ animationDelay: '150ms' }} />
-                            <div className="w-2 h-2 rounded-full bg-[#6b7684] animate-bounce" style={{ animationDelay: '300ms' }} />
+                            <div className="w-2 h-2 rounded-full bg-[var(--text-tertiary)] animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <div className="w-2 h-2 rounded-full bg-[var(--text-tertiary)] animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <div className="w-2 h-2 rounded-full bg-[var(--text-tertiary)] animate-bounce" style={{ animationDelay: '300ms' }} />
                           </div>
                         </div>
                       </div>
@@ -1065,9 +1068,9 @@ function StartPage() {
                       <span className="text-lg">✅</span>
                       <span className="font-bold text-sm text-emerald-400">앱 기획 완료!</span>
                     </div>
-                    <div className="text-xs text-[#8b95a1] space-y-1 mb-3">
+                    <div className="text-xs text-[var(--text-secondary)] space-y-1 mb-3">
                       {Object.entries(appSpec).map(([k, v]) => (
-                        <div key={k}><span className="text-[#6b7684]">{k}:</span> {v}</div>
+                        <div key={k}><span className="text-[var(--text-tertiary)]">{k}:</span> {v}</div>
                       ))}
                     </div>
                     <button
@@ -1115,7 +1118,7 @@ function StartPage() {
                         }
                       }}
                       placeholder={chatMessages.length > 0 ? '답변을 입력하세요...' : '만들고 싶은 앱을 설명해주세요 (예: 반려동물 돌봄 매칭 앱)'}
-                      className="flex-1 bg-transparent text-[15px] text-[#f2f4f6] placeholder-[#4e5968] focus:outline-none"
+                      className="flex-1 bg-transparent text-[15px] text-[var(--text-primary)] placeholder-[var(--text-disabled)] focus:outline-none"
                     />
                     <button
                       onClick={() => {
@@ -1158,13 +1161,13 @@ function StartPage() {
                           <button
                             key={example}
                             onClick={() => setFreeInput(example)}
-                            className="rounded-lg bg-[#2c2c35] px-3 py-1.5 text-xs text-[#8b95a1] hover:bg-[#3a3a45] hover:text-[#f2f4f6] transition-colors"
+                            className="rounded-lg bg-[var(--bg-elevated)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:bg-[var(--border-hover)] hover:text-[var(--text-primary)] transition-colors"
                           >
                             {example}
                           </button>
                         ))}
                       </div>
-                      <p className="mt-2.5 text-[11px] text-[#4e5968]">
+                      <p className="mt-2.5 text-[11px] text-[var(--text-disabled)]">
                         AI와 대화하며 앱을 기획하거나, 아래 템플릿을 바로 선택하세요
                       </p>
                     </>
@@ -1175,9 +1178,9 @@ function StartPage() {
 
             {/* 구분선 */}
             <div className="mx-auto mb-10 flex max-w-2xl items-center gap-4">
-              <div className="flex-1 border-t border-[#2c2c35]" />
-              <span className="text-sm text-[#4e5968]">또는 템플릿으로 시작하기</span>
-              <div className="flex-1 border-t border-[#2c2c35]" />
+              <div className="flex-1 border-t border-[var(--border-primary)]" />
+              <span className="text-sm text-[var(--text-disabled)]">또는 템플릿으로 시작하기</span>
+              <div className="flex-1 border-t border-[var(--border-primary)]" />
             </div>
 
             <div className="grid gap-5 md:gap-6 grid-cols-1 md:grid-cols-3">
@@ -1185,18 +1188,18 @@ function StartPage() {
                 <button
                   key={template.id}
                   onClick={() => handleSelectTemplate(template)}
-                  className="group rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-7 md:p-8 text-left transition-all hover:border-[#3182f6]/40 hover:bg-[#1f1f26]"
+                  className="group rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-7 md:p-8 text-left transition-all hover:border-[var(--toss-blue)]/40 hover:bg-[var(--bg-secondary)]"
                 >
                   <div className="mb-5 text-5xl">{template.icon}</div>
-                  <h3 className="mb-2 text-lg font-bold group-hover:text-[#3182f6] transition-colors">
+                  <h3 className="mb-2 text-lg font-bold group-hover:text-[var(--toss-blue)] transition-colors">
                     {template.name}
                   </h3>
-                  <p className="mb-5 text-sm text-[#8b95a1] leading-relaxed">{template.description}</p>
+                  <p className="mb-5 text-sm text-[var(--text-secondary)] leading-relaxed">{template.description}</p>
                   <div className="flex items-center justify-between">
-                    <span className="rounded-lg bg-[#2c2c35] px-3 py-1.5 text-xs font-medium text-[#8b95a1]">
+                    <span className="rounded-lg bg-[var(--bg-elevated)] px-3 py-1.5 text-xs font-medium text-[var(--text-secondary)]">
                       {template.category}
                     </span>
-                    <span className="text-sm font-semibold text-[#3182f6]">
+                    <span className="text-sm font-semibold text-[var(--toss-blue)]">
                       {template.baseCredits.toLocaleString()} 크레딧~
                     </span>
                   </div>
@@ -1204,8 +1207,8 @@ function StartPage() {
               ))}
             </div>
 
-            <div className="mt-10 text-center text-[#6b7684]">
-              <p className="text-sm">업종이 없나요? 상단 입력창에 자유롭게 설명하거나 <span className="text-[#3182f6] font-medium">"자유롭게 만들기"</span>를 선택하세요!</p>
+            <div className="mt-10 text-center text-[var(--text-tertiary)]">
+              <p className="text-sm">업종이 없나요? 상단 입력창에 자유롭게 설명하거나 <span className="text-[var(--toss-blue)] font-medium">"자유롭게 만들기"</span>를 선택하세요!</p>
               <p className="text-xs mt-1.5">포모도로 타이머 | 가계부 | 블로그 | 커뮤니티 | 대시보드 | 게임 — 뭐든 가능합니다</p>
             </div>
           </div>
@@ -1216,7 +1219,7 @@ function StartPage() {
           <div>
             <button
               onClick={() => setStep('select-template')}
-              className="mb-7 text-sm text-[#8b95a1] hover:text-[#f2f4f6] transition-colors"
+              className="mb-7 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
             >
               &larr; 업종 다시 선택
             </button>
@@ -1225,26 +1228,26 @@ function StartPage() {
               <h2 className="mb-2 text-2xl md:text-[32px] font-bold tracking-tight">
                 {selectedTemplate.icon} 몇 가지만 알려주세요!
               </h2>
-              <p className="text-[#8b95a1]">답변에 맞춰 최적의 앱을 구성해드립니다.</p>
+              <p className="text-[var(--text-secondary)]">답변에 맞춰 최적의 앱을 구성해드립니다.</p>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">
               <div className="lg:col-span-2 space-y-5">
                 {/* 이름 입력 */}
-                <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6">
+                <div className="rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-6">
                   <h3 className="mb-3 text-[15px] font-semibold">{COMMON_QUESTIONS[0].question}</h3>
                   <input
                     type="text"
                     value={projectName}
                     onChange={e => setProjectName(e.target.value)}
                     placeholder={COMMON_QUESTIONS[0].placeholder}
-                    className="w-full rounded-xl border border-[#2c2c35] bg-[#2c2c35] px-4 py-3.5 text-sm text-[#f2f4f6] placeholder-[#6b7684] focus:border-[#3182f6] focus:outline-none transition-colors"
+                    className="w-full rounded-xl border border-[var(--border-primary)] bg-[var(--bg-elevated)] px-4 py-3.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:border-[var(--toss-blue)] focus:outline-none transition-colors"
                   />
                 </div>
 
                 {/* 업종별 질문 */}
                 {(TEMPLATE_QUESTIONS[selectedTemplate.id] || []).map(q => (
-                  <div key={q.id} className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6">
+                  <div key={q.id} className="rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-6">
                     <h3 className="mb-4 text-[15px] font-semibold">{q.question}</h3>
                     {q.type === 'radio' && q.options && (
                       <div className="space-y-2.5">
@@ -1254,14 +1257,14 @@ function StartPage() {
                             onClick={() => handleAnswer(q.id, opt.value, 'radio', opt.featureMap)}
                             className={`flex w-full items-center gap-3 rounded-xl border p-3.5 text-left text-sm transition-colors ${
                               answers[q.id] === opt.value
-                                ? 'border-[#3182f6] bg-[#3182f6]/8 text-[#f2f4f6]'
-                                : 'border-[#2c2c35] hover:border-[#3a3a45] text-[#8b95a1] hover:text-[#f2f4f6]'
+                                ? 'border-[var(--toss-blue)] bg-[var(--toss-blue)]/8 text-[var(--text-primary)]'
+                                : 'border-[var(--border-primary)] hover:border-[var(--border-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                             }`}
                           >
                             <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
-                              answers[q.id] === opt.value ? 'border-[#3182f6]' : 'border-[#4e5968]'
+                              answers[q.id] === opt.value ? 'border-[var(--toss-blue)]' : 'border-[var(--border-hover)]'
                             }`}>
-                              {answers[q.id] === opt.value && <div className="h-2.5 w-2.5 rounded-full bg-[#3182f6]" />}
+                              {answers[q.id] === opt.value && <div className="h-2.5 w-2.5 rounded-full bg-[var(--toss-blue)]" />}
                             </div>
                             {opt.label}
                           </button>
@@ -1278,12 +1281,12 @@ function StartPage() {
                               onClick={() => handleAnswer(q.id, opt.value, 'checkbox', opt.featureMap)}
                               className={`flex w-full items-center gap-3 rounded-xl border p-3.5 text-left text-sm transition-colors ${
                                 checked
-                                  ? 'border-[#3182f6] bg-[#3182f6]/8 text-[#f2f4f6]'
-                                  : 'border-[#2c2c35] hover:border-[#3a3a45] text-[#8b95a1] hover:text-[#f2f4f6]'
+                                  ? 'border-[var(--toss-blue)] bg-[var(--toss-blue)]/8 text-[var(--text-primary)]'
+                                  : 'border-[var(--border-primary)] hover:border-[var(--border-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                               }`}
                             >
                               <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
-                                checked ? 'border-[#3182f6] bg-[#3182f6]' : 'border-[#4e5968]'
+                                checked ? 'border-[var(--toss-blue)] bg-[var(--toss-blue)]' : 'border-[var(--border-hover)]'
                               }`}>
                                 {checked && <CheckIcon />}
                               </div>
@@ -1297,7 +1300,7 @@ function StartPage() {
                 ))}
 
                 {/* 공통 질문: 불편한 점 */}
-                <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6">
+                <div className="rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-6">
                   <h3 className="mb-4 text-[15px] font-semibold">{COMMON_QUESTIONS[2].question}</h3>
                   <div className="space-y-2.5">
                     {COMMON_QUESTIONS[2].options!.map(opt => {
@@ -1308,12 +1311,12 @@ function StartPage() {
                           onClick={() => handleAnswer('pain-point', opt.value, 'checkbox', opt.featureMap)}
                           className={`flex w-full items-center gap-3 rounded-xl border p-3.5 text-left text-sm transition-colors ${
                             checked
-                              ? 'border-[#ffd60a] bg-[#ffd60a]/8 text-[#f2f4f6]'
-                              : 'border-[#2c2c35] hover:border-[#3a3a45] text-[#8b95a1] hover:text-[#f2f4f6]'
+                              ? 'border-[var(--toss-yellow)] bg-[var(--toss-yellow)]/8 text-[var(--text-primary)]'
+                              : 'border-[var(--border-primary)] hover:border-[var(--border-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                           }`}
                         >
                           <div className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
-                            checked ? 'border-[#ffd60a] bg-[#ffd60a]' : 'border-[#4e5968]'
+                            checked ? 'border-[var(--toss-yellow)] bg-[var(--toss-yellow)]' : 'border-[var(--border-hover)]'
                           }`}>
                             {checked && (
                               <svg className="h-3.5 w-3.5 text-[#17171c]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1329,9 +1332,9 @@ function StartPage() {
                 </div>
 
                 {/* 레퍼런스 URL + 스크린샷 */}
-                <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6">
+                <div className="rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-6">
                   <h3 className="mb-1 text-[15px] font-semibold">참고하고 싶은 서비스가 있나요?</h3>
-                  <p className="mb-4 text-xs text-[#6b7684]">URL을 입력하거나, 캡처 이미지를 올려주세요. AI가 디자인/기능을 참고합니다.</p>
+                  <p className="mb-4 text-xs text-[var(--text-tertiary)]">URL을 입력하거나, 캡처 이미지를 올려주세요. AI가 디자인/기능을 참고합니다.</p>
 
                   {/* URL 입력 */}
                   <input
@@ -1339,12 +1342,12 @@ function StartPage() {
                     value={(answers['ref-url-1'] as string) || ''}
                     onChange={e => setAnswers(prev => ({ ...prev, 'ref-url-1': e.target.value }))}
                     placeholder="https://참고사이트.com (선택)"
-                    className="mb-2.5 w-full rounded-xl border border-[#2c2c35] bg-[#2c2c35] px-4 py-3.5 text-sm text-[#f2f4f6] placeholder-[#6b7684] focus:border-[#3182f6] focus:outline-none transition-colors"
+                    className="mb-2.5 w-full rounded-xl border border-[var(--border-primary)] bg-[var(--bg-elevated)] px-4 py-3.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:border-[var(--toss-blue)] focus:outline-none transition-colors"
                   />
 
                   {/* 이미지 업로드 */}
                   <div className="mt-3">
-                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#2c2c35] bg-[#2c2c35]/50 px-4 py-5 text-sm text-[#8b95a1] transition-colors hover:border-[#3182f6]/40 hover:text-[#f2f4f6]">
+                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[var(--border-primary)] bg-[var(--bg-elevated)]/50 px-4 py-5 text-sm text-[var(--text-secondary)] transition-colors hover:border-[var(--toss-blue)]/40 hover:text-[var(--text-primary)]">
                       <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
                       </svg>
@@ -1376,14 +1379,14 @@ function StartPage() {
                           <img
                             src={img.preview}
                             alt={`레퍼런스 ${i + 1}`}
-                            className="h-24 w-24 rounded-xl border border-[#2c2c35] object-cover"
+                            className="h-24 w-24 rounded-xl border border-[var(--border-primary)] object-cover"
                           />
                           <button
                             onClick={() => {
                               URL.revokeObjectURL(img.preview);
                               setRefImages(prev => prev.filter((_, idx) => idx !== i));
                             }}
-                            className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#f45452] text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--toss-red)] text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity"
                           >
                             ✕
                           </button>
@@ -1394,48 +1397,48 @@ function StartPage() {
                 </div>
 
                 {/* 추가 요구사항 */}
-                <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6">
+                <div className="rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-6">
                   <h3 className="mb-3 text-[15px] font-semibold">추가로 원하시는 게 있다면 자유롭게 적어주세요</h3>
                   <textarea
                     value={customRequirements}
                     onChange={e => setCustomRequirements(e.target.value)}
                     placeholder="예: 인스타그램 연동, 포인트 적립, 쿠폰 기능..."
                     rows={3}
-                    className="w-full rounded-xl border border-[#2c2c35] bg-[#2c2c35] px-4 py-3.5 text-sm text-[#f2f4f6] placeholder-[#6b7684] focus:border-[#3182f6] focus:outline-none transition-colors resize-none"
+                    className="w-full rounded-xl border border-[var(--border-primary)] bg-[var(--bg-elevated)] px-4 py-3.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] focus:border-[var(--toss-blue)] focus:outline-none transition-colors resize-none"
                   />
                 </div>
               </div>
 
               {/* 자동 구성 요약 사이드바 */}
-              <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6 h-fit lg:sticky lg:top-6">
+              <div className="rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-6 h-fit lg:sticky lg:top-6">
                 <h3 className="mb-1 text-lg font-bold">자동 구성된 기능</h3>
-                <p className="mb-5 text-xs text-[#6b7684]">답변에 따라 자동으로 선택됩니다</p>
+                <p className="mb-5 text-xs text-[var(--text-tertiary)]">답변에 따라 자동으로 선택됩니다</p>
 
                 <div className="mb-6 space-y-2.5">
                   {selectedTemplate.features.map(feature => (
                     <div key={feature.id} className="flex items-center gap-2.5 text-sm">
-                      <span className={selectedFeatures.has(feature.id) ? 'text-[#30d158]' : 'text-[#4e5968]'}>
+                      <span className={selectedFeatures.has(feature.id) ? 'text-[var(--toss-green)]' : 'text-[var(--text-disabled)]'}>
                         {selectedFeatures.has(feature.id) ? '\u2713' : '\u2717'}
                       </span>
-                      <span className={selectedFeatures.has(feature.id) ? 'text-[#f2f4f6]' : 'text-[#6b7684]'}>
+                      <span className={selectedFeatures.has(feature.id) ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]'}>
                         {feature.name}
-                        {feature.required && <span className="ml-1 text-xs text-[#6b7684]">(필수)</span>}
+                        {feature.required && <span className="ml-1 text-xs text-[var(--text-tertiary)]">(필수)</span>}
                       </span>
                     </div>
                   ))}
                 </div>
 
-                <div className="mb-6 space-y-2 border-t border-[#2c2c35] pt-5">
+                <div className="mb-6 space-y-2 border-t border-[var(--border-primary)] pt-5">
                   <div className="flex justify-between text-sm">
-                    <span className="text-[#8b95a1]">선택된 기능</span>
-                    <span className="text-[#3182f6] font-bold">{selectedFeatures.size}개</span>
+                    <span className="text-[var(--text-secondary)]">선택된 기능</span>
+                    <span className="text-[var(--toss-blue)] font-bold">{selectedFeatures.size}개</span>
                   </div>
                 </div>
 
                 <button
                   onClick={handleQuestionnaireNext}
                   disabled={!projectName.trim()}
-                  className="w-full rounded-xl bg-[#3182f6] py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-[#1b64da] disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="w-full rounded-xl bg-[var(--toss-blue)] py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-[var(--toss-blue-hover)] disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   다음: 디자인 선택
                 </button>
@@ -1449,14 +1452,14 @@ function StartPage() {
           <div>
             <button
               onClick={() => setStep('questionnaire')}
-              className="mb-7 text-sm text-[#8b95a1] hover:text-[#f2f4f6] transition-colors"
+              className="mb-7 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
             >
               &larr; 기능 선택으로 돌아가기
             </button>
 
             <div className="mb-10 text-center">
               <h2 className="mb-2 text-3xl font-bold tracking-tight">디자인 테마 선택</h2>
-              <p className="text-[#8b95a1]">앱의 분위기를 결정합니다. 프리미엄 테마로 차별화하세요!</p>
+              <p className="text-[var(--text-secondary)]">앱의 분위기를 결정합니다. 프리미엄 테마로 차별화하세요!</p>
             </div>
 
             {/* 필터 탭 */}
@@ -1467,8 +1470,8 @@ function StartPage() {
                   onClick={() => setThemeFilter(filter)}
                   className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
                     themeFilter === filter
-                      ? 'bg-[#3182f6] text-white'
-                      : 'bg-[#2c2c35] text-[#8b95a1] hover:text-[#f2f4f6]'
+                      ? 'bg-[var(--toss-blue)] text-white'
+                      : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                   }`}
                 >
                   {filter} ({filter === '전체' ? THEMES.length : THEMES.filter(t =>
@@ -1492,8 +1495,8 @@ function StartPage() {
                     onClick={() => setSelectedTheme(theme)}
                     className={`group relative rounded-2xl border text-left transition-all overflow-hidden ${
                       selectedTheme.id === theme.id
-                        ? 'border-[#3182f6] ring-2 ring-[#3182f6]/30'
-                        : 'border-[#2c2c35] hover:border-[#3a3a45]'
+                        ? 'border-[var(--toss-blue)] ring-2 ring-[#3182f6]/30'
+                        : 'border-[var(--border-primary)] hover:border-[var(--border-hover)]'
                     }`}
                   >
                     <div className={`${theme.preview.bg} p-3 h-24 flex flex-col justify-between`}>
@@ -1508,18 +1511,18 @@ function StartPage() {
                       </div>
                     </div>
 
-                    <div className="bg-[#1b1b21] p-3.5">
+                    <div className="bg-[var(--bg-secondary)] p-3.5">
                       <div className="flex items-center justify-between mb-0.5">
-                        <h3 className="text-sm font-bold text-[#f2f4f6] truncate">{theme.name}</h3>
-                        {theme.tier === 'free' && <span className="rounded-lg bg-[#30d158]/15 px-2 py-0.5 text-[10px] font-medium text-[#30d158]">무료</span>}
-                        {theme.tier === 'standard' && <span className="rounded-lg bg-[#3182f6]/15 px-2 py-0.5 text-[10px] font-medium text-[#3182f6]">+{theme.credits}</span>}
-                        {theme.tier === 'premium' && <span className="rounded-lg bg-[#a855f7]/15 px-2 py-0.5 text-[10px] font-medium text-[#a855f7]">PRO</span>}
+                        <h3 className="text-sm font-bold text-[var(--text-primary)] truncate">{theme.name}</h3>
+                        {theme.tier === 'free' && <span className="rounded-lg bg-[var(--toss-green)]/15 px-2 py-0.5 text-[10px] font-medium text-[var(--toss-green)]">무료</span>}
+                        {theme.tier === 'standard' && <span className="rounded-lg bg-[var(--toss-blue)]/15 px-2 py-0.5 text-[10px] font-medium text-[var(--toss-blue)]">+{theme.credits}</span>}
+                        {theme.tier === 'premium' && <span className="rounded-lg bg-[var(--toss-purple)]/15 px-2 py-0.5 text-[10px] font-medium text-[var(--toss-purple)]">PRO</span>}
                       </div>
-                      <p className="text-[11px] text-[#6b7684]">{theme.preview.style}</p>
+                      <p className="text-[11px] text-[var(--text-tertiary)]">{theme.preview.style}</p>
                     </div>
 
                     {selectedTheme.id === theme.id && (
-                      <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-[#3182f6]">
+                      <div className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--toss-blue)]">
                         <CheckIcon />
                       </div>
                     )}
@@ -1529,15 +1532,15 @@ function StartPage() {
             </div>
 
             <div className="mt-8 flex items-center justify-between">
-              <div className="text-sm text-[#8b95a1]">
-                선택: <span className="font-bold text-[#f2f4f6]">{selectedTheme.name}</span>
+              <div className="text-sm text-[var(--text-secondary)]">
+                선택: <span className="font-bold text-[var(--text-primary)]">{selectedTheme.name}</span>
                 {selectedTheme.credits > 0 && (
-                  <span className="ml-2 text-[#a855f7]">+{selectedTheme.credits} 크레딧</span>
+                  <span className="ml-2 text-[var(--toss-purple)]">+{selectedTheme.credits} 크레딧</span>
                 )}
               </div>
               <button
                 onClick={() => setStep('customize')}
-                className="rounded-xl bg-[#3182f6] px-8 py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-[#1b64da]"
+                className="rounded-xl bg-[var(--toss-blue)] px-8 py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-[var(--toss-blue-hover)]"
               >
                 다음: 최종 확인
               </button>
@@ -1552,7 +1555,7 @@ function StartPage() {
 
             <div className="grid gap-6 lg:grid-cols-2">
               {/* 왼쪽: 요약 + 버튼 */}
-              <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-8">
+              <div className="rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-8">
                 <div className="mb-5 space-y-3.5">
                   {[
                     ['템플릿', `${selectedTemplate.icon} ${selectedTemplate.name}`],
@@ -1561,24 +1564,24 @@ function StartPage() {
                     ['기술 스택', '최신 기술로 안정적으로'],
                   ].map(([label, value]) => (
                     <div key={label} className="flex justify-between text-sm">
-                      <span className="text-[#8b95a1]">{label}</span>
-                      <span className="font-medium text-[#f2f4f6]">{value}</span>
+                      <span className="text-[var(--text-secondary)]">{label}</span>
+                      <span className="font-medium text-[var(--text-primary)]">{value}</span>
                     </div>
                   ))}
                 </div>
 
                 {/* 선택된 기능 상세 목록 */}
-                <div className="mb-5 rounded-xl bg-[#2c2c35] p-4">
-                  <h4 className="mb-3 flex items-center justify-between text-sm font-bold text-[#8b95a1]">
+                <div className="mb-5 rounded-xl bg-[var(--bg-elevated)] p-4">
+                  <h4 className="mb-3 flex items-center justify-between text-sm font-bold text-[var(--text-secondary)]">
                     <span>선택된 기능</span>
-                    <span className="text-[#3182f6]">{selectedFeatures.size}개</span>
+                    <span className="text-[var(--toss-blue)]">{selectedFeatures.size}개</span>
                   </h4>
                   <div className="flex flex-wrap gap-1.5">
                     {selectedTemplate.features
                       .filter(f => selectedFeatures.has(f.id))
                       .map(f => (
                         <span key={f.id} className={`rounded-lg px-2.5 py-1 text-xs font-medium ${
-                          f.required ? 'bg-[#30d158]/15 text-[#30d158]' : 'bg-[#3182f6]/15 text-[#3182f6]'
+                          f.required ? 'bg-[var(--toss-green)]/15 text-[var(--toss-green)]' : 'bg-[var(--toss-blue)]/15 text-[var(--toss-blue)]'
                         }`}>
                           {f.required ? '✓ ' : ''}{f.name}
                         </span>
@@ -1587,11 +1590,11 @@ function StartPage() {
                 </div>
 
                 {/* ★ A-5: 서브도메인 입력 */}
-                <div className="mb-5 rounded-xl bg-[#2c2c35] p-4">
-                  <h4 className="mb-3 text-sm font-bold text-[#8b95a1]">서브도메인 (선택)</h4>
-                  <p className="text-xs text-[#6b7684] mb-3">배포 후 접속할 URL을 직접 정할 수 있습니다. 비워두면 자동 생성됩니다.</p>
+                <div className="mb-5 rounded-xl bg-[var(--bg-elevated)] p-4">
+                  <h4 className="mb-3 text-sm font-bold text-[var(--text-secondary)]">서브도메인 (선택)</h4>
+                  <p className="text-xs text-[var(--text-tertiary)] mb-3">배포 후 접속할 URL을 직접 정할 수 있습니다. 비워두면 자동 생성됩니다.</p>
                   <div className="flex items-center gap-2">
-                    <div className="flex-1 flex items-center rounded-lg bg-[#1b1b21] border border-[#3c3c45] overflow-hidden">
+                    <div className="flex-1 flex items-center rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-hover)] overflow-hidden">
                       <input
                         type="text"
                         value={customSubdomain}
@@ -1602,9 +1605,9 @@ function StartPage() {
                           setSubdomainMessage('');
                         }}
                         placeholder="my-beauty-shop"
-                        className="flex-1 bg-transparent px-3 py-2 text-sm text-[#f2f4f6] placeholder-[#4e4e5a] outline-none"
+                        className="flex-1 bg-transparent px-3 py-2 text-sm text-[var(--text-primary)] placeholder-[#4e4e5a] outline-none"
                       />
-                      <span className="text-xs text-[#6b7684] pr-3 whitespace-nowrap">.foundry.ai.kr</span>
+                      <span className="text-xs text-[var(--text-tertiary)] pr-3 whitespace-nowrap">.foundry.ai.kr</span>
                     </div>
                     <button
                       onClick={async () => {
@@ -1630,21 +1633,21 @@ function StartPage() {
                         }
                       }}
                       disabled={!customSubdomain || subdomainStatus === 'checking'}
-                      className="rounded-lg bg-[#3182f6] px-3 py-2 text-xs font-bold text-white hover:bg-[#1b64da] disabled:opacity-40 transition-colors whitespace-nowrap"
+                      className="rounded-lg bg-[var(--toss-blue)] px-3 py-2 text-xs font-bold text-white hover:bg-[var(--toss-blue-hover)] disabled:opacity-40 transition-colors whitespace-nowrap"
                     >
                       {subdomainStatus === 'checking' ? '확인 중...' : '중복 확인'}
                     </button>
                   </div>
                   {subdomainMessage && (
-                    <p className={`mt-2 text-xs font-medium ${subdomainStatus === 'available' ? 'text-[#30d158]' : 'text-[#ef4444]'}`}>
+                    <p className={`mt-2 text-xs font-medium ${subdomainStatus === 'available' ? 'text-[var(--toss-green)]' : 'text-[var(--toss-red)]'}`}>
                       {subdomainMessage}
                     </p>
                   )}
                 </div>
 
-                <div className="mb-5 rounded-xl bg-[#2c2c35] p-4">
-                  <h4 className="mb-3 text-sm font-bold text-[#8b95a1]">생성될 항목</h4>
-                  <ul className="space-y-1.5 text-xs text-[#6b7684]">
+                <div className="mb-5 rounded-xl bg-[var(--bg-elevated)] p-4">
+                  <h4 className="mb-3 text-sm font-bold text-[var(--text-secondary)]">생성될 항목</h4>
+                  <ul className="space-y-1.5 text-xs text-[var(--text-tertiary)]">
                     <li>데이터 구조 + 자동 설정</li>
                     <li>서버 기능 (데이터 관리 + 인증)</li>
                     <li>화면 디자인 (반응형 UI)</li>
@@ -1653,20 +1656,20 @@ function StartPage() {
                   </ul>
                 </div>
 
-                <div className="mb-6 flex justify-between border-t border-[#2c2c35] pt-5 text-xl font-bold">
+                <div className="mb-6 flex justify-between border-t border-[var(--border-primary)] pt-5 text-xl font-bold">
                   <span>소모 크레딧</span>
-                  <span className="text-[#3182f6]">{credits.total.toLocaleString()}</span>
+                  <span className="text-[var(--toss-blue)]">{credits.total.toLocaleString()}</span>
                 </div>
 
                 {/* 스마트 분석 옵션 */}
                 {!smartAnalysis.running && !smartAnalysis.results.optimization && (
-                  <div className="mb-5 rounded-xl border border-[#6366f1]/30 bg-[#6366f1]/5 p-4">
+                  <div className="mb-5 rounded-xl border border-[var(--toss-purple)]/30 bg-[var(--toss-purple)]/5 p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-lg">🧠</span>
-                      <span className="font-bold text-sm text-[#a5b4fc]">AI 스마트 분석</span>
-                      <span className="text-xs text-[#6b7684] bg-[#2c2c35] px-2 py-0.5 rounded-full">추천</span>
+                      <span className="font-bold text-sm text-[var(--toss-purple)]">AI 스마트 분석</span>
+                      <span className="text-xs text-[var(--text-tertiary)] bg-[var(--bg-elevated)] px-2 py-0.5 rounded-full">추천</span>
                     </div>
-                    <p className="text-xs text-[#8b95a1] mb-3">
+                    <p className="text-xs text-[var(--text-secondary)] mb-3">
                       앱 생성 전에 AI 3개가 시장조사 → 벤치마크 → 설계최적화를 자동 수행합니다. 결과가 3배 좋아집니다.
                     </p>
                     <button
@@ -1719,9 +1722,9 @@ function StartPage() {
 
                 {/* 스마트 분석 진행 중 */}
                 {smartAnalysis.running && (
-                  <div className="mb-5 rounded-xl border border-[#6366f1]/30 bg-[#6366f1]/5 p-4 text-center">
-                    <div className="animate-pulse text-[#a5b4fc] font-medium text-sm">{smartAnalysis.phase}</div>
-                    <div className="mt-2 h-1.5 rounded-full bg-[#2c2c35] overflow-hidden">
+                  <div className="mb-5 rounded-xl border border-[var(--toss-purple)]/30 bg-[var(--toss-purple)]/5 p-4 text-center">
+                    <div className="animate-pulse text-[var(--toss-purple)] font-medium text-sm">{smartAnalysis.phase}</div>
+                    <div className="mt-2 h-1.5 rounded-full bg-[var(--bg-elevated)] overflow-hidden">
                       <div className="h-full bg-gradient-to-r from-[#6366f1] to-[#3182f6] rounded-full animate-pulse" style={{ width: '60%' }} />
                     </div>
                   </div>
@@ -1734,20 +1737,20 @@ function StartPage() {
                       <div className="flex items-center gap-2 mb-1">
                         <span>🧠</span>
                         <span className="font-bold text-sm text-emerald-400">스마트 분석 완료!</span>
-                        <span className="text-xs text-[#6b7684] ml-auto">200 cr 사용</span>
+                        <span className="text-xs text-[var(--text-tertiary)] ml-auto">200 cr 사용</span>
                       </div>
-                      <p className="text-xs text-[#8b95a1]">아래 분석 결과가 앱 생성에 자동 반영됩니다.</p>
+                      <p className="text-xs text-[var(--text-secondary)]">아래 분석 결과가 앱 생성에 자동 반영됩니다.</p>
                     </div>
 
                     {/* 시장 분석 */}
                     {smartAnalysis.results.market && (
-                      <details open className="rounded-xl border border-[#2c2c35] bg-[#1b1b21] overflow-hidden group">
-                        <summary className="flex items-center gap-2 p-4 cursor-pointer hover:bg-[#2c2c35]/50 transition-colors">
+                      <details open className="rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] overflow-hidden group">
+                        <summary className="flex items-center gap-2 p-4 cursor-pointer hover:bg-[var(--bg-elevated)]/50 transition-colors">
                           <span>📊</span>
-                          <span className="font-bold text-sm text-[#f2f4f6]">시장 분석</span>
-                          <span className="text-xs text-[#6b7684] ml-auto group-open:rotate-180 transition-transform">▼</span>
+                          <span className="font-bold text-sm text-[var(--text-primary)]">시장 분석</span>
+                          <span className="text-xs text-[var(--text-tertiary)] ml-auto group-open:rotate-180 transition-transform">▼</span>
                         </summary>
-                        <div className="px-4 pb-4 text-sm text-[#d1d5db] leading-relaxed border-t border-[#2c2c35]">
+                        <div className="px-4 pb-4 text-sm text-[var(--text-secondary)] leading-relaxed border-t border-[var(--border-primary)]">
                           <div className="pt-3"><MarkdownRenderer content={smartAnalysis.results.market} /></div>
                         </div>
                       </details>
@@ -1755,32 +1758,32 @@ function StartPage() {
 
                     {/* 벤치마크 */}
                     {smartAnalysis.results.benchmark && (
-                      <details open className="rounded-xl border border-[#2c2c35] bg-[#1b1b21] overflow-hidden group">
-                        <summary className="flex items-center gap-2 p-4 cursor-pointer hover:bg-[#2c2c35]/50 transition-colors">
+                      <details open className="rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] overflow-hidden group">
+                        <summary className="flex items-center gap-2 p-4 cursor-pointer hover:bg-[var(--bg-elevated)]/50 transition-colors">
                           <span>🏆</span>
-                          <span className="font-bold text-sm text-[#f2f4f6]">벤치마크</span>
-                          <span className="text-xs text-[#6b7684] ml-auto group-open:rotate-180 transition-transform">▼</span>
+                          <span className="font-bold text-sm text-[var(--text-primary)]">벤치마크</span>
+                          <span className="text-xs text-[var(--text-tertiary)] ml-auto group-open:rotate-180 transition-transform">▼</span>
                         </summary>
-                        <div className="px-4 pb-4 text-sm text-[#d1d5db] leading-relaxed border-t border-[#2c2c35]">
+                        <div className="px-4 pb-4 text-sm text-[var(--text-secondary)] leading-relaxed border-t border-[var(--border-primary)]">
                           <div className="pt-3"><MarkdownRenderer content={smartAnalysis.results.benchmark} /></div>
                         </div>
                       </details>
                     )}
 
                     {/* 설계 최적화 */}
-                    <details open className="rounded-xl border border-[#2c2c35] bg-[#1b1b21] overflow-hidden group">
-                      <summary className="flex items-center gap-2 p-4 cursor-pointer hover:bg-[#2c2c35]/50 transition-colors">
+                    <details open className="rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] overflow-hidden group">
+                      <summary className="flex items-center gap-2 p-4 cursor-pointer hover:bg-[var(--bg-elevated)]/50 transition-colors">
                         <span>🏗️</span>
-                        <span className="font-bold text-sm text-[#f2f4f6]">설계 최적화</span>
-                        <span className="text-xs text-[#6b7684] ml-auto group-open:rotate-180 transition-transform">▼</span>
+                        <span className="font-bold text-sm text-[var(--text-primary)]">설계 최적화</span>
+                        <span className="text-xs text-[var(--text-tertiary)] ml-auto group-open:rotate-180 transition-transform">▼</span>
                       </summary>
-                      <div className="px-4 pb-4 text-sm text-[#d1d5db] leading-relaxed border-t border-[#2c2c35]">
+                      <div className="px-4 pb-4 text-sm text-[var(--text-secondary)] leading-relaxed border-t border-[var(--border-primary)]">
                         <div className="pt-3"><MarkdownRenderer content={smartAnalysis.results.optimization} /></div>
                       </div>
                     </details>
 
-                    <div className="rounded-lg bg-[#3182f6]/10 border border-[#3182f6]/20 p-3">
-                      <p className="text-xs text-[#93c5fd]">💡 이 분석을 기반으로 앱을 생성하면 시장에서 검증된 구조로 만들어집니다.</p>
+                    <div className="rounded-lg bg-[var(--toss-blue)]/10 border border-[var(--toss-blue)]/20 p-3">
+                      <p className="text-xs text-[var(--toss-blue)]">💡 이 분석을 기반으로 앱을 생성하면 시장에서 검증된 구조로 만들어집니다.</p>
                     </div>
                   </div>
                 )}
@@ -1788,14 +1791,14 @@ function StartPage() {
                 <div className="flex gap-3">
                   <button
                     onClick={() => setStep('select-theme')}
-                    className="flex-1 rounded-xl border border-[#2c2c35] py-3.5 text-[15px] font-semibold text-[#8b95a1] transition-colors hover:bg-[#2c2c35] hover:text-[#f2f4f6]"
+                    className="flex-1 rounded-xl border border-[var(--border-primary)] py-3.5 text-[15px] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
                   >
                     뒤로
                   </button>
                   <button
                     onClick={handleGenerate}
                     disabled={smartAnalysis.running}
-                    className="flex-1 rounded-xl bg-[#3182f6] py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-[#1b64da] disabled:opacity-50"
+                    className="flex-1 rounded-xl bg-[var(--toss-blue)] py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-[var(--toss-blue-hover)] disabled:opacity-50"
                   >
                     {smartAnalysis.results.optimization ? '🚀 분석 반영하여 생성' : '⚡ 바로 생성'}
                   </button>
@@ -1805,24 +1808,24 @@ function StartPage() {
               {/* 오른쪽: PC/모바일 전환 미리보기 */}
               <div className="flex flex-col items-center">
                 <div className="mb-3 flex items-center gap-3">
-                  <span className="text-sm text-[#6b7684]">미리보기</span>
-                  <div className="flex rounded-lg bg-[#2c2c35] p-0.5">
+                  <span className="text-sm text-[var(--text-tertiary)]">미리보기</span>
+                  <div className="flex rounded-lg bg-[var(--bg-elevated)] p-0.5">
                     <button
                       onClick={() => setPreviewMode('mobile')}
-                      className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${previewMode === 'mobile' ? 'bg-[#3182f6] text-white' : 'text-[#8b95a1] hover:text-[#f2f4f6]'}`}
+                      className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${previewMode === 'mobile' ? 'bg-[var(--toss-blue)] text-white' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
                     >📱 모바일</button>
                     <button
                       onClick={() => setPreviewMode('desktop')}
-                      className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${previewMode === 'desktop' ? 'bg-[#3182f6] text-white' : 'text-[#8b95a1] hover:text-[#f2f4f6]'}`}
+                      className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${previewMode === 'desktop' ? 'bg-[var(--toss-blue)] text-white' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
                     >🖥 PC</button>
                   </div>
                 </div>
-                <div className={`overflow-hidden border border-[#2c2c35] bg-white shadow-2xl transition-all duration-300 ${
+                <div className={`overflow-hidden border border-[var(--border-primary)] bg-white shadow-2xl transition-all duration-300 ${
                   previewMode === 'mobile' ? 'w-[300px] rounded-[2rem]' : 'w-[520px] rounded-xl'
                 }`}>
                   {previewMode === 'mobile' && (
-                    <div className="flex h-[32px] items-center justify-center bg-[#f8fafc] border-b border-[#e2e8f0]">
-                      <div className="h-[4px] w-[80px] rounded-full bg-[#1b1b21]" />
+                    <div className="flex h-[32px] items-center justify-center bg-[var(--bg-secondary)] border-b border-[var(--border-primary)]">
+                      <div className="h-[4px] w-[80px] rounded-full bg-[var(--bg-secondary)]" />
                     </div>
                   )}
                   <div className="overflow-hidden bg-white" style={{ height: previewMode === 'mobile' ? '520px' : '420px' }}>
@@ -1833,7 +1836,7 @@ function StartPage() {
                     />
                   </div>
                 </div>
-                <p className="mt-3 text-xs text-[#6b7684]">실제 앱과 다를 수 있습니다</p>
+                <p className="mt-3 text-xs text-[var(--text-tertiary)]">실제 앱과 다를 수 있습니다</p>
               </div>
             </div>
           </div>
@@ -1849,13 +1852,13 @@ function StartPage() {
               {progress < 25 ? '구조 설계 중...' : progress < 50 ? '데이터 구조 생성 중...' : progress < 75 ? '서버 기능 생성 중...' : '화면 UI 생성 중...'}
             </h2>
 
-            <div className="mb-4 h-2 overflow-hidden rounded-full bg-[#2c2c35]">
+            <div className="mb-4 h-2 overflow-hidden rounded-full bg-[var(--bg-elevated)]">
               <div
-                className="h-full rounded-full bg-[#3182f6] transition-all duration-300"
+                className="h-full rounded-full bg-[var(--toss-blue)] transition-all duration-300"
                 style={{ width: `${progress}%` }}
               />
             </div>
-            <p className="text-[#8b95a1]">{progress}% — AI가 코드를 작성하고 있습니다</p>
+            <p className="text-[var(--text-secondary)]">{progress}% — AI가 코드를 작성하고 있습니다</p>
           </div>
         )}
 
@@ -1864,14 +1867,14 @@ function StartPage() {
           <div className="mx-auto max-w-2xl text-center py-10">
             <div className="mb-6 text-6xl">🎉</div>
             <h2 className="mb-4 text-3xl font-bold tracking-tight">MVP 생성 완료!</h2>
-            <p className="mb-10 text-[#8b95a1]">
+            <p className="mb-10 text-[var(--text-secondary)]">
               {selectedTemplate.name} 기반 앱이 생성되었습니다.
               아래 미리보기로 결과를 확인하세요!
             </p>
 
-            <div className="mb-8 rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6 text-left">
+            <div className="mb-8 rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-6 text-left">
               <h3 className="mb-4 font-bold">생성된 파일</h3>
-              <div className="space-y-2 font-mono text-sm text-[#8b95a1]">
+              <div className="space-y-2 font-mono text-sm text-[var(--text-secondary)]">
                 <p>prisma/schema.prisma</p>
                 <p>src/auth/ (로그인/회원가입)</p>
                 <p>src/reservations/ (예약 관리)</p>
@@ -1886,19 +1889,19 @@ function StartPage() {
             <div className="flex flex-col md:flex-row gap-3">
               <a
                 href={`/preview?template=${selectedTemplate?.id}`}
-                className="flex-1 rounded-xl bg-[#3182f6] py-3.5 text-[15px] font-bold text-white text-center transition-colors hover:bg-[#1b64da]"
+                className="flex-1 rounded-xl bg-[var(--toss-blue)] py-3.5 text-[15px] font-bold text-white text-center transition-colors hover:bg-[var(--toss-blue-hover)]"
               >
                 미리보기 실행
               </a>
               <button
                 onClick={() => alert('코드 다운로드 기능은 준비 중입니다. 곧 ZIP 파일로 제공됩니다!')}
-                className="flex-1 rounded-xl bg-[#a855f7] py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-[#9333ea]"
+                className="flex-1 rounded-xl bg-[var(--toss-purple)] py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-[var(--toss-purple)]"
               >
                 코드 다운로드
               </button>
               <button
                 onClick={() => alert('서버 배포 기능은 준비 중입니다. NCP 원클릭 배포를 지원할 예정입니다!')}
-                className="flex-1 rounded-xl border border-[#2c2c35] py-3.5 text-[15px] font-semibold text-[#8b95a1] transition-colors hover:bg-[#2c2c35] hover:text-[#f2f4f6]"
+                className="flex-1 rounded-xl border border-[var(--border-primary)] py-3.5 text-[15px] font-semibold text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
               >
                 서버 배포
               </button>
@@ -1912,7 +1915,7 @@ function StartPage() {
                 setProjectName('');
                 setProgress(0);
               }}
-              className="mt-7 text-sm text-[#8b95a1] hover:text-[#f2f4f6] transition-colors"
+              className="mt-7 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
             >
               새 프로젝트 만들기
             </button>
@@ -1921,7 +1924,7 @@ function StartPage() {
       </main>
 
       {/* 푸터 */}
-      <footer className="border-t border-[#2c2c35] px-6 py-8 text-center text-sm text-[#6b7684]">
+      <footer className="border-t border-[var(--border-primary)] px-6 py-8 text-center text-sm text-[var(--text-tertiary)]">
         <p>Foundry &mdash; AI가 만드는 MVP. 외주비 3천만원을 20만원으로.</p>
       </footer>
     </div>

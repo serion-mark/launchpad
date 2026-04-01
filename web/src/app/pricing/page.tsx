@@ -64,14 +64,14 @@ export default function PricingPage() {
   const user = getUser();
 
   return (
-    <div className="min-h-screen bg-[#17171c] text-[#f2f4f6]">
+    <div className="min-h-screen bg-[var(--bg-card)] text-[var(--text-primary)]">
       <LandingNav />
 
       {/* 히어로 */}
       <section className="px-5 pt-16 pb-12 md:pt-24 md:pb-16 text-center">
         <h1 className="mb-3 text-3xl md:text-[44px] font-bold tracking-tight">크레딧 충전</h1>
-        <p className="text-lg text-[#8b95a1]">쓴 만큼만 결제하세요. 구독료 없이 크레딧으로 앱을 만듭니다.</p>
-        <p className="mt-2 text-sm text-[#30d158] font-medium">회원가입 시 1,000cr 무료 지급!</p>
+        <p className="text-lg text-[var(--text-secondary)]">쓴 만큼만 결제하세요. 구독료 없이 크레딧으로 앱을 만듭니다.</p>
+        <p className="mt-2 text-sm text-[var(--toss-green)] font-medium">회원가입 시 1,000cr 무료 지급!</p>
       </section>
 
       {/* 가격 카드 */}
@@ -82,32 +82,32 @@ export default function PricingPage() {
               key={plan.name}
               className={`rounded-2xl border p-8 flex flex-col transition-colors ${
                 plan.highlight
-                  ? 'border-[#3182f6] bg-[#3182f6]/5 ring-1 ring-[#3182f6]/30 relative'
-                  : 'border-[#2c2c35] bg-[#1b1b21] hover:border-[#3a3a45]'
+                  ? 'border-[var(--toss-blue)] bg-[var(--toss-blue)]/5 ring-1 ring-[#3182f6]/30 relative'
+                  : 'border-[var(--border-primary)] bg-[var(--bg-secondary)] hover:border-[var(--border-hover)]'
               }`}
             >
               {plan.badge && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[#3182f6] px-4 py-1 text-xs font-bold text-white whitespace-nowrap">
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[var(--toss-blue)] px-4 py-1 text-xs font-bold text-white whitespace-nowrap">
                   {plan.badge}
                 </div>
               )}
               <h3 className="mb-1 text-xl font-bold">{plan.name}</h3>
-              <p className="mb-6 text-sm text-[#6b7684]">{plan.desc}</p>
+              <p className="mb-6 text-sm text-[var(--text-tertiary)]">{plan.desc}</p>
               <div className="mb-1">
                 <span className="text-4xl font-extrabold">{(plan.price / 10000).toFixed(plan.price % 10000 === 0 ? 0 : 1)}만원</span>
               </div>
               <div className="mb-6 flex items-center gap-2">
-                <span className="text-sm font-medium text-[#ffd60a]">{plan.credits.toLocaleString()} 크레딧</span>
-                <span className="text-xs text-[#6b7684]">({plan.perCredit})</span>
+                <span className="text-sm font-medium text-[var(--toss-yellow)]">{plan.credits.toLocaleString()} 크레딧</span>
+                <span className="text-xs text-[var(--text-tertiary)]">({plan.perCredit})</span>
               </div>
 
               <ul className="mb-8 flex-1 space-y-2.5">
                 {plan.features.map(f => (
-                  <li key={f} className={`flex items-start gap-2 text-sm ${f.includes('별도') ? 'text-[#6b7684]' : 'text-[#8b95a1]'}`}>
-                    <span className={`mt-0.5 ${f.includes('별도') ? 'text-[#ef4444]' : f.includes('포함!') ? 'text-[#3182f6]' : 'text-[#30d158]'}`}>
+                  <li key={f} className={`flex items-start gap-2 text-sm ${f.includes('별도') ? 'text-[var(--text-tertiary)]' : 'text-[var(--text-secondary)]'}`}>
+                    <span className={`mt-0.5 ${f.includes('별도') ? 'text-[var(--toss-red)]' : f.includes('포함!') ? 'text-[var(--toss-blue)]' : 'text-[var(--toss-green)]'}`}>
                       {f.includes('별도') ? '✗' : '✓'}
                     </span>
-                    {f.includes('포함!') ? <span className="font-semibold text-[#f2f4f6]">{f}</span> : f}
+                    {f.includes('포함!') ? <span className="font-semibold text-[var(--text-primary)]">{f}</span> : f}
                   </li>
                 ))}
               </ul>
@@ -116,8 +116,8 @@ export default function PricingPage() {
                 href={user ? '/credits' : '/login?redirect=/credits'}
                 className={`block rounded-xl py-3.5 text-center text-[15px] font-bold transition-colors ${
                   plan.highlight
-                    ? 'bg-[#3182f6] text-white hover:bg-[#1b64da]'
-                    : 'bg-[#2c2c35] text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#3a3a45]'
+                    ? 'bg-[var(--toss-blue)] text-white hover:bg-[var(--toss-blue-hover)]'
+                    : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-hover)]'
                 }`}
               >
                 충전하기
@@ -126,66 +126,66 @@ export default function PricingPage() {
           ))}
         </div>
 
-        <p className="mt-6 text-center text-xs text-[#6b7684]">
-          가격은 부가세 별도 · 호스팅 월 29,000원 (24시간 무료 체험 포함!) · 정기결제 아님, 1회성 충전 · <span className="text-[#3182f6]">정부지원사업비 결제 가능 (세금계산서 발행)</span>
+        <p className="mt-6 text-center text-xs text-[var(--text-tertiary)]">
+          가격은 부가세 별도 · 호스팅 월 29,000원 (24시간 무료 체험 포함!) · 정기결제 아님, 1회성 충전 · <span className="text-[var(--toss-blue)]">정부지원사업비 결제 가능 (세금계산서 발행)</span>
         </p>
       </section>
 
       {/* 크레딧 소모 기준표 */}
-      <section className="px-5 py-16 bg-[#1b1b21]">
+      <section className="px-5 py-16 bg-[var(--bg-secondary)]">
         <div className="mx-auto max-w-3xl">
           <h2 className="mb-2 text-2xl font-bold text-center">기능별 크레딧 사용량</h2>
-          <p className="mb-8 text-sm text-[#6b7684] text-center">모든 유료 기능은 사용 전 크레딧 안내가 표시됩니다</p>
-          <div className="rounded-2xl border border-[#2c2c35] bg-[#17171c] overflow-hidden">
+          <p className="mb-8 text-sm text-[var(--text-tertiary)] text-center">모든 유료 기능은 사용 전 크레딧 안내가 표시됩니다</p>
+          <div className="rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-card)] overflow-hidden">
             {CREDIT_TABLE.map((row, i) => (
-              <div key={row.action} className={`flex items-center justify-between px-6 py-4 ${i !== CREDIT_TABLE.length - 1 ? 'border-b border-[#2c2c35]/50' : ''}`}>
+              <div key={row.action} className={`flex items-center justify-between px-6 py-4 ${i !== CREDIT_TABLE.length - 1 ? 'border-b border-[var(--border-primary)]/50' : ''}`}>
                 <div className="flex items-center gap-3">
                   <span className="text-lg">{row.icon}</span>
                   <div>
-                    <span className="text-sm font-medium text-[#f2f4f6]">{row.action}</span>
-                    {row.note && <span className="ml-2 text-xs text-[#6b7684]">{row.note}</span>}
+                    <span className="text-sm font-medium text-[var(--text-primary)]">{row.action}</span>
+                    {row.note && <span className="ml-2 text-xs text-[var(--text-tertiary)]">{row.note}</span>}
                   </div>
                 </div>
-                <span className="text-sm font-bold text-[#ffd60a]">{row.credits} cr</span>
+                <span className="text-sm font-bold text-[var(--toss-yellow)]">{row.credits} cr</span>
               </div>
             ))}
           </div>
-          <div className="mt-4 rounded-xl bg-[#3182f6]/10 border border-[#3182f6]/20 p-4 text-center">
-            <p className="text-sm text-[#3182f6] font-medium">📡 배포: 월 29,000원 (별도) · 24시간 무료 체험 포함!</p>
+          <div className="mt-4 rounded-xl bg-[var(--toss-blue)]/10 border border-[var(--toss-blue)]/20 p-4 text-center">
+            <p className="text-sm text-[var(--toss-blue)] font-medium">📡 배포: 월 29,000원 (별도) · 24시간 무료 체험 포함!</p>
           </div>
         </div>
       </section>
 
       {/* 모두의 창업 배너 */}
       <section className="px-5 py-16">
-        <div className="mx-auto max-w-5xl rounded-2xl border border-[#ffd60a]/30 bg-[#ffd60a]/5 p-8 text-center">
+        <div className="mx-auto max-w-5xl rounded-2xl border border-[var(--toss-yellow)]/30 bg-[var(--toss-yellow)]/5 p-8 text-center">
           <h2 className="text-xl font-bold mb-2">🏛️ 모두의 창업 선정자이신가요?</h2>
-          <p className="text-sm text-[#8b95a1] mb-4">정부사업비로 정산 가능한 전용 패키지가 있습니다.</p>
+          <p className="text-sm text-[var(--text-secondary)] mb-4">정부사업비로 정산 가능한 전용 패키지가 있습니다.</p>
           <div className="flex flex-col sm:flex-row justify-center gap-4 mb-3">
-            <div className="rounded-xl bg-[#1b1b21] border border-[#2c2c35] px-6 py-3">
-              <span className="font-bold text-[#ffd60a]">🥉 라이트 490,000원</span>
-              <span className="text-xs text-[#8b95a1] ml-2">50,000cr + 호스팅 3개월 + 프리미엄 회의실 3회 + 기술지원 2회</span>
+            <div className="rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] px-6 py-3">
+              <span className="font-bold text-[var(--toss-yellow)]">🥉 라이트 490,000원</span>
+              <span className="text-xs text-[var(--text-secondary)] ml-2">50,000cr + 호스팅 3개월 + 프리미엄 회의실 3회 + 기술지원 2회</span>
             </div>
-            <div className="rounded-xl bg-[#1b1b21] border border-[#2c2c35] px-6 py-3">
-              <span className="font-bold text-[#ffd60a]">🥈 스탠다드 990,000원</span>
-              <span className="text-xs text-[#8b95a1] ml-2">100,000cr + 호스팅 6개월 + 코드팩 + 프리미엄 회의실 무제한급 + 기술지원 5회</span>
+            <div className="rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] px-6 py-3">
+              <span className="font-bold text-[var(--toss-yellow)]">🥈 스탠다드 990,000원</span>
+              <span className="text-xs text-[var(--text-secondary)] ml-2">100,000cr + 호스팅 6개월 + 코드팩 + 프리미엄 회의실 무제한급 + 기술지원 5회</span>
             </div>
           </div>
-          <a href="/credits" className="text-sm text-[#3182f6] hover:underline">자세히 보기 →</a>
+          <a href="/credits" className="text-sm text-[var(--toss-blue)] hover:underline">자세히 보기 →</a>
         </div>
       </section>
 
       {/* 외주 vs Foundry */}
-      <section className="px-5 py-16 bg-[#1b1b21]">
+      <section className="px-5 py-16 bg-[var(--bg-secondary)]">
         <div className="mx-auto max-w-3xl">
           <h2 className="mb-8 text-2xl font-bold text-center">외주 개발 vs Foundry</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[#2c2c35]">
-                  <th className="py-3 px-4 text-left text-[#6b7684] font-medium">항목</th>
-                  <th className="py-3 px-4 text-center text-[#f45452] font-bold">외주</th>
-                  <th className="py-3 px-4 text-center text-[#3182f6] font-bold">Foundry</th>
+                <tr className="border-b border-[var(--border-primary)]">
+                  <th className="py-3 px-4 text-left text-[var(--text-tertiary)] font-medium">항목</th>
+                  <th className="py-3 px-4 text-center text-[var(--toss-red)] font-bold">외주</th>
+                  <th className="py-3 px-4 text-center text-[var(--toss-blue)] font-bold">Foundry</th>
                 </tr>
               </thead>
               <tbody>
@@ -196,10 +196,10 @@ export default function PricingPage() {
                   ['코드 소유권', '계약에 따라 다름', '100% 사용자'],
                   ['유지보수', '별도 계약 필요', '크레딧으로 자유 수정'],
                 ].map(([label, o, f]) => (
-                  <tr key={label} className="border-b border-[#2c2c35]/50">
-                    <td className="py-3 px-4 text-[#8b95a1]">{label}</td>
-                    <td className="py-3 px-4 text-center text-[#6b7684]">{o}</td>
-                    <td className="py-3 px-4 text-center font-medium text-[#f2f4f6]">{f}</td>
+                  <tr key={label} className="border-b border-[var(--border-primary)]/50">
+                    <td className="py-3 px-4 text-[var(--text-secondary)]">{label}</td>
+                    <td className="py-3 px-4 text-center text-[var(--text-tertiary)]">{o}</td>
+                    <td className="py-3 px-4 text-center font-medium text-[var(--text-primary)]">{f}</td>
                   </tr>
                 ))}
               </tbody>
@@ -214,17 +214,17 @@ export default function PricingPage() {
           <h2 className="mb-8 text-2xl font-bold text-center">자주 묻는 질문</h2>
           <div className="space-y-3">
             {FAQ.map((faq, i) => (
-              <div key={i} className="rounded-xl border border-[#2c2c35] bg-[#1b1b21] overflow-hidden">
+              <div key={i} className="rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] overflow-hidden">
                 <button
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
                   className="flex w-full items-center justify-between px-6 py-4 text-left"
                 >
                   <span className="font-semibold text-sm">{faq.q}</span>
-                  <span className={`text-[#8b95a1] transition-transform ${openFaq === i ? 'rotate-180' : ''}`}>▼</span>
+                  <span className={`text-[var(--text-secondary)] transition-transform ${openFaq === i ? 'rotate-180' : ''}`}>▼</span>
                 </button>
                 {openFaq === i && (
-                  <div className="border-t border-[#2c2c35] px-6 py-4">
-                    <p className="text-sm text-[#8b95a1] leading-relaxed">{faq.a}</p>
+                  <div className="border-t border-[var(--border-primary)] px-6 py-4">
+                    <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{faq.a}</p>
                   </div>
                 )}
               </div>
@@ -234,15 +234,15 @@ export default function PricingPage() {
       </section>
 
       {/* CTA */}
-      <section className="px-5 py-16 bg-[#1b1b21]">
+      <section className="px-5 py-16 bg-[var(--bg-secondary)]">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="mb-4 text-2xl font-bold">무료로 시작해보세요</h2>
-          <p className="mb-8 text-[#8b95a1]">회원가입 시 1,000 크레딧 무료. 카드 등록 없이 바로 체험.</p>
+          <p className="mb-8 text-[var(--text-secondary)]">회원가입 시 1,000 크레딧 무료. 카드 등록 없이 바로 체험.</p>
           <div className="flex flex-col sm:flex-row justify-center gap-3">
-            <a href="/start" className="rounded-xl bg-[#3182f6] px-8 py-3.5 text-[15px] font-bold text-white hover:bg-[#1b64da] transition-colors">
+            <a href="/start" className="rounded-xl bg-[var(--toss-blue)] px-8 py-3.5 text-[15px] font-bold text-white hover:bg-[var(--toss-blue-hover)] transition-colors">
               지금 시작하기 →
             </a>
-            <a href="/refund" className="rounded-xl border border-[#2c2c35] px-8 py-3.5 text-[15px] font-semibold text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#2c2c35] transition-colors">
+            <a href="/refund" className="rounded-xl border border-[var(--border-primary)] px-8 py-3.5 text-[15px] font-semibold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors">
               환불 정책 보기
             </a>
           </div>

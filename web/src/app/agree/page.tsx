@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { authFetch } from '@/lib/api';
+import Logo from '@/app/components/Logo';
 
 export default function AgreePage() {
   const [terms, setTerms] = useState(false);
@@ -49,11 +50,11 @@ export default function AgreePage() {
     <button
       onClick={onChange}
       className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors ${
-        checked ? 'border-[#3182f6] bg-[#3182f6]/5' : 'border-[#2c2c35] hover:border-[#3a3a45]'
+        checked ? 'border-[var(--toss-blue)] bg-[var(--toss-blue)]/5' : 'border-[var(--border-primary)] hover:border-[var(--border-hover)]'
       }`}
     >
       <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
-        checked ? 'border-[#3182f6] bg-[#3182f6]' : 'border-[#4e5968]'
+        checked ? 'border-[var(--toss-blue)] bg-[var(--toss-blue)]' : 'border-[var(--border-hover)]'
       }`}>
         {checked && (
           <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -63,13 +64,13 @@ export default function AgreePage() {
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className={`text-sm font-medium ${checked ? 'text-[#f2f4f6]' : 'text-[#8b95a1]'}`}>
+          <span className={`text-sm font-medium ${checked ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}`}>
             {label}
           </span>
           {required ? (
-            <span className="rounded bg-[#f45452]/15 px-1.5 py-0.5 text-[10px] font-bold text-[#f45452]">필수</span>
+            <span className="rounded bg-[var(--toss-red)]/15 px-1.5 py-0.5 text-[10px] font-bold text-[var(--toss-red)]">필수</span>
           ) : (
-            <span className="rounded bg-[#2c2c35] px-1.5 py-0.5 text-[10px] font-medium text-[#6b7684]">선택</span>
+            <span className="rounded bg-[var(--bg-elevated)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-tertiary)]">선택</span>
           )}
         </div>
         <a
@@ -77,7 +78,7 @@ export default function AgreePage() {
           target="_blank"
           rel="noopener noreferrer"
           onClick={e => e.stopPropagation()}
-          className="mt-1 inline-block text-xs text-[#6b7684] hover:text-[#3182f6] underline"
+          className="mt-1 inline-block text-xs text-[var(--text-tertiary)] hover:text-[var(--toss-blue)] underline"
         >
           {linkText} 보기 &rarr;
         </a>
@@ -86,27 +87,27 @@ export default function AgreePage() {
   );
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#17171c] px-5">
+    <div className="flex min-h-screen items-center justify-center bg-[var(--bg-card)] px-5">
       <div className="w-full max-w-md">
         {/* 로고 */}
         <div className="mb-10 text-center">
           <a href="/">
-            <img src="/logo.svg" alt="Foundry" className="h-9 mx-auto" />
+            <Logo className="h-9 mx-auto" />
           </a>
-          <p className="mt-3 text-[#8b95a1]">서비스 이용을 위해 약관에 동의해주세요</p>
+          <p className="mt-3 text-[var(--text-secondary)]">서비스 이용을 위해 약관에 동의해주세요</p>
         </div>
 
         {/* 카드 */}
-        <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-8">
+        <div className="rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-8">
           {/* 전체 동의 */}
           <button
             onClick={toggleAll}
             className={`mb-5 flex w-full items-center gap-3 rounded-xl border p-4 text-left transition-colors ${
-              allChecked ? 'border-[#30d158] bg-[#30d158]/5' : 'border-[#2c2c35] hover:border-[#3a3a45]'
+              allChecked ? 'border-[var(--toss-green)] bg-[var(--toss-green)]/5' : 'border-[var(--border-primary)] hover:border-[var(--border-hover)]'
             }`}
           >
             <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
-              allChecked ? 'border-[#30d158] bg-[#30d158]' : 'border-[#4e5968]'
+              allChecked ? 'border-[var(--toss-green)] bg-[var(--toss-green)]' : 'border-[var(--border-hover)]'
             }`}>
               {allChecked && (
                 <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -114,7 +115,7 @@ export default function AgreePage() {
                 </svg>
               )}
             </div>
-            <span className="text-[15px] font-bold text-[#f2f4f6]">전체 동의하기</span>
+            <span className="text-[15px] font-bold text-[var(--text-primary)]">전체 동의하기</span>
           </button>
 
           <div className="space-y-3">
@@ -125,7 +126,7 @@ export default function AgreePage() {
           </div>
 
           {error && (
-            <div className="mt-5 rounded-xl bg-[#f45452]/10 border border-[#f45452]/20 px-4 py-3 text-sm text-[#f45452]">
+            <div className="mt-5 rounded-xl bg-[var(--toss-red)]/10 border border-[var(--toss-red)]/20 px-4 py-3 text-sm text-[var(--toss-red)]">
               {error}
             </div>
           )}
@@ -133,7 +134,7 @@ export default function AgreePage() {
           <button
             onClick={handleSubmit}
             disabled={!allRequired || loading}
-            className="mt-6 w-full rounded-xl bg-[#3182f6] py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-[#1b64da] disabled:opacity-40 disabled:cursor-not-allowed"
+            className="mt-6 w-full rounded-xl bg-[var(--toss-blue)] py-3.5 text-[15px] font-bold text-white transition-colors hover:bg-[var(--toss-blue-hover)] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {loading ? '처리 중...' : '동의하고 시작하기'}
           </button>

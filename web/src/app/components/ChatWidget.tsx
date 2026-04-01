@@ -155,7 +155,7 @@ export default function ChatWidget() {
       {/* 플로팅 버튼 */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#3182f6] text-white shadow-lg shadow-[#3182f6]/30 hover:bg-[#1b64da] transition-all hover:scale-105 active:scale-95"
+        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--toss-blue)] text-white shadow-lg shadow-[#3182f6]/30 hover:bg-[var(--toss-blue-hover)] transition-all hover:scale-105 active:scale-95"
         aria-label="상담 챗봇"
       >
         {isOpen ? (
@@ -171,17 +171,17 @@ export default function ChatWidget() {
 
       {/* 챗봇 창 */}
       {isOpen && (
-        <div className="fixed bottom-24 right-3 sm:right-6 z-50 w-[calc(100vw-24px)] sm:w-[360px] max-w-[360px] rounded-2xl border border-[#2c2c35] bg-[#1b1b21] shadow-2xl shadow-black/40 flex flex-col overflow-hidden"
+        <div className="fixed bottom-24 right-3 sm:right-6 z-50 w-[calc(100vw-24px)] sm:w-[360px] max-w-[360px] rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] shadow-2xl shadow-black/40 flex flex-col overflow-hidden"
           style={{ maxHeight: 'min(520px, calc(100vh - 140px))' }}
         >
           {/* 헤더 */}
-          <div className="flex items-center gap-3 border-b border-[#2c2c35] bg-[#17171c] px-5 py-4">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#3182f6]/20">
+          <div className="flex items-center gap-3 border-b border-[var(--border-primary)] bg-[var(--bg-card)] px-5 py-4">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--toss-blue)]/20">
               <span className="text-lg">F</span>
             </div>
             <div>
-              <div className="text-sm font-bold text-[#f2f4f6]">Foundry 도우미</div>
-              <div className="text-xs text-[#6b7684]">무엇이든 물어보세요</div>
+              <div className="text-sm font-bold text-[var(--text-primary)]">Foundry 도우미</div>
+              <div className="text-xs text-[var(--text-tertiary)]">무엇이든 물어보세요</div>
             </div>
           </div>
 
@@ -192,8 +192,8 @@ export default function ChatWidget() {
                 <div
                   className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                     msg.role === 'user'
-                      ? 'bg-[#3182f6] text-white rounded-br-md'
-                      : 'bg-[#2c2c35] text-[#e5e7eb] rounded-bl-md'
+                      ? 'bg-[var(--toss-blue)] text-white rounded-br-md'
+                      : 'bg-[var(--bg-elevated)] text-[var(--text-primary)] rounded-bl-md'
                   }`}
                 >
                   {msg.role === 'bot'
@@ -204,7 +204,7 @@ export default function ChatWidget() {
                     <a
                       href={msg.link.href}
                       className={`mt-2 inline-block text-xs font-bold underline underline-offset-2 ${
-                        msg.role === 'user' ? 'text-blue-100' : 'text-[#3182f6]'
+                        msg.role === 'user' ? 'text-blue-100' : 'text-[var(--toss-blue)]'
                       }`}
                     >
                       {msg.link.label} &rarr;
@@ -215,7 +215,7 @@ export default function ChatWidget() {
             ))}
             {isLoading && (
               <div className="flex justify-start">
-                <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-[#2c2c35] px-4 py-2.5 text-sm text-[#8b95a1]">
+                <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-[var(--bg-elevated)] px-4 py-2.5 text-sm text-[var(--text-secondary)]">
                   <span className="inline-flex gap-1">
                     <span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
                     <span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span>
@@ -234,7 +234,7 @@ export default function ChatWidget() {
                 <button
                   key={btn.label}
                   onClick={() => sendMessage(btn.message)}
-                  className="rounded-full border border-[#3182f6]/30 bg-[#3182f6]/10 px-3.5 py-1.5 text-xs font-medium text-[#3182f6] hover:bg-[#3182f6]/20 transition-colors"
+                  className="rounded-full border border-[var(--toss-blue)]/30 bg-[var(--toss-blue)]/10 px-3.5 py-1.5 text-xs font-medium text-[var(--toss-blue)] hover:bg-[var(--toss-blue)]/20 transition-colors"
                 >
                   {btn.label}
                 </button>
@@ -243,18 +243,18 @@ export default function ChatWidget() {
           )}
 
           {/* 입력 */}
-          <form onSubmit={handleSubmit} className="flex items-center gap-2 border-t border-[#2c2c35] px-4 py-3">
+          <form onSubmit={handleSubmit} className="flex items-center gap-2 border-t border-[var(--border-primary)] px-4 py-3">
             <input
               type="text"
               value={input}
               onChange={e => setInput(e.target.value)}
               placeholder="궁금한 점을 입력하세요..."
-              className="flex-1 rounded-xl bg-[#2c2c35] px-4 py-2.5 text-sm text-[#f2f4f6] placeholder-[#6b7684] outline-none focus:ring-1 focus:ring-[#3182f6]/50"
+              className="flex-1 rounded-xl bg-[var(--bg-elevated)] px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none focus:ring-1 focus:ring-[#3182f6]/50"
             />
             <button
               type="submit"
               disabled={!input.trim() || isLoading}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#3182f6] text-white disabled:opacity-40 hover:bg-[#1b64da] transition-colors"
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--toss-blue)] text-white disabled:opacity-40 hover:bg-[var(--toss-blue-hover)] transition-colors"
             >
               <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
@@ -263,10 +263,10 @@ export default function ChatWidget() {
           </form>
 
           {/* 하단 CTA */}
-          <div className="border-t border-[#2c2c35] bg-[#17171c] px-4 py-3">
+          <div className="border-t border-[var(--border-primary)] bg-[var(--bg-card)] px-4 py-3">
             <a
               href="/start"
-              className="block rounded-xl bg-[#3182f6] py-2.5 text-center text-sm font-bold text-white hover:bg-[#1b64da] transition-colors"
+              className="block rounded-xl bg-[var(--toss-blue)] py-2.5 text-center text-sm font-bold text-white hover:bg-[var(--toss-blue-hover)] transition-colors"
             >
               지금 앱 만들어보기 &rarr;
             </a>

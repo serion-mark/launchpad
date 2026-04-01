@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { authFetch, getUser } from '@/lib/api';
+import Logo from '@/app/components/Logo';
+import ThemeToggle from '@/app/components/ThemeToggle';
 
 const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || '';
 
@@ -162,26 +164,26 @@ export default function CreditsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#17171c] text-[#f2f4f6]">
+    <div className="min-h-screen bg-[var(--bg-card)] text-[var(--text-primary)]">
       {/* 충전 문의 모달 */}
       {showContactModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowContactModal(false)}>
-          <div className="mx-4 w-full max-w-sm rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-8 text-center" onClick={e => e.stopPropagation()}>
+          <div className="mx-4 w-full max-w-sm rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-8 text-center" onClick={e => e.stopPropagation()}>
             <h3 className="mb-2 text-xl font-bold">크레딧 충전 문의</h3>
-            <p className="mb-6 text-sm text-[#8b95a1]">현재 충전은 문의를 통해 진행됩니다.</p>
+            <p className="mb-6 text-sm text-[var(--text-secondary)]">현재 충전은 문의를 통해 진행됩니다.</p>
             <div className="mb-6 space-y-3">
-              <a href="mailto:mark@serion.ai.kr" className="flex items-center justify-center gap-2 rounded-xl bg-[#2c2c35] px-4 py-3 text-sm text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">
+              <a href="mailto:mark@serion.ai.kr" className="flex items-center justify-center gap-2 rounded-xl bg-[var(--bg-elevated)] px-4 py-3 text-sm text-[var(--text-primary)] hover:bg-[var(--border-hover)] transition-colors">
                 <span>📧</span> mark@serion.ai.kr
               </a>
-              <a href="tel:010-2164-3181" className="flex items-center justify-center gap-2 rounded-xl bg-[#2c2c35] px-4 py-3 text-sm text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">
+              <a href="tel:010-2164-3181" className="flex items-center justify-center gap-2 rounded-xl bg-[var(--bg-elevated)] px-4 py-3 text-sm text-[var(--text-primary)] hover:bg-[var(--border-hover)] transition-colors">
                 <span>📞</span> 010-2164-3181
               </a>
             </div>
             <div className="flex gap-3">
-              <a href="mailto:mark@serion.ai.kr?subject=Foundry 크레딧 충전 문의" className="flex-1 rounded-xl bg-[#3182f6] py-3 text-sm font-bold text-white hover:bg-[#1b64da] transition-colors">
+              <a href="mailto:mark@serion.ai.kr?subject=Foundry 크레딧 충전 문의" className="flex-1 rounded-xl bg-[var(--toss-blue)] py-3 text-sm font-bold text-white hover:bg-[var(--toss-blue-hover)] transition-colors">
                 문의하기
               </a>
-              <button onClick={() => setShowContactModal(false)} className="flex-1 rounded-xl bg-[#2c2c35] py-3 text-sm font-bold text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">
+              <button onClick={() => setShowContactModal(false)} className="flex-1 rounded-xl bg-[var(--bg-elevated)] py-3 text-sm font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-hover)] transition-colors">
                 닫기
               </button>
             </div>
@@ -190,21 +192,22 @@ export default function CreditsPage() {
       )}
 
       {/* 헤더 */}
-      <header className="border-b border-[#2c2c35] px-5 py-4 md:px-8">
+      <header className="border-b border-[var(--border-primary)] px-5 py-4 md:px-8">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <a href="/">
-            <img src="/logo.svg" alt="Foundry" className="h-7 md:h-8" />
+            <Logo />
           </a>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             {balance !== null && (
-              <div className="flex items-center gap-2 rounded-xl bg-[#2c2c35] px-4 py-2">
-                <span className="text-[#ffd60a]">⚡</span>
+              <div className="flex items-center gap-2 rounded-xl bg-[var(--bg-elevated)] px-4 py-2">
+                <span className="text-[var(--toss-yellow)]">⚡</span>
                 <span className="text-sm font-bold">{balance.toLocaleString()}</span>
-                <span className="text-xs text-[#8b95a1]">크레딧</span>
-                <span className="text-xs text-[#6b7684] hidden md:inline">· 앱 약 {Math.floor(balance / 3500)}개</span>
+                <span className="text-xs text-[var(--text-secondary)]">크레딧</span>
+                <span className="text-xs text-[var(--text-tertiary)] hidden md:inline">· 앱 약 {Math.floor(balance / 3500)}개</span>
               </div>
             )}
-            <a href="/dashboard" className="rounded-xl bg-[#2c2c35] px-4 py-2 text-sm text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors">
+            <a href="/dashboard" className="rounded-xl bg-[var(--bg-elevated)] px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-hover)] transition-colors">
               내 프로젝트
             </a>
           </div>
@@ -214,16 +217,16 @@ export default function CreditsPage() {
       <main className="mx-auto max-w-6xl px-5 py-10 md:px-8 md:py-14">
         {/* 잔액 대시보드 */}
         {balance !== null && isLoggedIn && (
-          <div className="mb-8 rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6 md:p-8">
+          <div className="mb-8 rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-6 md:p-8">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
-                <p className="text-sm text-[#8b95a1] mb-1">내 크레딧 잔액</p>
-                <p className="text-4xl font-bold text-[#ffd60a]">⚡ {balance.toLocaleString()}<span className="text-lg text-[#8b95a1] ml-2">크레딧</span></p>
-                <p className="text-sm text-[#8b95a1] mt-1">앱 약 <span className="text-[#f2f4f6] font-bold">{Math.floor(balance / 3500)}개</span> 제작 가능</p>
+                <p className="text-sm text-[var(--text-secondary)] mb-1">내 크레딧 잔액</p>
+                <p className="text-4xl font-bold text-[var(--toss-yellow)]">⚡ {balance.toLocaleString()}<span className="text-lg text-[var(--text-secondary)] ml-2">크레딧</span></p>
+                <p className="text-sm text-[var(--text-secondary)] mt-1">앱 약 <span className="text-[var(--text-primary)] font-bold">{Math.floor(balance / 3500)}개</span> 제작 가능</p>
               </div>
               <button
                 onClick={loadTransactions}
-                className="rounded-xl bg-[#2c2c35] px-5 py-3 text-sm font-medium text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors self-start"
+                className="rounded-xl bg-[var(--bg-elevated)] px-5 py-3 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-hover)] transition-colors self-start"
               >
                 📊 {showHistory ? '내역 닫기' : '사용 내역 보기'}
               </button>
@@ -233,32 +236,32 @@ export default function CreditsPage() {
 
         {/* 사용 내역 (토글) */}
         {showHistory && (
-          <div className="mb-8 rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6">
+          <div className="mb-8 rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-6">
             <h3 className="mb-4 text-lg font-bold">📊 크레딧 사용 내역</h3>
             {transactions.length === 0 ? (
-              <p className="text-sm text-[#8b95a1]">아직 이용 내역이 없습니다.</p>
+              <p className="text-sm text-[var(--text-secondary)]">아직 이용 내역이 없습니다.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-[#2c2c35]">
-                      <th className="px-3 py-2.5 text-left text-[#8b95a1] font-medium">날짜</th>
-                      <th className="px-3 py-2.5 text-left text-[#8b95a1] font-medium">내용</th>
-                      <th className="px-3 py-2.5 text-right text-[#8b95a1] font-medium">크레딧</th>
-                      <th className="px-3 py-2.5 text-right text-[#8b95a1] font-medium">잔액</th>
+                    <tr className="border-b border-[var(--border-primary)]">
+                      <th className="px-3 py-2.5 text-left text-[var(--text-secondary)] font-medium">날짜</th>
+                      <th className="px-3 py-2.5 text-left text-[var(--text-secondary)] font-medium">내용</th>
+                      <th className="px-3 py-2.5 text-right text-[var(--text-secondary)] font-medium">크레딧</th>
+                      <th className="px-3 py-2.5 text-right text-[var(--text-secondary)] font-medium">잔액</th>
                     </tr>
                   </thead>
                   <tbody>
                     {transactions.map(tx => (
-                      <tr key={tx.id} className="border-b border-[#2c2c35]/50">
-                        <td className="px-3 py-2.5 text-[#6b7684] whitespace-nowrap">
+                      <tr key={tx.id} className="border-b border-[var(--border-primary)]/50">
+                        <td className="px-3 py-2.5 text-[var(--text-tertiary)] whitespace-nowrap">
                           {new Date(tx.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </td>
-                        <td className="px-3 py-2.5 text-[#f2f4f6]">{tx.description || tx.type}</td>
-                        <td className={`px-3 py-2.5 text-right font-bold ${tx.amount > 0 ? 'text-[#30d158]' : 'text-[#f45452]'}`}>
+                        <td className="px-3 py-2.5 text-[var(--text-primary)]">{tx.description || tx.type}</td>
+                        <td className={`px-3 py-2.5 text-right font-bold ${tx.amount > 0 ? 'text-[var(--toss-green)]' : 'text-[var(--toss-red)]'}`}>
                           {tx.amount > 0 ? '+' : ''}{tx.amount.toLocaleString()}
                         </td>
-                        <td className="px-3 py-2.5 text-right text-[#6b7684]">{tx.balanceAfter.toLocaleString()}</td>
+                        <td className="px-3 py-2.5 text-right text-[var(--text-tertiary)]">{tx.balanceAfter.toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -271,13 +274,13 @@ export default function CreditsPage() {
         {/* 타이틀 */}
         <div className="mb-8 text-center">
           <h2 className="mb-3 text-3xl font-bold tracking-tight md:text-[40px]">🔋 크레딧 충전</h2>
-          <p className="mx-auto max-w-xl text-base text-[#8b95a1]">
+          <p className="mx-auto max-w-xl text-base text-[var(--text-secondary)]">
             쓴 만큼만 결제하세요. 구독료 없이 크레딧으로 앱을 만듭니다.
             <br />
-            <span className="text-[#3182f6] font-medium">많이 충전할수록 크레딧당 단가가 내려갑니다 ↓</span>
+            <span className="text-[var(--toss-blue)] font-medium">많이 충전할수록 크레딧당 단가가 내려갑니다 ↓</span>
           </p>
           {!freeTrialUsed && isLoggedIn && (
-            <div className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#30d158]/15 px-5 py-2.5 text-sm text-[#30d158] font-medium">
+            <div className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[var(--toss-green)]/15 px-5 py-2.5 text-sm text-[var(--toss-green)] font-medium">
               🎁 맛보기 설계안 1회 무료! 크레딧 없이 AI 설계를 체험하세요
             </div>
           )}
@@ -295,10 +298,10 @@ export default function CreditsPage() {
               onClick={() => { if (!('disabled' in tab && tab.disabled)) setActiveTab(tab.key); }}
               className={`rounded-xl px-5 py-2.5 text-sm font-bold transition-colors ${
                 'disabled' in tab && tab.disabled
-                  ? 'bg-[#2c2c35] text-[#4e5968] cursor-not-allowed opacity-50'
+                  ? 'bg-[var(--bg-elevated)] text-[var(--text-disabled)] cursor-not-allowed opacity-50'
                   : activeTab === tab.key
-                  ? 'bg-[#3182f6] text-white'
-                  : 'bg-[#2c2c35] text-[#8b95a1] hover:text-[#f2f4f6] hover:bg-[#3a3a45]'
+                  ? 'bg-[var(--toss-blue)] text-white'
+                  : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-hover)]'
               }`}
             >
               {tab.label}
@@ -316,38 +319,38 @@ export default function CreditsPage() {
                   key={pkg.id}
                   className={`relative flex flex-col rounded-2xl border p-6 transition-all ${
                     pkg.highlight
-                      ? 'border-[#3182f6] bg-[#3182f6]/8 scale-[1.02]'
-                      : 'border-[#2c2c35] bg-[#1b1b21] hover:border-[#3a3a45]'
+                      ? 'border-[var(--toss-blue)] bg-[var(--toss-blue)]/8 scale-[1.02]'
+                      : 'border-[var(--border-primary)] bg-[var(--bg-secondary)] hover:border-[var(--border-hover)]'
                   }`}
                 >
                   {pkg.badge && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-[#3182f6] px-4 py-1 text-xs font-bold text-white">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg bg-[var(--toss-blue)] px-4 py-1 text-xs font-bold text-white">
                       {pkg.badge}
                     </div>
                   )}
 
                   <div className="mb-2 flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-[#ffd60a]">⚡ {pkg.label}</span>
-                    <span className="text-sm text-[#8b95a1]">크레딧</span>
+                    <span className="text-3xl font-bold text-[var(--toss-yellow)]">⚡ {pkg.label}</span>
+                    <span className="text-sm text-[var(--text-secondary)]">크레딧</span>
                   </div>
                   <div className="mb-1">
                     <span className="text-2xl font-bold">{(pkg.price / 10000).toFixed(0)}만원</span>
                   </div>
                   <div className="mb-4 flex items-center gap-2">
-                    <span className="text-xs text-[#6b7684]">크레딧당 {pkg.perCredit}</span>
+                    <span className="text-xs text-[var(--text-tertiary)]">크레딧당 {pkg.perCredit}</span>
                     {pkg.discount && (
-                      <span className="rounded-md bg-[#30d158]/15 px-2 py-0.5 text-xs text-[#30d158] font-bold">{pkg.discount}</span>
+                      <span className="rounded-md bg-[var(--toss-green)]/15 px-2 py-0.5 text-xs text-[var(--toss-green)] font-bold">{pkg.discount}</span>
                     )}
                   </div>
-                  <p className="mb-6 text-sm text-[#8b95a1]">{pkg.desc}</p>
+                  <p className="mb-6 text-sm text-[var(--text-secondary)]">{pkg.desc}</p>
 
                   <button
                     onClick={() => handlePurchase(pkg.id, pkg.price, pkg.credits, pkg.label + 'cr')}
                     disabled={isProcessing}
                     className={`mt-auto w-full rounded-xl py-3.5 text-[15px] font-bold transition-colors ${
                       pkg.highlight
-                        ? 'bg-[#3182f6] text-white hover:bg-[#1b64da]'
-                        : 'bg-[#2c2c35] text-[#f2f4f6] hover:bg-[#3a3a45]'
+                        ? 'bg-[var(--toss-blue)] text-white hover:bg-[var(--toss-blue-hover)]'
+                        : 'bg-[var(--bg-elevated)] text-[var(--text-primary)] hover:bg-[var(--border-hover)]'
                     } disabled:opacity-40 disabled:cursor-not-allowed`}
                   >
                     {isProcessing && selectedPkg === pkg.id ? '결제 중...' : '충전하기'}
@@ -357,26 +360,26 @@ export default function CreditsPage() {
             </div>
 
             {/* 소량 충전 */}
-            <div className="mb-10 rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-5">
-              <h3 className="mb-4 text-sm font-bold text-[#8b95a1]">소량 충전</h3>
+            <div className="mb-10 rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-5">
+              <h3 className="mb-4 text-sm font-bold text-[var(--text-secondary)]">소량 충전</h3>
               <div className="flex flex-wrap gap-3">
                 {SMALL_PACKAGES.map(pkg => (
                   <button
                     key={pkg.id}
                     onClick={() => handlePurchase(pkg.id, pkg.price, pkg.credits, pkg.credits.toLocaleString() + 'cr')}
                     disabled={isProcessing}
-                    className="flex items-center gap-3 rounded-xl border border-[#2c2c35] bg-[#2c2c35]/50 px-5 py-3 hover:bg-[#3a3a45] transition-colors disabled:opacity-40"
+                    className="flex items-center gap-3 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-elevated)]/50 px-5 py-3 hover:bg-[var(--border-hover)] transition-colors disabled:opacity-40"
                   >
-                    <span className="text-sm font-bold text-[#ffd60a]">⚡ {pkg.credits.toLocaleString()}cr</span>
-                    <span className="text-sm text-[#f2f4f6]">{(pkg.price / 10000).toFixed(1)}만원</span>
-                    <span className="text-xs text-[#6b7684]">({pkg.perCredit}/cr)</span>
+                    <span className="text-sm font-bold text-[var(--toss-yellow)]">⚡ {pkg.credits.toLocaleString()}cr</span>
+                    <span className="text-sm text-[var(--text-primary)]">{(pkg.price / 10000).toFixed(1)}만원</span>
+                    <span className="text-xs text-[var(--text-tertiary)]">({pkg.perCredit}/cr)</span>
                   </button>
                 ))}
               </div>
             </div>
 
             {/* 결제 전 동의 체크박스 */}
-            <div className="mb-10 rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-5">
+            <div className="mb-10 rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-5">
               <div className="space-y-3">
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
@@ -385,8 +388,8 @@ export default function CreditsPage() {
                     onChange={e => setTermsAgreed(e.target.checked)}
                     className="w-4 h-4 rounded accent-[#3182f6]"
                   />
-                  <span className="text-sm text-[#8b95a1]">
-                    <a href="/terms" target="_blank" className="text-[#3182f6] underline">이용약관</a>에 동의합니다 <span className="text-[#f45452]">(필수)</span>
+                  <span className="text-sm text-[var(--text-secondary)]">
+                    <a href="/terms" target="_blank" className="text-[var(--toss-blue)] underline">이용약관</a>에 동의합니다 <span className="text-[var(--toss-red)]">(필수)</span>
                   </span>
                 </label>
                 <label className="flex items-center gap-3 cursor-pointer">
@@ -396,38 +399,38 @@ export default function CreditsPage() {
                     onChange={e => setRefundAgreed(e.target.checked)}
                     className="w-4 h-4 rounded accent-[#3182f6]"
                   />
-                  <span className="text-sm text-[#8b95a1]">
-                    <a href="/refund" target="_blank" className="text-[#3182f6] underline">환불 규정</a>을 확인했습니다 <span className="text-[#f45452]">(필수)</span>
+                  <span className="text-sm text-[var(--text-secondary)]">
+                    <a href="/refund" target="_blank" className="text-[var(--toss-blue)] underline">환불 규정</a>을 확인했습니다 <span className="text-[var(--toss-red)]">(필수)</span>
                   </span>
                 </label>
               </div>
             </div>
 
             {/* 크레딧 사용 예시 */}
-            <div className="mb-10 rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6">
+            <div className="mb-10 rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-6">
               <h3 className="mb-5 text-center text-lg font-bold">💡 크레딧 사용 예시</h3>
               <div className="grid gap-3 md:grid-cols-2">
                 {CREDIT_USAGE.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between rounded-xl bg-[#2c2c35]/50 px-4 py-3">
+                  <div key={i} className="flex items-center justify-between rounded-xl bg-[var(--bg-elevated)]/50 px-4 py-3">
                     <div className="flex items-center gap-3">
                       <span className="text-lg">{item.icon}</span>
                       <div>
-                        <span className="text-sm font-medium text-[#f2f4f6]">{item.action}</span>
-                        <span className="ml-2 text-xs text-[#6b7684]">{item.note}</span>
+                        <span className="text-sm font-medium text-[var(--text-primary)]">{item.action}</span>
+                        <span className="ml-2 text-xs text-[var(--text-tertiary)]">{item.note}</span>
                       </div>
                     </div>
-                    <span className="text-sm font-bold text-[#ffd60a]">{item.cost}cr</span>
+                    <span className="text-sm font-bold text-[var(--toss-yellow)]">{item.cost}cr</span>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* 정부지원사업비 안내 */}
-            <div className="mb-10 rounded-2xl border border-[#3182f6]/30 bg-[#3182f6]/5 p-6 text-center">
-              <p className="text-sm text-[#3182f6] font-medium">
+            <div className="mb-10 rounded-2xl border border-[var(--toss-blue)]/30 bg-[var(--toss-blue)]/5 p-6 text-center">
+              <p className="text-sm text-[var(--toss-blue)] font-medium">
                 💡 정부지원사업비로 결제 가능합니다 — 세금계산서 발행 가능
               </p>
-              <p className="text-xs text-[#6b7684] mt-1">문의: mark@serion.ai.kr</p>
+              <p className="text-xs text-[var(--text-tertiary)] mt-1">문의: mark@serion.ai.kr</p>
             </div>
           </>
         )}
@@ -435,28 +438,28 @@ export default function CreditsPage() {
         {/* ══════ 모두의 창업 패키지 탭 ══════ */}
         {activeTab === 'modu' && (
           <>
-            <div className="mb-8 rounded-2xl border border-[#ffd60a]/30 bg-[#ffd60a]/5 p-6 text-center">
+            <div className="mb-8 rounded-2xl border border-[var(--toss-yellow)]/30 bg-[var(--toss-yellow)]/5 p-6 text-center">
               <h3 className="text-xl font-bold mb-2">🏛️ 모두의 창업 선정자이신가요?</h3>
-              <p className="text-sm text-[#8b95a1]">정부사업비로 정산 가능한 전용 패키지입니다. 세금계산서 발행 가능.</p>
-              <p className="text-xs text-[#6b7684] mt-2">월 최대 100만원 한도 | 2개월 쓰고 싶으면 2번 결제하면 됩니다!</p>
+              <p className="text-sm text-[var(--text-secondary)]">정부사업비로 정산 가능한 전용 패키지입니다. 세금계산서 발행 가능.</p>
+              <p className="text-xs text-[var(--text-tertiary)] mt-2">월 최대 100만원 한도 | 2개월 쓰고 싶으면 2번 결제하면 됩니다!</p>
             </div>
 
             <div className="mb-10 grid gap-6 md:grid-cols-2">
               {MODU_PACKAGES.map(pkg => (
-                <div key={pkg.tier} className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6">
+                <div key={pkg.tier} className="rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-6">
                   <h3 className="text-xl font-bold mb-2">{pkg.label}</h3>
-                  <p className="text-3xl font-bold text-[#ffd60a] mb-4">{(pkg.price / 10000).toFixed(0)}만원</p>
+                  <p className="text-3xl font-bold text-[var(--toss-yellow)] mb-4">{(pkg.price / 10000).toFixed(0)}만원</p>
                   <ul className="space-y-2 mb-6">
                     {pkg.features.map((f, i) => (
                       <li key={i} className="flex items-center gap-2 text-sm">
-                        <span className="text-[#30d158]">✅</span>
-                        <span className={f.includes('독립') ? 'text-[#ffd60a] font-bold' : 'text-[#8b95a1]'}>{f}</span>
+                        <span className="text-[var(--toss-green)]">✅</span>
+                        <span className={f.includes('독립') ? 'text-[var(--toss-yellow)] font-bold' : 'text-[var(--text-secondary)]'}>{f}</span>
                       </li>
                     ))}
                   </ul>
                   <button
                     onClick={() => alert('모두의 창업 패키지 문의: mark@serion.ai.kr\n전화: 010-XXXX-XXXX')}
-                    className="w-full rounded-xl bg-[#ffd60a] py-3.5 text-[15px] font-bold text-[#17171c] hover:bg-[#ffc800] transition-colors"
+                    className="w-full rounded-xl bg-[var(--toss-yellow)] py-3.5 text-[15px] font-bold text-[#17171c] hover:bg-[#ffc800] transition-colors"
                   >
                     문의하기
                   </button>
@@ -465,28 +468,28 @@ export default function CreditsPage() {
             </div>
 
             {/* 비교 */}
-            <div className="mb-10 rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6">
+            <div className="mb-10 rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-6">
               <h3 className="mb-4 text-center text-lg font-bold">📊 어떤 패키지를 선택할까?</h3>
               <div className="space-y-3 text-sm">
-                <div className="flex items-start gap-3 rounded-xl bg-[#2c2c35]/50 p-4">
+                <div className="flex items-start gap-3 rounded-xl bg-[var(--bg-elevated)]/50 p-4">
                   <span className="text-lg">💡</span>
                   <div>
-                    <p className="font-bold text-[#f2f4f6]">"49만원만 쓸래" → 🥉 라이트</p>
-                    <p className="text-[#8b95a1] mt-1">나머지 예산은 다른 솔루션에 자유롭게 사용하세요.</p>
+                    <p className="font-bold text-[var(--text-primary)]">"49만원만 쓸래" → 🥉 라이트</p>
+                    <p className="text-[var(--text-secondary)] mt-1">나머지 예산은 다른 솔루션에 자유롭게 사용하세요.</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 rounded-xl bg-[#2c2c35]/50 p-4">
+                <div className="flex items-start gap-3 rounded-xl bg-[var(--bg-elevated)]/50 p-4">
                   <span className="text-lg">🔥</span>
                   <div>
-                    <p className="font-bold text-[#f2f4f6]">"100만원 다 쓸래" → 🥈 스탠다드</p>
-                    <p className="text-[#8b95a1] mt-1">코드팩 독립 + 호스팅 6개월 + 프리미엄 회의실 무제한급 + 기술지원 5회!</p>
+                    <p className="font-bold text-[var(--text-primary)]">"100만원 다 쓸래" → 🥈 스탠다드</p>
+                    <p className="text-[var(--text-secondary)] mt-1">코드팩 독립 + 호스팅 6개월 + 프리미엄 회의실 무제한급 + 기술지원 5회!</p>
                   </div>
                 </div>
-                <div className="flex items-start gap-3 rounded-xl bg-[#2c2c35]/50 p-4">
+                <div className="flex items-start gap-3 rounded-xl bg-[var(--bg-elevated)]/50 p-4">
                   <span className="text-lg">📅</span>
                   <div>
-                    <p className="font-bold text-[#f2f4f6]">"2개월 다 쓸래" → 아무거나 2번 결제!</p>
-                    <p className="text-[#8b95a1] mt-1">월 단위 결제 — 다음 달에 한번 더 결제하면 됩니다.</p>
+                    <p className="font-bold text-[var(--text-primary)]">"2개월 다 쓸래" → 아무거나 2번 결제!</p>
+                    <p className="text-[var(--text-secondary)] mt-1">월 단위 결제 — 다음 달에 한번 더 결제하면 됩니다.</p>
                   </div>
                 </div>
               </div>
@@ -499,25 +502,25 @@ export default function CreditsPage() {
           <>
             <div className="mb-8 text-center">
               <h3 className="text-xl font-bold mb-2">🚀 앱을 독립시키기</h3>
-              <p className="text-sm text-[#8b95a1]">사업이 성장했나요? 내 도메인으로 독립 운영하세요.</p>
-              <p className="text-xs text-[#6b7684] mt-1">정부사업비로 정산 가능합니다 (세금계산서 발행)</p>
+              <p className="text-sm text-[var(--text-secondary)]">사업이 성장했나요? 내 도메인으로 독립 운영하세요.</p>
+              <p className="text-xs text-[var(--text-tertiary)] mt-1">정부사업비로 정산 가능합니다 (세금계산서 발행)</p>
             </div>
 
             <div className="mb-10 grid gap-5 md:grid-cols-3">
               {INDEPENDENCE_PACKAGES.map(pkg => (
-                <div key={pkg.tier} className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6 flex flex-col">
+                <div key={pkg.tier} className="rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-6 flex flex-col">
                   <h3 className="text-lg font-bold mb-2">{pkg.label}</h3>
-                  <p className="text-2xl font-bold text-[#ffd60a] mb-4">{(pkg.price / 10000).toFixed(0)}만원</p>
+                  <p className="text-2xl font-bold text-[var(--toss-yellow)] mb-4">{(pkg.price / 10000).toFixed(0)}만원</p>
                   <ul className="space-y-2 mb-6 flex-1">
                     {pkg.items.map((item, i) => (
-                      <li key={i} className="flex items-center gap-2 text-sm text-[#8b95a1]">
-                        <span className="text-[#30d158]">✅</span>{item}
+                      <li key={i} className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                        <span className="text-[var(--toss-green)]">✅</span>{item}
                       </li>
                     ))}
                   </ul>
                   <button
                     onClick={() => alert('독립 패키지 문의: mark@serion.ai.kr')}
-                    className="w-full rounded-xl bg-[#2c2c35] py-3 text-sm font-bold text-[#f2f4f6] hover:bg-[#3a3a45] transition-colors"
+                    className="w-full rounded-xl bg-[var(--bg-elevated)] py-3 text-sm font-bold text-[var(--text-primary)] hover:bg-[var(--border-hover)] transition-colors"
                   >
                     문의하기
                   </button>
@@ -526,7 +529,7 @@ export default function CreditsPage() {
             </div>
 
             {/* 독립 프로세스 */}
-            <div className="mb-10 rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6">
+            <div className="mb-10 rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-6">
               <h3 className="mb-4 text-center text-lg font-bold">📋 독립 프로세스</h3>
               <div className="grid gap-4 md:grid-cols-4">
                 {[
@@ -536,9 +539,9 @@ export default function CreditsPage() {
                   { step: '4', title: '독립 운영', desc: '내 서버에서 자유롭게!' },
                 ].map(s => (
                   <div key={s.step} className="text-center">
-                    <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#3182f6]/15 text-[#3182f6] font-bold text-lg">{s.step}</div>
-                    <p className="text-sm font-bold text-[#f2f4f6]">{s.title}</p>
-                    <p className="text-xs text-[#6b7684] mt-1">{s.desc}</p>
+                    <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--toss-blue)]/15 text-[var(--toss-blue)] font-bold text-lg">{s.step}</div>
+                    <p className="text-sm font-bold text-[var(--text-primary)]">{s.title}</p>
+                    <p className="text-xs text-[var(--text-tertiary)] mt-1">{s.desc}</p>
                   </div>
                 ))}
               </div>
@@ -547,7 +550,7 @@ export default function CreditsPage() {
         )}
 
         {/* FAQ */}
-        <div className="rounded-2xl border border-[#2c2c35] bg-[#1b1b21] p-6 md:p-8">
+        <div className="rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-6 md:p-8">
           <h3 className="mb-5 text-center text-xl font-bold">자주 묻는 질문</h3>
           <div className="space-y-3">
             {[
@@ -568,9 +571,9 @@ export default function CreditsPage() {
                 a: '네! 코드를 100% 소유하게 되므로 내 서버에서 자유롭게 운영할 수 있습니다. Foundry 호스팅은 해지해도 됩니다.',
               },
             ].map(faq => (
-              <details key={faq.q} className="group rounded-xl bg-[#2c2c35]/50 p-5">
-                <summary className="cursor-pointer font-semibold text-[#f2f4f6] text-[15px]">{faq.q}</summary>
-                <p className="mt-3 text-sm text-[#8b95a1] leading-relaxed">{faq.a}</p>
+              <details key={faq.q} className="group rounded-xl bg-[var(--bg-elevated)]/50 p-5">
+                <summary className="cursor-pointer font-semibold text-[var(--text-primary)] text-[15px]">{faq.q}</summary>
+                <p className="mt-3 text-sm text-[var(--text-secondary)] leading-relaxed">{faq.a}</p>
               </details>
             ))}
           </div>

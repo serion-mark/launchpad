@@ -113,11 +113,11 @@ export default function CreditTab() {
       {/* 잔액 + 월 선택 */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="rounded-xl bg-[#ffd60a]/10 border border-[#ffd60a]/20 px-5 py-3">
-            <span className="text-sm text-[#8b95a1]">현재 잔액</span>
-            <p className="text-2xl font-bold text-[#ffd60a]">{balance.toLocaleString()}cr</p>
+          <div className="rounded-xl bg-[var(--toss-yellow)]/10 border border-[var(--toss-yellow)]/20 px-5 py-3">
+            <span className="text-sm text-[var(--text-secondary)]">현재 잔액</span>
+            <p className="text-2xl font-bold text-[var(--toss-yellow)]">{balance.toLocaleString()}cr</p>
           </div>
-          <a href="/credits" className="rounded-xl bg-[#3182f6] px-5 py-3 text-sm font-semibold text-white hover:bg-[#1b64da] transition-colors">
+          <a href="/credits" className="rounded-xl bg-[var(--toss-blue)] px-5 py-3 text-sm font-semibold text-white hover:bg-[var(--toss-blue-hover)] transition-colors">
             충전하기
           </a>
         </div>
@@ -129,7 +129,7 @@ export default function CreditTab() {
               const [y, m] = e.target.value.split('-').map(Number);
               setSelectedYear(y); setSelectedMonth(m);
             }}
-            className="rounded-lg bg-[#2c2c35] border border-[#3a3a45] px-3 py-2 text-sm text-[#f2f4f6] outline-none"
+            className="rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-hover)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none"
           >
             {Array.from({ length: 6 }, (_, i) => {
               const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -145,20 +145,20 @@ export default function CreditTab() {
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#3182f6] border-t-transparent" />
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--toss-blue)] border-t-transparent" />
         </div>
       ) : (
         <>
           {/* 충전 내역 */}
-          <div className="rounded-2xl bg-[#17171c] border border-[#2c2c35] p-6">
-            <h3 className="text-base font-bold text-[#f2f4f6] mb-4">충전 내역</h3>
+          <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border-primary)] p-6">
+            <h3 className="text-base font-bold text-[var(--text-primary)] mb-4">충전 내역</h3>
             {charges.length === 0 ? (
-              <p className="text-sm text-[#6b7684] py-4 text-center">이번 달 충전 내역이 없습니다</p>
+              <p className="text-sm text-[var(--text-tertiary)] py-4 text-center">이번 달 충전 내역이 없습니다</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-[#8b95a1] border-b border-[#2c2c35]">
+                    <tr className="text-[var(--text-secondary)] border-b border-[var(--border-primary)]">
                       <th className="text-left py-2 font-medium">날짜</th>
                       <th className="text-left py-2 font-medium">패키지</th>
                       <th className="text-right py-2 font-medium">크레딧</th>
@@ -167,11 +167,11 @@ export default function CreditTab() {
                   </thead>
                   <tbody>
                     {charges.map((c, i) => (
-                      <tr key={i} className="border-b border-[#2c2c35]/50">
-                        <td className="py-3 text-[#f2f4f6]">{formatDate(c.date)}</td>
-                        <td className="py-3 text-[#f2f4f6]">{c.packageName}</td>
-                        <td className="py-3 text-right text-[#30d158] font-medium">+{c.credits.toLocaleString()}cr</td>
-                        <td className="py-3 text-right text-[#8b95a1]">
+                      <tr key={i} className="border-b border-[var(--border-primary)]/50">
+                        <td className="py-3 text-[var(--text-primary)]">{formatDate(c.date)}</td>
+                        <td className="py-3 text-[var(--text-primary)]">{c.packageName}</td>
+                        <td className="py-3 text-right text-[var(--toss-green)] font-medium">+{c.credits.toLocaleString()}cr</td>
+                        <td className="py-3 text-right text-[var(--text-secondary)]">
                           {c.price > 0 ? `${c.price.toLocaleString()}원 ${c.method}` : '무료'}
                         </td>
                       </tr>
@@ -183,15 +183,15 @@ export default function CreditTab() {
           </div>
 
           {/* 사용 내역 */}
-          <div className="rounded-2xl bg-[#17171c] border border-[#2c2c35] p-6">
-            <h3 className="text-base font-bold text-[#f2f4f6] mb-4">사용 내역</h3>
+          <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border-primary)] p-6">
+            <h3 className="text-base font-bold text-[var(--text-primary)] mb-4">사용 내역</h3>
             {logs.filter(l => l.type === 'USE').length === 0 ? (
-              <p className="text-sm text-[#6b7684] py-4 text-center">이번 달 사용 내역이 없습니다</p>
+              <p className="text-sm text-[var(--text-tertiary)] py-4 text-center">이번 달 사용 내역이 없습니다</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-[#8b95a1] border-b border-[#2c2c35]">
+                    <tr className="text-[var(--text-secondary)] border-b border-[var(--border-primary)]">
                       <th className="text-left py-2 font-medium">날짜</th>
                       <th className="text-left py-2 font-medium">기능</th>
                       <th className="text-right py-2 font-medium">사용</th>
@@ -200,11 +200,11 @@ export default function CreditTab() {
                   </thead>
                   <tbody>
                     {logs.filter(l => l.type === 'USE').map(log => (
-                      <tr key={log.id} className="border-b border-[#2c2c35]/50">
-                        <td className="py-3 text-[#f2f4f6]">{formatDate(log.createdAt)}</td>
-                        <td className="py-3 text-[#f2f4f6]">{getFeatureLabel(log)}</td>
-                        <td className="py-3 text-right text-[#f45452] font-medium">{log.amount.toLocaleString()}cr</td>
-                        <td className="py-3 text-right text-[#8b95a1]">{log.balanceAfter.toLocaleString()}cr</td>
+                      <tr key={log.id} className="border-b border-[var(--border-primary)]/50">
+                        <td className="py-3 text-[var(--text-primary)]">{formatDate(log.createdAt)}</td>
+                        <td className="py-3 text-[var(--text-primary)]">{getFeatureLabel(log)}</td>
+                        <td className="py-3 text-right text-[var(--toss-red)] font-medium">{log.amount.toLocaleString()}cr</td>
+                        <td className="py-3 text-right text-[var(--text-secondary)]">{log.balanceAfter.toLocaleString()}cr</td>
                       </tr>
                     ))}
                   </tbody>
@@ -221,8 +221,8 @@ export default function CreditTab() {
                     onClick={() => setPagination(p => ({ ...p, page: i + 1 }))}
                     className={`rounded-lg px-3 py-1.5 text-xs ${
                       pagination.page === i + 1
-                        ? 'bg-[#3182f6] text-white'
-                        : 'bg-[#2c2c35] text-[#8b95a1] hover:bg-[#3a3a45]'
+                        ? 'bg-[var(--toss-blue)] text-white'
+                        : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:bg-[var(--border-hover)]'
                     }`}
                   >
                     {i + 1}
@@ -233,23 +233,23 @@ export default function CreditTab() {
           </div>
 
           {/* 이번 달 합계 */}
-          <div className="rounded-2xl bg-[#17171c] border border-[#2c2c35] p-6">
-            <h3 className="text-base font-bold text-[#f2f4f6] mb-3">이번 달 합계</h3>
+          <div className="rounded-2xl bg-[var(--bg-card)] border border-[var(--border-primary)] p-6">
+            <h3 className="text-base font-bold text-[var(--text-primary)] mb-3">이번 달 합계</h3>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <div className="rounded-xl bg-[#1b1b21] p-4">
-                <span className="text-xs text-[#8b95a1]">충전</span>
-                <p className="text-lg font-bold text-[#30d158]">+{summary.totalCharged.toLocaleString()}cr</p>
+              <div className="rounded-xl bg-[var(--bg-secondary)] p-4">
+                <span className="text-xs text-[var(--text-secondary)]">충전</span>
+                <p className="text-lg font-bold text-[var(--toss-green)]">+{summary.totalCharged.toLocaleString()}cr</p>
                 {summary.chargedAmount > 0 && (
-                  <p className="text-xs text-[#6b7684]">({summary.chargedAmount.toLocaleString()}원)</p>
+                  <p className="text-xs text-[var(--text-tertiary)]">({summary.chargedAmount.toLocaleString()}원)</p>
                 )}
               </div>
-              <div className="rounded-xl bg-[#1b1b21] p-4">
-                <span className="text-xs text-[#8b95a1]">사용</span>
-                <p className="text-lg font-bold text-[#f45452]">-{summary.totalUsed.toLocaleString()}cr</p>
+              <div className="rounded-xl bg-[var(--bg-secondary)] p-4">
+                <span className="text-xs text-[var(--text-secondary)]">사용</span>
+                <p className="text-lg font-bold text-[var(--toss-red)]">-{summary.totalUsed.toLocaleString()}cr</p>
               </div>
-              <div className="rounded-xl bg-[#1b1b21] p-4">
-                <span className="text-xs text-[#8b95a1]">현재 잔액</span>
-                <p className="text-lg font-bold text-[#ffd60a]">{balance.toLocaleString()}cr</p>
+              <div className="rounded-xl bg-[var(--bg-secondary)] p-4">
+                <span className="text-xs text-[var(--text-secondary)]">현재 잔액</span>
+                <p className="text-lg font-bold text-[var(--toss-yellow)]">{balance.toLocaleString()}cr</p>
               </div>
             </div>
           </div>

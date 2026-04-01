@@ -3,13 +3,13 @@ import Footer from '../components/Footer';
 
 export default function TermsPage() {
   return (
-    <div className="min-h-screen bg-[#17171c] text-[#f2f4f6]">
+    <div className="min-h-screen bg-[var(--bg-card)] text-[var(--text-primary)]">
       <LandingNav />
       <main className="mx-auto max-w-3xl px-5 py-12 md:py-20">
         <h1 className="mb-8 text-3xl font-bold">이용약관</h1>
-        <div className="prose prose-invert prose-sm max-w-none space-y-6 text-[#8b95a1] leading-relaxed [&_h2]:text-[#f2f4f6] [&_h2]:text-lg [&_h2]:font-bold [&_h2]:mt-8 [&_h2]:mb-3 [&_h3]:text-[#f2f4f6] [&_h3]:font-semibold [&_h3]:mt-6 [&_h3]:mb-2 [&_strong]:text-[#f2f4f6]">
+        <div className="prose prose-invert prose-sm max-w-none space-y-6 text-[var(--text-secondary)] leading-relaxed [&_h2]:text-[var(--text-primary)] [&_h2]:text-lg [&_h2]:font-bold [&_h2]:mt-8 [&_h2]:mb-3 [&_h3]:text-[var(--text-primary)] [&_h3]:font-semibold [&_h3]:mt-6 [&_h3]:mb-2 [&_strong]:text-[var(--text-primary)]">
 
-          <p className="text-xs text-[#6b7684]">시행일: 2026년 3월 21일 | 최종 수정: 2026년 3월 23일</p>
+          <p className="text-xs text-[var(--text-tertiary)]">시행일: 2026년 3월 21일 | 최종 수정: 2026년 3월 23일</p>
 
           <h2>제1조 (목적)</h2>
           <p>본 약관은 세리온(이하 &quot;회사&quot;)이 운영하는 Foundry 서비스(이하 &quot;서비스&quot;)의 이용과 관련하여 회사와 이용자 간의 권리, 의무 및 책임사항을 규정함을 목적으로 합니다.</p>
@@ -51,8 +51,8 @@ export default function TermsPage() {
           <p>3. 이용자는 코드를 다운로드하여 자체 서버에서 운영할 수 있습니다.</p>
 
           {/* 신규 추가: 서비스 범위 및 면책 */}
-          <div className="rounded-2xl border border-[#ffd60a]/30 bg-[#ffd60a]/5 p-6 !mt-10">
-            <h2 className="!mt-0 text-[#ffd60a]">제9조 (서비스 범위 및 면책)</h2>
+          <div className="rounded-2xl border border-[var(--toss-yellow)]/30 bg-[var(--toss-yellow)]/5 p-6 !mt-10">
+            <h2 className="!mt-0 text-[var(--toss-yellow)]">제9조 (서비스 범위 및 면책)</h2>
             <p>1. <strong>Foundry는 AI 기반 MVP &quot;초안 생성&quot; 도구이며, 생성된 코드의 100% 무결점 구동을 보장하지 않습니다.</strong></p>
             <p>2. AI가 생성한 코드는 MVP(최소 기능 제품) 수준이며, 상용 서비스 출시를 위해서는 전문 개발자의 검수를 권장합니다.</p>
             <p>3. 각 외부 플랫폼(카카오, 네이버, 토스 등)의 정책 변경에 따른 연동 오류에 대해 Foundry는 책임을 지지 않습니다.</p>
@@ -63,8 +63,8 @@ export default function TermsPage() {
           </div>
 
           {/* 데이터 보관 정책 */}
-          <div className="rounded-2xl border border-[#3182f6]/30 bg-[#3182f6]/5 p-6 !mt-8">
-            <h2 className="!mt-0 text-[#3182f6]">제10조 (데이터 보관)</h2>
+          <div className="rounded-2xl border border-[var(--toss-blue)]/30 bg-[var(--toss-blue)]/5 p-6 !mt-8">
+            <h2 className="!mt-0 text-[var(--toss-blue)]">제10조 (데이터 보관)</h2>
             <p>1. <strong>생성된 앱 코드:</strong> 회원 탈퇴 전까지 보관됩니다.</p>
             <p>2. <strong>배포된 앱 (*.foundry.ai.kr):</strong></p>
             <p className="ml-4">• 호스팅 결제 중: 정상 운영됩니다.</p>
@@ -81,7 +81,7 @@ export default function TermsPage() {
           <h2>제12조 (분쟁 해결)</h2>
           <p>본 약관과 관련한 분쟁은 서울중앙지방법원을 관할 법원으로 합니다.</p>
 
-          <p className="mt-10 text-xs text-[#6b7684]">
+          <p className="mt-10 text-xs text-[var(--text-tertiary)]">
             부칙: 이 약관은 2026년 3월 21일부터 시행합니다.<br />
             최종 수정: 2026년 3월 29일<br />
             세리온 대표: 김형석 | 이메일: mark@serion.ai.kr

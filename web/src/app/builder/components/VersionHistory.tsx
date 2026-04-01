@@ -63,23 +63,23 @@ export default function VersionHistory({ projectId, onRollback }: Props) {
   const current = sorted.find(v => v.version === currentVersion) || sorted[0];
 
   return (
-    <div className="bg-[#1e1e26] rounded-xl border border-[#2a2a35] overflow-hidden">
+    <div className="bg-[var(--bg-subtle)] rounded-xl border border-[var(--border-primary)] overflow-hidden">
       {/* Header — 접힌 상태: 현재 버전 1줄만 표시 */}
       <button
-        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-[#23232e] transition-colors"
+        className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-[var(--bg-elevated)] transition-colors"
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <span className="text-sm">🕐</span>
-          <span className="text-xs font-semibold text-[#f2f4f6]">버전 히스토리</span>
-          <span className="text-[10px] text-[#8b8fa3] bg-[#2a2a35] px-2 py-0.5 rounded-full">
+          <span className="text-xs font-semibold text-[var(--text-primary)]">버전 히스토리</span>
+          <span className="text-[10px] text-[var(--text-secondary)] bg-[var(--bg-elevated)] px-2 py-0.5 rounded-full">
             v{currentVersion}
           </span>
           {!expanded && current && (
-            <span className="text-[10px] text-[#6b7080] truncate">{current.description}</span>
+            <span className="text-[10px] text-[var(--text-tertiary)] truncate">{current.description}</span>
           )}
         </div>
-        <span className="text-[#8b8fa3] text-xs ml-2">{expanded ? '▲' : '▼'}</span>
+        <span className="text-[var(--text-secondary)] text-xs ml-2">{expanded ? '▲' : '▼'}</span>
       </button>
 
       {/* Version List — 펼쳤을 때만 표시 */}
@@ -90,19 +90,19 @@ export default function VersionHistory({ projectId, onRollback }: Props) {
               key={v.version}
               className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs ${
                 v.version === currentVersion
-                  ? 'bg-[#2a2a35] border border-[#6c5ce7]/50'
-                  : 'bg-[#17171c] hover:bg-[#1e1e26]'
+                  ? 'bg-[var(--bg-elevated)] border border-[var(--toss-purple)]/50'
+                  : 'bg-[var(--bg-card)] hover:bg-[var(--bg-subtle)]'
               }`}
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-[#8b8fa3]">v{v.version}</span>
+                  <span className="font-mono text-[var(--text-secondary)]">v{v.version}</span>
                   {v.version === currentVersion && (
-                    <span className="text-[9px] bg-[#6c5ce7] text-white px-1.5 py-0.5 rounded">현재</span>
+                    <span className="text-[9px] bg-[var(--toss-purple)] text-white px-1.5 py-0.5 rounded">현재</span>
                   )}
                 </div>
-                <p className="text-[#c0c4d0] truncate mt-0.5">{v.description}</p>
-                <div className="flex items-center gap-3 mt-1 text-[#6b7080]">
+                <p className="text-[var(--text-primary)] truncate mt-0.5">{v.description}</p>
+                <div className="flex items-center gap-3 mt-1 text-[var(--text-tertiary)]">
                   <span>{new Date(v.createdAt).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                   {v.fileCount != null && <span>{v.fileCount}개 파일</span>}
                 </div>
@@ -110,7 +110,7 @@ export default function VersionHistory({ projectId, onRollback }: Props) {
 
               {v.version !== currentVersion && (
                 <button
-                  className="ml-2 px-2.5 py-1.5 rounded-lg bg-[#2a2a35] hover:bg-[#6c5ce7]/30 text-[#8b8fa3] hover:text-[#f2f4f6] transition-colors text-[10px] font-medium whitespace-nowrap disabled:opacity-50"
+                  className="ml-2 px-2.5 py-1.5 rounded-lg bg-[var(--bg-elevated)] hover:bg-[var(--toss-purple)]/30 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors text-[10px] font-medium whitespace-nowrap disabled:opacity-50"
                   onClick={(e) => { e.stopPropagation(); handleRollback(v.version); }}
                   disabled={rolling !== null}
                 >

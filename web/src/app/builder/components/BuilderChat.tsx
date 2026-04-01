@@ -7,6 +7,8 @@ import type { Question } from '../constants';
 import MarkdownRenderer from '@/app/components/MarkdownRenderer';
 import WelcomeBack from './WelcomeBack';
 import AgentPanel from './AgentPanel';
+import Logo from '../../components/Logo';
+import ThemeToggle from '../../components/ThemeToggle';
 
 // ── 타입 ──────────────────────────────────────────
 export type Message = {
@@ -522,64 +524,65 @@ export default function BuilderChat({
   return (
     <div className={`flex flex-col transition-all duration-500 ease-in-out ${isPreviewFocused ? 'w-[380px] min-w-[380px]' : 'flex-1'}`}>
       {/* 헤더 */}
-      <header className="flex items-center justify-between border-b border-[#1e1e28] bg-[#13131a] px-4 py-3">
+      <header className="flex items-center justify-between border-b border-[var(--border-secondary)] bg-[var(--bg-header)] px-4 py-3">
         <div className="flex items-center gap-2.5">
-          <a href="/dashboard"><img src="/logo.svg" alt="Foundry" className="h-5 opacity-80 hover:opacity-100 transition-opacity" /></a>
+          <a href="/dashboard"><Logo className="h-5 opacity-80 hover:opacity-100 transition-opacity" /></a>
           {project && (
-            <span className="max-w-[120px] truncate rounded-md bg-[#1e1e28] px-2 py-1 text-[11px] text-[#8b95a1]">{project.name}</span>
+            <span className="max-w-[120px] truncate rounded-md bg-[var(--bg-subtle)] px-2 py-1 text-[11px] text-[var(--text-secondary)]">{project.name}</span>
           )}
         </div>
         <div className="flex items-center gap-1.5">
+          <ThemeToggle className="p-1" />
           {creditBalance !== null && (
-            <a href="/credits" className="flex items-center gap-1 rounded-md bg-[#1e1e28] px-2 py-1 text-[11px] font-medium text-[#ffd60a] hover:bg-[#282835] transition-colors">
+            <a href="/credits" className="flex items-center gap-1 rounded-md bg-[var(--bg-subtle)] px-2 py-1 text-[11px] font-medium text-[var(--toss-yellow)] hover:bg-[var(--bg-elevated)] transition-colors">
               <span>⚡</span><span>{creditBalance.toLocaleString()}</span>
             </a>
           )}
-          <button onClick={handleManualSave} className="rounded-md bg-[#1e1e28] px-2 py-1 text-[11px] text-[#6b7684] hover:text-[#f2f4f6] transition-colors">
+          <button onClick={handleManualSave} className="rounded-md bg-[var(--bg-subtle)] px-2 py-1 text-[11px] text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">
             {saving ? '저장중' : lastSaved ? `${lastSaved}` : '저장'}
           </button>
         </div>
       </header>
 
       {/* 상태 바 */}
-      <div className="flex items-center justify-between border-b border-[#1e1e28] bg-[#13131a]/80 px-4 py-2">
+      <div className="flex items-center justify-between border-b border-[var(--border-secondary)] bg-[var(--bg-header)]/80 px-4 py-2">
         <div className="flex items-center gap-2">
           {buildPhase === 'questionnaire' && (
             <div className="flex items-center gap-2">
               <div className="flex gap-0.5">
                 {questions.map((_, i) => (
-                  <div key={i} className={`h-1 w-4 rounded-full transition-colors ${i <= questionIndex ? 'bg-[#a855f7]' : 'bg-[#2c2c35]'}`} />
+                  <div key={i} className={`h-1 w-4 rounded-full transition-colors ${i <= questionIndex ? 'bg-[var(--toss-purple)]' : 'bg-[var(--bg-elevated)]'}`} />
                 ))}
               </div>
-              <span className="text-[10px] text-[#a855f7] font-medium">{questionIndex + 1}/{questions.length}</span>
+              <span className="text-[10px] text-[var(--toss-purple)] font-medium">{questionIndex + 1}/{questions.length}</span>
             </div>
           )}
           {buildPhase === 'designing' && !hasError && (
-            <span className="flex items-center gap-1.5 text-[11px] text-[#3182f6]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#3182f6] animate-pulse" />설계 중
+            <span className="flex items-center gap-1.5 text-[11px] text-[var(--toss-blue)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--toss-blue)] animate-pulse" />설계 중
             </span>
           )}
           {buildPhase === 'designing' && hasError && (
-            <span className="flex items-center gap-1.5 text-[11px] text-[#ef4444]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#ef4444]" />생성 실패
+            <span className="flex items-center gap-1.5 text-[11px] text-[var(--toss-red)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--toss-red)]" />생성 실패
             </span>
           )}
           {buildPhase === 'done' && (
-            <span className="flex items-center gap-1.5 text-[11px] text-[#30d158]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#30d158]" />생성 완료
+            <span className="flex items-center gap-1.5 text-[11px] text-[var(--toss-green)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--toss-green)]" />생성 완료
             </span>
           )}
           {buildPhase === 'generating' && (
-            <span className="flex items-center gap-1.5 text-[11px] text-[#ffd60a]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#ffd60a] animate-pulse" />생성 중{generateStep ? ` — ${generateStep}` : ''}
+            <span className="flex items-center gap-1.5 text-[11px] text-[var(--toss-yellow)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--toss-yellow)] animate-pulse" />생성 중{generateStep ? ` — ${generateStep}` : ''}
             </span>
           )}
         </div>
         <div className="flex items-center gap-1.5">
           {buildPhase !== 'questionnaire' && (
-            <div className="flex rounded-md bg-[#1e1e28] p-0.5">
-              <button onClick={() => setMode('build')} className={`rounded px-2.5 py-1 text-[10px] font-semibold transition-colors ${mode === 'build' ? 'bg-[#3182f6] text-white' : 'text-[#6b7684]'}`}>빌드</button>
-              <button onClick={() => setMode('discuss')} className={`rounded px-2.5 py-1 text-[10px] font-semibold transition-colors ${mode === 'discuss' ? 'bg-[#a855f7] text-white' : 'text-[#6b7684]'}`}>AI채팅</button>
+            <div className="flex rounded-md bg-[var(--bg-subtle)] p-0.5">
+              <button onClick={() => setMode('build')} className={`rounded px-2.5 py-1 text-[10px] font-semibold transition-colors ${mode === 'build' ? 'bg-[var(--toss-blue)] text-white' : 'text-[var(--text-tertiary)]'}`}>빌드</button>
+              <button onClick={() => setMode('discuss')} className={`rounded px-2.5 py-1 text-[10px] font-semibold transition-colors ${mode === 'discuss' ? 'bg-[var(--toss-purple)] text-white' : 'text-[var(--text-tertiary)]'}`}>AI채팅</button>
             </div>
           )}
         </div>
@@ -620,9 +623,9 @@ export default function BuilderChat({
             <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
               {msg.role === 'assistant' && <div className="mr-2 mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#3182f6] to-[#a855f7] text-[10px]">F</div>}
               <div className={`max-w-[85%] rounded-2xl px-4 py-3 text-[13px] leading-relaxed ${
-                msg.role === 'user' ? 'bg-[#3182f6] text-white'
-                  : msg.type === 'status' ? 'bg-[#1e1e28] text-[#6b7684] text-xs py-2'
-                  : 'bg-[#1a1a24] border border-[#1e1e28] text-[#e5e7eb]'
+                msg.role === 'user' ? 'bg-[var(--toss-blue)] text-white'
+                  : msg.type === 'status' ? 'bg-[var(--bg-subtle)] text-[var(--text-tertiary)] text-xs py-2'
+                  : 'bg-[var(--bg-subtle)] border border-[var(--border-secondary)] text-[var(--text-primary)]'
               }`}>
                 {msg.role === 'assistant'
                   ? <MarkdownRenderer content={msg.content} />
@@ -639,7 +642,7 @@ export default function BuilderChat({
           {currentChips.length > 0 && !isTyping && (
             <div className="space-y-2 pl-2">
               {questionIndex > 0 && (
-                <button onClick={handleGoBack} className="rounded-lg border border-[#2c2c35] px-3 py-1.5 text-xs text-[#8b95a1] hover:text-[#f2f4f6] hover:border-[#3a3a45] transition-colors">
+                <button onClick={handleGoBack} className="rounded-lg border border-[var(--border-primary)] px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-hover)] transition-colors">
                   ← 이전 질문
                 </button>
               )}
@@ -650,15 +653,15 @@ export default function BuilderChat({
                     onClick={() => handleChipClick(chip)}
                     className={`rounded-xl border px-4 py-2 text-sm transition-all ${
                       selectedChips.includes(chip)
-                        ? 'border-[#3182f6] bg-[#3182f6]/20 text-[#3182f6]'
-                        : 'border-[#2c2c35] bg-[#2c2c35] text-[#f2f4f6] hover:border-[#3182f6] hover:bg-[#3182f6]/10'
+                        ? 'border-[var(--toss-blue)] bg-[var(--toss-blue)]/20 text-[var(--toss-blue)]'
+                        : 'border-[var(--border-primary)] bg-[var(--bg-elevated)] text-[var(--text-primary)] hover:border-[var(--toss-blue)] hover:bg-[var(--toss-blue)]/10'
                     }`}
                   >
                     {chip}
                   </button>
                 ))}
                 {currentQ?.multi && !showCustomInput && (
-                  <button onClick={() => setShowCustomInput(true)} className="rounded-xl border border-dashed border-[#4e5968] px-4 py-2 text-sm text-[#8b95a1] hover:border-[#3182f6] hover:text-[#3182f6] transition-colors">
+                  <button onClick={() => setShowCustomInput(true)} className="rounded-xl border border-dashed border-[var(--border-hover)] px-4 py-2 text-sm text-[var(--text-secondary)] hover:border-[var(--toss-blue)] hover:text-[var(--toss-blue)] transition-colors">
                     + 직접 추가
                   </button>
                 )}
@@ -670,17 +673,17 @@ export default function BuilderChat({
                     onChange={e => setCustomInputValue(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && addCustomChip()}
                     placeholder="추가할 항목 입력..."
-                    className="flex-1 rounded-xl border border-[#2c2c35] bg-[#2c2c35] px-4 py-2 text-sm text-[#f2f4f6] placeholder-[#6b7684] outline-none focus:border-[#3182f6]"
+                    className="flex-1 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-elevated)] px-4 py-2 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none focus:border-[var(--toss-blue)]"
                     autoFocus
                   />
-                  <button onClick={addCustomChip} className="rounded-xl bg-[#3182f6] px-4 py-2 text-sm font-bold text-white">추가</button>
-                  <button onClick={() => setShowCustomInput(false)} className="rounded-xl bg-[#2c2c35] px-3 py-2 text-sm text-[#8b95a1]">취소</button>
+                  <button onClick={addCustomChip} className="rounded-xl bg-[var(--toss-blue)] px-4 py-2 text-sm font-bold text-white">추가</button>
+                  <button onClick={() => setShowCustomInput(false)} className="rounded-xl bg-[var(--bg-elevated)] px-3 py-2 text-sm text-[var(--text-secondary)]">취소</button>
                 </div>
               )}
               {customChips.length > 0 && (
                 <div className="flex flex-wrap gap-2">
                   {customChips.map(chip => (
-                    <span key={chip} className="flex items-center gap-1.5 rounded-xl border border-[#30d158] bg-[#30d158]/15 px-3 py-1.5 text-sm text-[#30d158]">
+                    <span key={chip} className="flex items-center gap-1.5 rounded-xl border border-[var(--toss-green)] bg-[var(--toss-green)]/15 px-3 py-1.5 text-sm text-[var(--toss-green)]">
                       {chip}
                       <button onClick={() => removeCustomChip(chip)} className="text-xs opacity-60 hover:opacity-100">✕</button>
                     </span>
@@ -688,7 +691,7 @@ export default function BuilderChat({
                 </div>
               )}
               {currentQ?.multi && (selectedChips.length > 0 || customChips.length > 0) && (
-                <button onClick={submitMultiChips} className="rounded-xl bg-[#3182f6] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#1b64da] transition-colors">
+                <button onClick={submitMultiChips} className="rounded-xl bg-[var(--toss-blue)] px-5 py-2.5 text-sm font-bold text-white hover:bg-[var(--toss-blue-hover)] transition-colors">
                   선택 완료 ({selectedChips.length + customChips.length}개)
                 </button>
               )}
@@ -698,13 +701,13 @@ export default function BuilderChat({
           {/* 생성 중 추천 질문 */}
           {buildPhase === 'generating' && !isTyping && (
             <div className="space-y-2 pl-2">
-              <div className="flex items-center gap-2 text-xs text-[#6b7684]">
+              <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)]">
                 <span>💬</span>
                 <span className="font-medium">생성 중에도 질문할 수 있어요!</span>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {['이 앱의 수익모델은?', '타겟 사용자 분석', '출시 후 마케팅 전략', '정부지원사업 정산 방법'].map(q => (
-                  <button key={q} onClick={() => sendGeneratingChat(q)} className="text-[11px] px-2.5 py-1.5 rounded-full border border-[#3182f6]/30 text-[#93c5fd] hover:bg-[#3182f6]/10 transition-colors">{q}</button>
+                  <button key={q} onClick={() => sendGeneratingChat(q)} className="text-[11px] px-2.5 py-1.5 rounded-full border border-[var(--toss-blue)]/30 text-[var(--toss-blue)] hover:bg-[var(--toss-blue)]/10 transition-colors">{q}</button>
                 ))}
               </div>
             </div>
@@ -712,11 +715,11 @@ export default function BuilderChat({
 
           {isTyping && (
             <div className="flex justify-start">
-              <div className="rounded-2xl bg-[#1b1b21] border border-[#2c2c35] px-5 py-3.5">
+              <div className="rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] px-5 py-3.5">
                 <div className="flex gap-1.5">
-                  <div className="h-2 w-2 animate-bounce rounded-full bg-[#6b7684]" style={{ animationDelay: '0ms' }} />
-                  <div className="h-2 w-2 animate-bounce rounded-full bg-[#6b7684]" style={{ animationDelay: '150ms' }} />
-                  <div className="h-2 w-2 animate-bounce rounded-full bg-[#6b7684]" style={{ animationDelay: '300ms' }} />
+                  <div className="h-2 w-2 animate-bounce rounded-full bg-[var(--text-tertiary)]" style={{ animationDelay: '0ms' }} />
+                  <div className="h-2 w-2 animate-bounce rounded-full bg-[var(--text-tertiary)]" style={{ animationDelay: '150ms' }} />
+                  <div className="h-2 w-2 animate-bounce rounded-full bg-[var(--text-tertiary)]" style={{ animationDelay: '300ms' }} />
                 </div>
               </div>
             </div>
@@ -744,7 +747,7 @@ export default function BuilderChat({
 
       {/* 액션 버튼 */}
       {(buildPhase === 'designing' || buildPhase === 'done') && (
-        <div className="border-t border-[#1e1e28] bg-[#13131a] px-4 py-2.5">
+        <div className="border-t border-[var(--border-secondary)] bg-[var(--bg-header)] px-4 py-2.5">
           <div className="flex gap-2">
             {buildPhase === 'designing' && !hasError && (
               <button onClick={() => setShowCostModal('generate')} className="flex-1 rounded-xl bg-gradient-to-r from-[#30d158] to-[#28c840] px-4 py-2.5 text-sm font-bold text-white hover:shadow-lg hover:shadow-[#30d158]/20 transition-all">
@@ -848,7 +851,7 @@ export default function BuilderChat({
       )}
 
       {/* 입력 */}
-      <div data-tutorial="chat-input" className="border-t border-[#1e1e28] bg-[#13131a] px-4 py-3">
+      <div data-tutorial="chat-input" className="border-t border-[var(--border-secondary)] bg-[var(--bg-header)] px-4 py-3">
         <div className="flex gap-2">
           <input
             ref={inputRef}
@@ -856,7 +859,7 @@ export default function BuilderChat({
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.nativeEvent.isComposing && sendMessage()}
             placeholder={buildPhase === 'questionnaire' ? '직접 입력하거나 보기를 클릭...' : buildPhase === 'generating' ? '생성 중 궁금한 점을 물어보세요...' : buildPhase === 'done' ? '"버튼 색 바꿔줘", "로그인 추가해줘"...' : '수정사항을 말씀해주세요...'}
-            className="flex-1 rounded-xl border border-[#1e1e28] bg-[#1a1a24] px-4 py-3 text-sm text-[#f2f4f6] placeholder-[#4e5968] outline-none focus:border-[#3182f6]/50 transition-colors"
+            className="flex-1 rounded-xl border border-[var(--border-secondary)] bg-[var(--bg-subtle)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder-[var(--text-disabled)] outline-none focus:border-[var(--toss-blue)]/50 transition-colors"
             disabled={isTyping}
           />
           {buildPhase === 'done' && (
@@ -870,7 +873,7 @@ export default function BuilderChat({
               }}
               disabled={!input.trim() || isTyping || isAgentRunning}
               title="Agent 모드 (AI가 자율적으로 수정)"
-              className="rounded-xl bg-[#8b5cf6] px-3 py-3 text-sm font-semibold text-white hover:bg-[#7c3aed] transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+              className="rounded-xl bg-[var(--toss-purple)] px-3 py-3 text-sm font-semibold text-white hover:bg-[var(--toss-purple)] transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
             >
               🤖
             </button>
@@ -878,7 +881,7 @@ export default function BuilderChat({
           <button
             onClick={sendMessage}
             disabled={!input.trim() || isTyping}
-            className="rounded-xl bg-[#3182f6] px-4 py-3 text-sm font-semibold text-white hover:bg-[#1b64da] transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+            className="rounded-xl bg-[var(--toss-blue)] px-4 py-3 text-sm font-semibold text-white hover:bg-[var(--toss-blue-hover)] transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
           >
             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" /></svg>
           </button>

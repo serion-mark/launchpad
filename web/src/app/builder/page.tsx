@@ -48,7 +48,7 @@ async function callGenerateApp(params: {
 export default function BuilderPage() {
   return (
     <Suspense fallback={
-      <div className="flex h-screen items-center justify-center bg-[#17171c] text-[#f2f4f6]">
+      <div className="flex h-screen items-center justify-center bg-[var(--bg-card)] text-[var(--text-primary)]">
         <div className="text-4xl animate-spin">⚙️</div>
       </div>
     }>
@@ -608,7 +608,7 @@ function BuilderContent() {
   if (!projectId) return null;
 
   return (
-    <div className="flex h-screen bg-[#0f0f14] text-[#f2f4f6]">
+    <div className="flex h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
       {/* 왼쪽: 채팅 */}
       <BuilderChat
         projectId={projectId}
@@ -696,7 +696,7 @@ function BuilderContent() {
 
       {/* 저장 완료 토스트 */}
       {showSaveToast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 rounded-xl bg-[#30d158] px-5 py-2.5 text-sm font-semibold text-white shadow-lg animate-bounce">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 rounded-xl bg-[var(--toss-green)] px-5 py-2.5 text-sm font-semibold text-white shadow-lg animate-bounce">
           💾 저장 완료!
         </div>
       )}
