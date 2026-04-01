@@ -14,19 +14,19 @@
   --bg-subtle: #e9ecef;
 
   --text-primary: #1e293b;
-  --text-secondary: #64748b;
-  --text-tertiary: #94a3b8;
-  --text-disabled: #cbd5e1;
+  --text-secondary: #475569;
+  --text-tertiary: #64748b;
+  --text-disabled: #94a3b8;
   --text-inverse: #ffffff;
 
   --toss-blue: #3182f6;
   --toss-blue-hover: #1b64da;
   --toss-blue-light: rgba(49, 130, 246, 0.12);
 
-  --toss-green: #10b981;
-  --toss-red: #ef4444;
-  --toss-yellow: #f59e0b;
-  --toss-purple: #8b5cf6;
+  --toss-green: #059669;
+  --toss-red: #dc2626;
+  --toss-yellow: #d97706;
+  --toss-purple: #7c3aed;
 
   --border-primary: #e2e8f0;
   --border-secondary: #f1f5f9;
