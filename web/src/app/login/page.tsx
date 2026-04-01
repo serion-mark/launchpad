@@ -166,7 +166,7 @@ export default function LoginPage() {
               <button disabled className="flex items-center justify-center rounded-xl bg-[#03C75A] py-3 text-white opacity-40 cursor-not-allowed" title="준비 중">
                 <span className="text-sm font-bold">N</span>
               </button>
-              <button disabled className="flex items-center justify-center rounded-xl bg-white py-3 text-black opacity-40 cursor-not-allowed" title="준비 중">
+              <button disabled className="flex items-center justify-center rounded-xl bg-white py-3 text-black border border-[var(--border-primary)] opacity-40 cursor-not-allowed" title="준비 중">
                 <span className="text-sm font-bold">G</span>
               </button>
               <button disabled className="flex items-center justify-center rounded-xl bg-black py-3 text-white border border-[var(--border-primary)] opacity-40 cursor-not-allowed" title="준비 중">
