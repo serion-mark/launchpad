@@ -258,6 +258,12 @@ export default function BuilderPreview({
                 title="앱 미리보기"
               />
             </div>
+            {/* 404/빈 화면 안내 배너 — 배포 직후 표시, 10초 후 자동 숨김 */}
+            <div className="absolute top-12 left-1/2 -translate-x-1/2 z-40 rounded-xl bg-[#1b1b21]/95 border border-[#3182f6]/30 px-5 py-3 text-center shadow-lg max-w-[320px] animate-fade-in" style={{ animation: 'fadeInOut 15s forwards' }}>
+              <p className="text-xs font-medium text-[#f2f4f6] mb-1">서버에 앱을 게시하고 있습니다</p>
+              <p className="text-[10px] text-[#8b95a1]">화면이 보이지 않으면 2~3분 후<br/><button onClick={() => { if (iframeRef.current) iframeRef.current.src = deployedUrl + '?t=' + Date.now(); }} className="text-[#3182f6] font-bold underline">여기를 눌러 새로고침</button> 해주세요</p>
+            </div>
+            <style>{`@keyframes fadeInOut { 0% { opacity: 0; } 5% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; pointer-events: none; } }`}</style>
             <div className="absolute top-2 right-2 flex items-center gap-1.5 rounded-full bg-emerald-600/90 px-2.5 py-1 text-[10px] font-bold text-white shadow-lg">
               <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />{editMode ? 'EDIT' : 'LIVE'}
             </div>
