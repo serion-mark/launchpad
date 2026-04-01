@@ -813,7 +813,7 @@ export default function BuilderChat({
                       : 'bg-gradient-to-r from-[#3182f6] to-[#2563eb] hover:shadow-lg hover:shadow-[#3182f6]/20'
                   }`}
                 >
-                  {unsavedCount > 0 ? (isSaving ? '저장 중...' : `수정사항 적용 (${unsavedCount})`) : '배포'}
+                  {unsavedCount > 0 ? (isSaving ? '저장 중...' : `수정사항 적용 (${unsavedCount})`) : '온라인 게시'}
                 </button>
                 <button onClick={() => setShowCostModal('download')} className="flex-1 rounded-xl bg-gradient-to-r from-[#a855f7] to-[#9333ea] px-3 py-2.5 text-sm font-bold text-white hover:shadow-lg hover:shadow-[#a855f7]/20 transition-all">다운로드</button>
                 <button

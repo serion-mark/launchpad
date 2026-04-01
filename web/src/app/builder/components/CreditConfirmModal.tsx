@@ -42,17 +42,20 @@ export default function CreditConfirmModal({
           </>
         ) : showCostModal === 'deploy' ? (
           <>
-            <h3 className="text-lg font-bold text-[#f2f4f6] mb-1">🚀 배포하기</h3>
-            <p className="text-sm text-[#8b95a1] mb-4">Foundry 서버에 앱을 배포하면 바로 사용할 수 있습니다.</p>
+            <h3 className="text-lg font-bold text-[#f2f4f6] mb-1">🌐 온라인 게시</h3>
+            <p className="text-sm text-[#8b95a1] mb-4">만든 앱을 인터넷에 게시하여 누구나 접속할 수 있게 합니다.</p>
             <div className="rounded-xl bg-[#2c2c35] p-4 mb-4 space-y-3">
+              <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">내 앱 주소</span><span className="text-[#f2f4f6]">{projectName || 'myapp'}.foundry.ai.kr</span></div>
+              <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">보안 연결 (HTTPS)</span><span className="text-[#30d158]">✅ 자동 적용</span></div>
+              <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">게시 후 수정</span><span className="text-[#30d158]">✅ 언제든 가능</span></div>
               <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">호스팅 비용</span><span className="text-[#ffd60a] font-bold">월 29,000원</span></div>
-              <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">서브도메인</span><span className="text-[#f2f4f6]">{projectName || 'myapp'}.foundry.ai.kr</span></div>
-              <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">SSL/HTTPS</span><span className="text-[#30d158]">✅ 자동 적용</span></div>
-              <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">배포 후 수정</span><span className="text-[#30d158]">✅ 가능</span></div>
+            </div>
+            <div className="rounded-xl bg-[#30d158]/10 border border-[#30d158]/20 p-3 mb-4">
+              <p className="text-xs text-[#30d158]">🎉 앱 생성 시 24시간 무료 체험이 자동 제공됩니다. 이후 계속 사용하시려면 호스팅 구독이 필요합니다.</p>
             </div>
             <div className="flex gap-3">
               <button onClick={() => setShowCostModal(null)} className="flex-1 rounded-xl bg-[#2c2c35] py-3 text-sm font-medium text-[#8b95a1] hover:bg-[#3a3a45]">취소</button>
-              <button onClick={() => { setShowCostModal(null); onDeploy(); }} className="flex-1 rounded-xl bg-[#3182f6] py-3 text-sm font-bold text-white hover:bg-[#1b64da]">월 29,000원 배포하기</button>
+              <button onClick={() => { setShowCostModal(null); onDeploy(); }} className="flex-1 rounded-xl bg-[#3182f6] py-3 text-sm font-bold text-white hover:bg-[#1b64da]">온라인 게시하기</button>
             </div>
           </>
         ) : (
@@ -67,7 +70,7 @@ export default function CreditConfirmModal({
               <div className="flex justify-between text-sm"><span className="text-[#8b95a1]">코드 소유권</span><span className="text-[#30d158]">✅ 100% 사용자 소유</span></div>
             </div>
             <div className="rounded-xl bg-[#ffd60a]/10 border border-[#ffd60a]/20 p-3 mb-4">
-              <p className="text-xs text-[#ffd60a]">💡 <b>절약 팁:</b> 배포(월 29,000원)로 먼저 사용해보고, 만족하면 다운로드하세요. 배포 중에도 수정이 가능합니다!</p>
+              <p className="text-xs text-[#ffd60a]">💡 <b>절약 팁:</b> 온라인 게시(월 29,000원)로 먼저 사용해보고, 만족하면 다운로드하세요. 게시 중에도 수정이 가능합니다!</p>
             </div>
             {creditBalance !== null && creditBalance < 10000 && (
               <div className="rounded-xl bg-[#f43f5e]/10 border border-[#f43f5e]/20 p-3 mb-4">
