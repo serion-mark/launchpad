@@ -36,6 +36,7 @@ export type ProjectData = {
   modelUsed?: string;
   deployedUrl?: string;
   subdomain?: string;
+  buildStatus?: string;
 };
 
 type AppModelTier = 'flash' | 'smart' | 'pro';
