@@ -176,6 +176,38 @@ export default function BuilderChat({
   const [customInputValue, setCustomInputValue] = useState('');
   const [tokenUsed, setTokenUsed] = useState(0);
 
+  // 채팅 가이드
+  const [showGuide, setShowGuide] = useState(false);
+  const modifyCount = messages.filter(m => m.role === 'assistant' && m.content.includes('수정 완료')).length;
+
+  // 앱 생성 완료 시 가이드 말풍선 표시 (1회만)
+  useEffect(() => {
+    if (buildPhase === 'done' && !localStorage.getItem('builder_chat_guide_shown')) {
+      const timer = setTimeout(() => setShowGuide(true), 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [buildPhase]);
+
+  const dismissGuide = () => {
+    setShowGuide(false);
+    localStorage.setItem('builder_chat_guide_shown', 'true');
+  };
+
+  // 상황별 플레이스홀더
+  const getPlaceholder = () => {
+    if (buildPhase === 'questionnaire') return '직접 입력하거나 보기를 클릭...';
+    if (buildPhase === 'generating') return '생성 중 궁금한 점을 물어보세요...';
+    if (buildPhase !== 'done') return '수정사항을 말씀해주세요...';
+    const hints = [
+      '예: "버튼을 누르면 상품 목록이 보이게 해줘"',
+      '예: "배경색을 파란색으로 바꿔줘"',
+      '예: "새 페이지를 추가해줘"',
+      '예: "로그인 기능을 넣어줘"',
+      '예: "글씨 크기를 더 크게 해줘"',
+    ];
+    return hints[modifyCount % hints.length];
+  };
+
   const questions = QUESTIONNAIRES[templateId] || QUESTIONNAIRES['custom'];
 
   useEffect(() => {
@@ -606,6 +638,23 @@ export default function BuilderChat({
       {/* 메시지 영역 */}
       <div className="flex-1 overflow-y-auto px-4 py-4">
         <div className="space-y-3 max-w-none">
+          {/* 첫 방문 가이드 말풍선 */}
+          {showGuide && buildPhase === 'done' && (
+            <div className="rounded-xl border border-[var(--toss-blue)]/30 bg-[var(--toss-blue)]/5 p-4 mb-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-[var(--toss-blue)] mb-2">💡 앱이 완성됐어요! 이제 채팅으로 수정할 수 있어요.</p>
+                  <p className="text-xs text-[var(--text-secondary)] mb-1.5">이렇게 말해보세요:</p>
+                  <ul className="text-xs text-[var(--text-secondary)] space-y-1 ml-1">
+                    <li>• &quot;버튼을 누르면 상품이 보이게 해줘&quot;</li>
+                    <li>• &quot;메인 색상을 빨간색으로 바꿔줘&quot;</li>
+                    <li>• &quot;회원가입 페이지를 추가해줘&quot;</li>
+                  </ul>
+                </div>
+                <button onClick={dismissGuide} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors ml-3 shrink-0">알겠어요 ✕</button>
+              </div>
+            </div>
+          )}
           {showWelcomeBack && project && (
             <WelcomeBack
               projectName={project.name}
@@ -884,7 +933,7 @@ export default function BuilderChat({
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.nativeEvent.isComposing && sendMessage()}
-            placeholder={buildPhase === 'questionnaire' ? '직접 입력하거나 보기를 클릭...' : buildPhase === 'generating' ? '생성 중 궁금한 점을 물어보세요...' : buildPhase === 'done' ? '"버튼 색 바꿔줘", "로그인 추가해줘"...' : '수정사항을 말씀해주세요...'}
+            placeholder={getPlaceholder()}
             className="flex-1 rounded-xl border border-[var(--border-secondary)] bg-[var(--bg-subtle)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder-[var(--text-disabled)] outline-none focus:border-[var(--toss-blue)]/50 transition-colors"
             disabled={isTyping}
           />

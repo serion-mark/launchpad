@@ -40,6 +40,7 @@ model User {
   invoices      Invoice[]
   creditBalance CreditBalance?
   memory        UserMemory?
+  meetings      MeetingHistory[]
   @@map("users")
 }
 
@@ -88,6 +89,7 @@ model Project {
   updatedAt   DateTime @updatedAt
 
   memory        ProjectMemory?
+  meetings      MeetingHistory[]
   @@map("projects")
 }
 
@@ -188,4 +190,25 @@ model UserMemory {
   updatedAt     DateTime @updatedAt
 
   @@map("user_memories")
+}
+
+// ── AI 회의 기록 ──────────────────────────────────────
+model MeetingHistory {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     Project? @relation(fields: [projectId], references: [id])
+  topic       String
+  preset      String   @default("custom")
+  tier        String   @default("standard")
+  messages    Json     // 전체 대화 내용 (MeetingMessage[])
+  report      String?  // 종합 보고서 마크다운
+  creditUsed  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([projectId])
+  @@map("meeting_histories")
 }

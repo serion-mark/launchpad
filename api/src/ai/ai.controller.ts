@@ -9,6 +9,7 @@ import { SmartAnalysisService } from './smart-analysis.service';
 import { ImageService } from './image.service';
 import { CreditService } from '../credit/credit.service';
 import { DeployService } from '../project/deploy.service';
+import { PrismaService } from '../prisma.service';
 import type { GenerationProgress } from './ai.service';
 import type { AgentStepEvent } from './agent.service';
 import type { MeetingTier, MeetingPreset } from './meeting.service';
@@ -26,6 +27,7 @@ export class AiController {
     private imageService: ImageService,
     private creditService: CreditService,
     private deployService: DeployService,
+    private prisma: PrismaService,
   ) {}
 
   // ── 빌더 채팅 (실시간 AI 대화) ─────────────────────
@@ -348,12 +350,33 @@ export class AiController {
 
     this.logger.log(`[AI 회의실] 시작: ${body.topic} (${body.tier})`);
 
+    const allEvents: any[] = [];
     try {
       for await (const event of this.meetingService.runMeeting(body)) {
+        allEvents.push(event);
         res.write(`data: ${JSON.stringify(event)}\n\n`);
       }
     } catch (err: any) {
       res.write(`data: ${JSON.stringify({ phase: 'error', message: err.message })}\n\n`);
+    }
+
+    // 회의 완료 후 DB 자동 저장
+    try {
+      const report = allEvents.find(e => e.phase === 'report')?.content || null;
+      await this.prisma.meetingHistory.create({
+        data: {
+          userId: req.user.userId,
+          topic: body.topic,
+          preset: body.preset || 'free',
+          tier: body.tier,
+          messages: allEvents as any,
+          report,
+          creditUsed: body.tier === 'premium' ? 1000 : 300,
+        },
+      });
+      this.logger.log(`[AI 회의실] 기록 저장 완료: ${body.topic}`);
+    } catch (saveErr: any) {
+      this.logger.error(`[AI 회의실] 기록 저장 실패: ${saveErr.message}`);
     }
 
     res.end();
@@ -426,5 +449,36 @@ export class AiController {
       description: 'AI 이미지 생성',
     });
     return this.imageService.generateImage(body.prompt, body.style, body.projectId);
+  }
+
+  // ── 회의 히스토리 API ─────────────────────────────────
+  @Get('meeting-history')
+  async getMeetingHistory(@Req() req: any) {
+    const histories = await this.prisma.meetingHistory.findMany({
+      where: { userId: req.user.userId },
+      select: { id: true, topic: true, preset: true, tier: true, creditUsed: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+    return histories;
+  }
+
+  @Get('meeting-history/:id')
+  async getMeetingHistoryDetail(@Req() req: any, @Param('id') id: string) {
+    const history = await this.prisma.meetingHistory.findUnique({ where: { id } });
+    if (!history || history.userId !== req.user.userId) {
+      return { error: 'not_found' };
+    }
+    return history;
+  }
+
+  @Post('meeting-history/:id/delete')
+  async deleteMeetingHistory(@Req() req: any, @Param('id') id: string) {
+    const history = await this.prisma.meetingHistory.findUnique({ where: { id } });
+    if (!history || history.userId !== req.user.userId) {
+      return { error: 'not_found' };
+    }
+    await this.prisma.meetingHistory.delete({ where: { id } });
+    return { success: true };
   }
 }

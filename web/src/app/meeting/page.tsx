@@ -49,7 +49,11 @@ export default function MeetingPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setIsLoggedIn(!!getToken());
+    const loggedIn = !!getToken();
+    setIsLoggedIn(loggedIn);
+    if (loggedIn) {
+      authFetch('/ai/meeting-history').then(r => r.ok ? r.json() : []).then(setHistoryList).catch(() => {});
+    }
   }, []);
   const [tier, setTier] = useState<MeetingTier>('standard');
   const [preset, setPreset] = useState<MeetingPreset>('free');
@@ -65,6 +69,11 @@ export default function MeetingPage() {
   const [analysisDirection, setAnalysisDirection] = useState(''); // 방향 확인 질문
   const [analysisPendingQuestion, setAnalysisPendingQuestion] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // 히스토리
+  const [historyList, setHistoryList] = useState<{ id: string; topic: string; preset: string; tier: string; creditUsed: number; createdAt: string }[]>([]);
+  const [viewingHistory, setViewingHistory] = useState<any | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const isRunning = phase !== 'idle' && phase !== 'done' && phase !== 'error' && phase !== 'pre_question';
 
@@ -280,6 +289,8 @@ export default function MeetingPage() {
 
       setPhase('done');
       setCurrentAI('');
+      // 히스토리 목록 새로고침
+      authFetch('/ai/meeting-history').then(r => r.ok ? r.json() : []).then(setHistoryList).catch(() => {});
     } catch (err: any) {
       setPhase('error');
       setMessages(prev => [...prev, { id: `err-${Date.now()}`, phase: 'error', content: err.message }]);
@@ -451,6 +462,37 @@ export default function MeetingPage() {
     }
   };
 
+  // ── 히스토리 상세 보기 ─────────────────────────────────
+  const viewHistory = async (id: string) => {
+    setHistoryLoading(true);
+    try {
+      const res = await authFetch(`/ai/meeting-history/${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setViewingHistory(data);
+        setTopic(data.topic);
+        setMessages(Array.isArray(data.messages) ? data.messages : []);
+        setChatMessages([]);
+        setPhase('done');
+      }
+    } catch { /* */ }
+    setHistoryLoading(false);
+  };
+
+  const deleteHistory = async (id: string) => {
+    if (!confirm('이 회의 기록을 삭제하시겠습니까?')) return;
+    try {
+      await authFetch(`/ai/meeting-history/${id}/delete`, { method: 'POST' });
+      setHistoryList(prev => prev.filter(h => h.id !== id));
+      if (viewingHistory?.id === id) {
+        setViewingHistory(null);
+        setPhase('idle');
+        setMessages([]);
+        setTopic('');
+      }
+    } catch { /* */ }
+  };
+
   // ── 렌더링 ────────────────────────────────────────────
 
   return (
@@ -489,6 +531,31 @@ export default function MeetingPage() {
             <a href="/login" className="shrink-0 rounded-lg bg-[var(--toss-yellow)] px-4 py-2 text-sm font-bold text-black hover:brightness-110 transition-all">
               로그인
             </a>
+          </div>
+        )}
+
+        {/* 이전 회의 기록 */}
+        {phase === 'idle' && historyList.length > 0 && (
+          <div className="mb-8 mx-auto max-w-2xl">
+            <h3 className="text-sm font-semibold text-[var(--text-secondary)] mb-3">📋 이전 회의 기록</h3>
+            <div className="space-y-2">
+              {historyList.slice(0, 5).map(h => (
+                <div key={h.id} className="flex items-center justify-between rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] px-4 py-3 hover:border-[var(--border-hover)] transition-all">
+                  <button onClick={() => viewHistory(h.id)} className="flex-1 text-left">
+                    <div className="font-medium text-sm truncate">{h.topic}</div>
+                    <div className="text-xs text-[var(--text-secondary)] mt-0.5">
+                      {new Date(h.createdAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      {' · '}{h.tier === 'premium' ? '프리미엄' : '스탠다드'}
+                      {' · '}{h.creditUsed}cr
+                    </div>
+                  </button>
+                  <button onClick={() => deleteHistory(h.id)} className="ml-3 text-[var(--text-secondary)] hover:text-red-400 transition-colors text-sm" title="삭제">✕</button>
+                </div>
+              ))}
+              {historyList.length > 5 && (
+                <p className="text-xs text-[var(--text-secondary)] text-center pt-1">최근 5건 표시 (전체 {historyList.length}건)</p>
+              )}
+            </div>
           </div>
         )}
 
