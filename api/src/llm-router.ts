@@ -88,12 +88,12 @@ export const MEETING_MODELS = {
     standard: {
         claude: 'claude-sonnet-4-20250514',
         gpt: 'gpt-4o',
-        gemini: 'gemini-2.0-flash',
+        gemini: 'gemini-2.5-flash',
     },
     premium: {
         claude: 'claude-sonnet-4-20250514',  // Opus 크레딧 부족 시 Sonnet 사용
         gpt: 'gpt-4o',
-        gemini: 'gemini-2.0-flash',
+        gemini: 'gemini-2.5-flash',
     },
 } as const;
 
@@ -145,7 +145,7 @@ export class LLMRouter {
         return response.choices[0]?.message?.content || '';
     }
 
-    async callGoogle(system: string, user: string, model = 'gemini-2.0-flash', maxTokens = 4096): Promise<string> {
+    async callGoogle(system: string, user: string, model = 'gemini-2.5-flash', maxTokens = 4096): Promise<string> {
         if (!this.googleAI) throw new Error('GEMINI_API_KEY가 설정되지 않았습니다');
         const genModel = this.googleAI.getGenerativeModel({
             model,

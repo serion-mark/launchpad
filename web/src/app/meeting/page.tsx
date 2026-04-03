@@ -68,6 +68,54 @@ export default function MeetingPage() {
 
   const isRunning = phase !== 'idle' && phase !== 'done' && phase !== 'error' && phase !== 'pre_question';
 
+  // 회의 중 페이지 이탈 방지
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    if (phase !== 'idle') {
+      window.addEventListener('beforeunload', handleBeforeUnload);
+    }
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [phase]);
+
+  // 회의 상태 sessionStorage 자동 저장
+  useEffect(() => {
+    if (messages.length > 0) {
+      sessionStorage.setItem('meeting_state', JSON.stringify({
+        topic, phase, messages, chatMessages, tier, preset,
+        savedAt: new Date().toISOString(),
+      }));
+    }
+  }, [messages, chatMessages, phase, topic, tier, preset]);
+
+  // 페이지 로드 시 이전 회의 상태 복원
+  useEffect(() => {
+    const saved = sessionStorage.getItem('meeting_state');
+    if (saved) {
+      try {
+        const state = JSON.parse(saved);
+        const savedAt = new Date(state.savedAt);
+        const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+        if (savedAt > hourAgo && state.messages?.length > 0) {
+          setTopic(state.topic || '');
+          setMessages(state.messages || []);
+          setChatMessages(state.chatMessages || []);
+          setTier(state.tier || 'standard');
+          setPreset(state.preset || 'free');
+          // SSE가 끊긴 상태이므로 done으로 설정
+          setPhase(state.phase === 'idle' ? 'idle' : 'done');
+        } else {
+          sessionStorage.removeItem('meeting_state');
+        }
+      } catch {
+        sessionStorage.removeItem('meeting_state');
+      }
+    }
+  }, []);
+
   const handleFileUpload = async (uploadedFile: File) => {
     if (!uploadedFile) return;
     const maxSize = 10 * 1024 * 1024; // 10MB
@@ -168,6 +216,7 @@ export default function MeetingPage() {
       return;
     }
 
+    sessionStorage.removeItem('meeting_state');
     setMessages([]);
     setPhase('briefing');
     setCurrentAI('브리핑 생성 중...');

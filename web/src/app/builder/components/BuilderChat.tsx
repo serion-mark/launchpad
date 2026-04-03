@@ -75,16 +75,23 @@ export async function callModifyFiles(params: {
   fellBack: boolean;
   suggestHealthCheck?: boolean;
   totalModifications?: number;
+  _error?: 'credit' | 'network' | 'api';
 } | null> {
   try {
     const res = await authFetch('/ai/modify-files', {
       method: 'POST',
       body: JSON.stringify(params),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const errorBody = await res.text().catch(() => '');
+      if (res.status === 402 || errorBody.includes('크레딧') || errorBody.includes('credit')) {
+        return { modifiedFiles: [], totalCredits: 0, actualTier: '', fellBack: false, _error: 'credit' };
+      }
+      return { modifiedFiles: [], totalCredits: 0, actualTier: '', fellBack: false, _error: 'api' };
+    }
     return await res.json();
   } catch {
-    return null;
+    return { modifiedFiles: [], totalCredits: 0, actualTier: '', fellBack: false, _error: 'network' };
   }
 }
 
@@ -437,7 +444,15 @@ export default function BuilderChat({
             if (d) setCreditBalance(d.balance);
           }).catch(() => {});
 
-          if (modifyResult && modifyResult.modifiedFiles.length > 0) {
+          if (modifyResult?._error) {
+            const errorMsgs: Record<string, string> = {
+              credit: '💳 크레딧이 부족합니다. [크레딧 충전하기 →](/credits) 후 다시 시도해주세요.',
+              network: '🌐 네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+              api: '⚠️ AI 수정에 실패했습니다. 더 간단한 요청으로 다시 시도해주세요.\n\n예: "메인 페이지 배경색을 파란색으로 바꿔줘"',
+            };
+            updateStatus(errorMsgs[modifyResult._error] || errorMsgs.api);
+            setIsTyping(false);
+          } else if (modifyResult && modifyResult.modifiedFiles.length > 0) {
             if (project) {
               const existingFiles = Array.isArray(project.generatedCode) ? [...project.generatedCode] : [];
               for (const mod of modifyResult.modifiedFiles) {
@@ -771,7 +786,18 @@ export default function BuilderChat({
                     timestamp: new Date().toISOString(), type: 'text' as const,
                   }]);
                   const result = await callModifyFiles({ projectId, message: combinedRequest, modelTier: 'smart' as AppModelTier });
-                  if (result && project && result.modifiedFiles.length > 0) {
+                  if (result?._error) {
+                    const errorMsgs: Record<string, string> = {
+                      credit: '💳 크레딧이 부족합니다. [크레딧 충전하기 →](/credits) 후 다시 시도해주세요.',
+                      network: '🌐 네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+                      api: '⚠️ AI 수정에 실패했습니다. 채팅으로 구체적인 수정을 요청해주세요.',
+                    };
+                    setMessages(prev => [...prev, {
+                      id: Date.now().toString(), role: 'assistant' as const,
+                      content: errorMsgs[result._error!] || errorMsgs.api,
+                      timestamp: new Date().toISOString(), type: 'text' as const,
+                    }]);
+                  } else if (result && project && result.modifiedFiles.length > 0) {
                     const existingFiles = Array.isArray(project.generatedCode) ? [...project.generatedCode] : [];
                     for (const mod of result.modifiedFiles) {
                       const idx = existingFiles.findIndex((f: any) => f.path === mod.path);

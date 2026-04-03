@@ -183,6 +183,19 @@ function BuilderContent() {
     }
   }, [buildPhase, project]);
 
+  // 앱 생성 중 페이지 이탈 방지
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    if (buildPhase === 'generating') {
+      window.addEventListener('beforeunload', handleBeforeUnload);
+    }
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [buildPhase]);
+
   // /start에서 넘어온 경우: 자동 코드 생성
   useEffect(() => {
     if (autoGenerate && Object.keys(answers).length > 0 && projectId) {

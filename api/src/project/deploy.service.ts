@@ -364,14 +364,15 @@ export default nextConfig;
     }
 
     // 서브도메인 할당 (이미 있으면 재사용)
+    const isNewDeploy = !project.subdomain;
     const subdomain = project.subdomain || this.generateSubdomain(project.name, userId);
     const deployedUrl = `https://${subdomain}.${DEPLOY_DOMAIN}`;
 
-    // Step 1: buildStatus = pending
+    // Step 1: buildStatus = pending (재배포 시 subdomain SET 생략 → UNIQUE 충돌 방지)
     await this.prisma.project.update({
       where: { id: projectId },
       data: {
-        subdomain,
+        ...(isNewDeploy && { subdomain }),
         deployedUrl,
         buildStatus: 'pending',
         buildLog: null,
@@ -407,6 +408,7 @@ export default nextConfig;
       if (!project || project.userId !== userId) return null;
       if (!project.generatedCode) return null;
 
+      const isNewDeploy = !project.subdomain;
       const subdomain = project.subdomain || this.generateSubdomain(project.name, userId);
       const deployedUrl = `https://${subdomain}.${DEPLOY_DOMAIN}`;
       const trialExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24시간 후
@@ -415,7 +417,7 @@ export default nextConfig;
       await this.prisma.project.update({
         where: { id: projectId },
         data: {
-          subdomain,
+          ...(isNewDeploy && { subdomain }),
           deployedUrl,
           buildStatus: 'pending',
           buildLog: null,

@@ -91,7 +91,7 @@ export class ProjectController {
 
     if (!isFreeDownload) {
       // 10,000cr 차감 (크레딧 부족 시 에러 throw)
-      await this.creditService.deduct(userId, 'code_download', id);
+      await this.creditService.deduct(userId, { action: 'code_download' as any, projectId: id });
     }
 
     return this.deployService.getDownloadManifest(id, userId);
