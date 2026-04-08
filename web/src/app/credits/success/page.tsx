@@ -8,17 +8,28 @@ import ThemeToggle from '../../components/ThemeToggle';
 
 const CREDIT_MAP: Record<string, number> = {
   lite: 5000,
-  standard: 15000,
+  standard: 20000,
   pro: 50000,
 };
 
 function SuccessContent() {
   const searchParams = useSearchParams();
-  const orderId = searchParams.get('orderId') || '';
-  const amount = searchParams.get('amount') || '0';
-  const paymentKey = searchParams.get('paymentKey') || '';
 
-  const packageId = orderId.split('-')[1] || '';
+  // KPN 인증 완료 후 전달되는 파라미터
+  const code = searchParams.get('code') || '';
+  const mxIssueNo = searchParams.get('mxIssueNo') || '';
+  const fdTid = searchParams.get('fdTid') || '';
+  const approvalUrl = searchParams.get('approvalUrl') || '';
+  const amount = searchParams.get('amount') || '0';
+  const pkg = searchParams.get('pkg') || '';
+  const kpnMessage = searchParams.get('message') || '';
+
+  // 토스 레거시 파라미터 (하위 호환)
+  const paymentKey = searchParams.get('paymentKey') || '';
+  const orderId = searchParams.get('orderId') || '';
+
+  const isKpn = !!mxIssueNo && !!fdTid;
+  const packageId = isKpn ? pkg : (orderId.split('-')[1] || '');
   const expectedCredits = CREDIT_MAP[packageId] || 0;
 
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
@@ -28,7 +39,51 @@ function SuccessContent() {
   const confirmedRef = useRef(false);
 
   useEffect(() => {
-    if (confirmedRef.current || !paymentKey || !orderId) return;
+    if (confirmedRef.current) return;
+
+    // KPN 결제 흐름
+    if (isKpn) {
+      confirmedRef.current = true;
+
+      // 인증 실패 체크
+      if (code !== '0000') {
+        setErrorMsg(kpnMessage || '인증에 실패했습니다.');
+        setStatus('error');
+        return;
+      }
+
+      (async () => {
+        try {
+          const res = await authFetch('/credits/kpn-confirm', {
+            method: 'POST',
+            body: JSON.stringify({
+              mxIssueNo,
+              fdTid,
+              approvalUrl,
+              amount: Number(amount),
+              packageId,
+            }),
+          });
+
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || '결제 승인 실패');
+          }
+
+          const data = await res.json();
+          setChargedCredits(data.charged || expectedCredits);
+          setBalance(data.balance || 0);
+          setStatus('success');
+        } catch (e: any) {
+          setErrorMsg(e.message || '결제 처리 중 오류가 발생했습니다');
+          setStatus('error');
+        }
+      })();
+      return;
+    }
+
+    // 토스 결제 흐름 (레거시 호환)
+    if (!paymentKey || !orderId) return;
     confirmedRef.current = true;
 
     (async () => {
@@ -56,7 +111,7 @@ function SuccessContent() {
         setStatus('error');
       }
     })();
-  }, [paymentKey, orderId, amount, expectedCredits]);
+  }, [isKpn, code, mxIssueNo, fdTid, approvalUrl, amount, packageId, kpnMessage, paymentKey, orderId, expectedCredits]);
 
   return (
     <div className="mx-auto max-w-lg text-center">
@@ -64,7 +119,7 @@ function SuccessContent() {
         <>
           <div className="mb-6 text-7xl animate-pulse">⏳</div>
           <h2 className="mb-4 text-2xl font-bold tracking-tight">결제 확인 중...</h2>
-          <p className="text-[var(--text-secondary)]">토스페이먼츠에서 결제를 승인하고 있습니다</p>
+          <p className="text-[var(--text-secondary)]">결제를 승인하고 있습니다</p>
         </>
       )}
 

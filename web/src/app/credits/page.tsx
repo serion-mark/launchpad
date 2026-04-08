@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Script from 'next/script';
 import { authFetch, getUser } from '@/lib/api';
 import Logo from '@/app/components/Logo';
 import ThemeToggle from '@/app/components/ThemeToggle';
 
-const TOSS_CLIENT_KEY = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY || '';
+const KPN_ENDPOINT = process.env.NEXT_PUBLIC_KPN_ENDPOINT || 'https://dev.firstpay.co.kr';
+const KPN_ENV = process.env.NEXT_PUBLIC_KPN_ENV || 'develop';
 
 // ── 크레딧 충전 패키지 ─────────────────────────────────
 const MAIN_PACKAGES = [
@@ -128,35 +130,53 @@ export default function CreditsPage() {
       return;
     }
 
-    // 토스 결제 키가 없으면 문의 모달 표시
-    if (!TOSS_CLIENT_KEY) {
-      setShowContactModal(true);
-      return;
-    }
-
     setIsProcessing(true);
     setSelectedPkg(pkgId);
 
     try {
-      const { loadTossPayments } = await import('@tosspayments/tosspayments-sdk');
-      const tossPayments = await loadTossPayments(TOSS_CLIENT_KEY);
-      const user = (await import('@/lib/api')).getUser();
-      const customerKey = user?.userId ? `foundry-${user.userId}` : `foundry-anon-${Date.now()}`;
-      const payment = tossPayments.payment({ customerKey });
+      // 1. 백엔드에서 callHash + 주문번호 생성 (passKey 노출 방지)
+      const prepRes = await authFetch('/credits/kpn-prepare', {
+        method: 'POST',
+        body: JSON.stringify({ packageId: pkgId }),
+      });
 
-      await payment.requestPayment({
-        method: 'CARD',
-        amount: { currency: 'KRW', value: price },
-        orderId: `credit-${pkgId}-${Date.now()}`,
-        orderName: `Foundry 크레딧 ${credits.toLocaleString()}cr (${label})`,
-        successUrl: `${window.location.origin}/credits/success?pkg=${pkgId}`,
-        failUrl: `${window.location.origin}/credits/fail`,
+      if (!prepRes.ok) {
+        const err = await prepRes.json().catch(() => ({}));
+        throw new Error(err.message || '결제 준비 실패');
+      }
+
+      const prepData = await prepRes.json();
+
+      // 2. KPN SDK로 결제창 호출
+      const FirstPay = (window as any).FirstPay;
+      if (!FirstPay) {
+        alert('결제 모듈을 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+        return;
+      }
+
+      const pay = new FirstPay({
+        env: KPN_ENV,
+        openType: 'popup',
+        onFailure: (error: any) => {
+          console.error(`[KPN 결제 실패] ${error.code}: ${error.message}`);
+          if (error.code !== 'USER_CANCEL') {
+            alert(`결제 요청 실패: ${error.message}`);
+          }
+        },
+      });
+
+      pay.goPay({
+        mxId: prepData.mxId,
+        mxIssueNo: prepData.mxIssueNo,
+        mxIssueDate: prepData.mxIssueDate,
+        orderName: prepData.orderName,
+        amount: prepData.amount,
+        returnUrl: `${window.location.origin}/credits/success?pkg=${pkgId}`,
+        callHash: prepData.callHash,
       });
     } catch (error: any) {
-      if (error.code !== 'USER_CANCEL') {
-        console.error('결제 오류:', error);
-        setShowContactModal(true);
-      }
+      console.error('결제 오류:', error);
+      alert(error.message || '결제 처리 중 오류가 발생했습니다.');
     } finally {
       setIsProcessing(false);
       setSelectedPkg(null);
@@ -165,6 +185,9 @@ export default function CreditsPage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-card)] text-[var(--text-primary)]">
+      {/* KPN PG SDK */}
+      <Script src={`${KPN_ENDPOINT}/js/firstpay_v2.js`} strategy="beforeInteractive" />
+
       {/* 충전 문의 모달 */}
       {showContactModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowContactModal(false)}>

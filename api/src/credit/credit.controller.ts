@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Body, Query, UseGuards, Req, ForbiddenException, Logger, BadRequestException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { CreditService, CREDIT_PACKAGES } from './credit.service';
+import { KpnPaymentService } from './kpn-payment.service';
 import { PrismaService } from '../prisma.service';
 import type { PackageId, CreditAction } from './credit.service';
 
@@ -11,6 +12,7 @@ export class CreditController {
 
   constructor(
     private creditService: CreditService,
+    private kpnPaymentService: KpnPaymentService,
     private prisma: PrismaService,
   ) {}
 
@@ -118,6 +120,78 @@ export class CreditController {
 
     // 크레딧 충전
     const result = await this.creditService.charge(req.user.userId, packageId, paymentKey);
+    return result;
+  }
+
+  // ── KPN PG: 결제 준비 (callHash 생성) ──────────────
+  @Post('kpn-prepare')
+  kpnPrepare(
+    @Req() req: any,
+    @Body() body: { packageId: PackageId },
+  ) {
+    const { packageId } = body;
+    if (!packageId || !['lite', 'standard', 'pro'].includes(packageId)) {
+      throw new BadRequestException('유효하지 않은 패키지입니다');
+    }
+
+    const pkg = CREDIT_PACKAGES[packageId];
+    const orderName = `Foundry ${pkg.label} (${pkg.credits.toLocaleString()}cr)`;
+
+    return this.kpnPaymentService.prepare(packageId, pkg.price, orderName);
+  }
+
+  // ── KPN PG: 결제 승인 + 크레딧 충전 ──────────────
+  @Post('kpn-confirm')
+  async kpnConfirm(
+    @Req() req: any,
+    @Body() body: {
+      mxIssueNo: string;
+      fdTid: string;
+      approvalUrl: string;
+      amount: number;
+      packageId: PackageId;
+    },
+  ) {
+    const { mxIssueNo, fdTid, approvalUrl, amount, packageId } = body;
+
+    if (!mxIssueNo || !fdTid || !approvalUrl || !amount || !packageId) {
+      throw new BadRequestException('필수 파라미터가 누락되었습니다');
+    }
+
+    // 패키지 가격 검증
+    const pkg = CREDIT_PACKAGES[packageId];
+    if (!pkg) throw new BadRequestException(`유효하지 않은 패키지: ${packageId}`);
+    if (amount !== pkg.price) {
+      this.logger.error(`KPN 결제금액 불일치! 패키지: ${packageId}, 예상: ${pkg.price}, 실제: ${amount}`);
+      throw new BadRequestException(`결제 금액이 올바르지 않습니다 (예상: ${pkg.price}원)`);
+    }
+
+    // 중복 결제 방지 (mxIssueNo 기반)
+    const existing = await this.prisma.creditTransaction.findFirst({
+      where: { paymentRefId: mxIssueNo },
+    });
+    if (existing) {
+      this.logger.warn(`KPN 중복 결제 요청 무시: ${mxIssueNo}`);
+      const bal = await this.creditService.getBalance(req.user.userId);
+      return { balance: bal.balance, charged: 0, message: '이미 처리된 결제입니다' };
+    }
+
+    // KPN 승인 API 호출
+    const approval = await this.kpnPaymentService.confirmPayment({
+      mxIssueNo,
+      fdTid,
+      approvalUrl,
+    });
+
+    if (approval.replyCode !== '0000') {
+      this.logger.error(`KPN 승인 실패: ${approval.replyCode} - ${approval.replyMessage}`);
+      throw new BadRequestException(`결제 승인 실패: ${approval.replyMessage}`);
+    }
+
+    this.logger.log(`KPN 승인 성공: ${mxIssueNo} (${amount}원), tid=${approval.tid}`);
+
+    // 크레딧 충전 (paymentRefId = mxIssueNo)
+    const result = await this.creditService.charge(req.user.userId, packageId, mxIssueNo);
     return result;
   }
 
