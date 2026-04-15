@@ -193,6 +193,7 @@ export default function BuilderPreview({
           </div>
           {buildPhase === 'done' && deployedUrl && (
             <button
+              data-tutorial="edit-btn"
               onClick={toggleEditMode}
               className={`rounded px-2.5 py-1 text-[10px] font-medium transition-colors ${editMode ? 'bg-[#ff6b35] text-white' : 'bg-[var(--bg-subtle)] text-[var(--text-tertiary)] hover:text-[var(--text-primary)]'}`}
               title={editMode ? '편집 모드 끄기' : '편집 모드 켜기'}
@@ -217,6 +218,7 @@ export default function BuilderPreview({
             </a>
           )}
           <button
+            data-tutorial="help-btn"
             onClick={() => setShowTutorial(true)}
             className="rounded-md bg-[var(--toss-blue)]/10 px-2.5 py-1 text-[10px] font-medium text-[var(--toss-blue)] hover:bg-[var(--toss-blue)]/20 transition-colors"
             title="사용법 보기"

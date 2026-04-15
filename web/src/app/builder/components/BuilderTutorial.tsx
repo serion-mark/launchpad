@@ -6,38 +6,52 @@ interface TutorialStep {
   title: string;
   description: string;
   icon: string;
-  targetSelector: string; // CSS selector for highlight target
+  targetSelector: string;
   position: 'top' | 'bottom' | 'left' | 'right';
 }
 
 const STEPS: TutorialStep[] = [
   {
-    title: '채팅으로 수정하세요',
-    description: '"버튼 색 바꿔줘", "로그인 페이지 추가해줘"\n입력하면 AI가 코드를 수정합니다',
+    title: '채팅으로 AI에게 요청하세요',
+    description: '"버튼 색 바꿔줘", "로그인 페이지 추가해줘"\n이런 식으로 입력하면 AI가 코드를 수정합니다.',
     icon: '💬',
     targetSelector: '[data-tutorial="chat-input"]',
     position: 'top',
   },
   {
-    title: '클릭으로 직접 수정',
-    description: '미리보기에서 텍스트나 요소를 클릭하면\n바로 수정할 수 있어요',
+    title: '편집 버튼으로 직접 수정',
+    description: '이 버튼을 켜면 편집 모드가 활성화됩니다.\n미리보기에서 텍스트, 색상, 이미지를\n직접 클릭해서 수정할 수 있어요!',
     icon: '✏️',
+    targetSelector: '[data-tutorial="edit-btn"]',
+    position: 'bottom',
+  },
+  {
+    title: '미리보기에서 확인',
+    description: '수정한 내용이 여기에 바로 반영됩니다.\n모바일/데스크톱 전환도 가능해요.\n편집 모드에서 요소를 클릭하면 바로 수정!',
+    icon: '📱',
     targetSelector: '[data-tutorial="preview"]',
     position: 'left',
   },
   {
-    title: '온라인 게시',
-    description: '완성한 앱을 인터넷에 게시하면\n누구나 접속할 수 있어요\n나만의 URL이 생성됩니다',
+    title: '온라인 게시로 배포하기',
+    description: '수정이 끝나면 이 버튼을 꼭 눌러주세요!\n실제 URL에 반영됩니다.\n게시 안 하면 미리보기에서만 보여요.',
     icon: '🌐',
     targetSelector: '[data-tutorial="deploy-btn"]',
     position: 'top',
   },
   {
     title: '코드 다운로드',
-    description: '만든 앱의 전체 코드를 받아서\n개발자에게 전달할 수 있어요\n코드 소유권은 100% 고객님 것!',
+    description: '완성된 앱의 전체 코드를 ZIP으로 받을 수 있어요.\n코드 소유권은 100% 고객님 것입니다!',
     icon: '📦',
     targetSelector: '[data-tutorial="download-btn"]',
     position: 'top',
+  },
+  {
+    title: '언제든 사용법 다시 보기',
+    description: '여기 "사용법" 버튼을 누르면\n사용법 가이드를 언제든 다시 볼 수 있어요.',
+    icon: '📖',
+    targetSelector: '[data-tutorial="help-btn"]',
+    position: 'bottom',
   },
 ];
 
@@ -82,7 +96,6 @@ export default function BuilderTutorial({ onComplete }: BuilderTutorialProps) {
   const step = STEPS[currentStep];
   const isLast = currentStep === STEPS.length - 1;
 
-  // Highlight cutout position
   const pad = 8;
   const cutout = targetRect
     ? {
@@ -93,7 +106,6 @@ export default function BuilderTutorial({ onComplete }: BuilderTutorialProps) {
       }
     : null;
 
-  // Tooltip position
   const getTooltipStyle = (): React.CSSProperties => {
     if (!targetRect) {
       return { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' };
@@ -103,21 +115,21 @@ export default function BuilderTutorial({ onComplete }: BuilderTutorialProps) {
       case 'top':
         return {
           bottom: window.innerHeight - targetRect.top + margin,
-          left: Math.max(16, Math.min(targetRect.left, window.innerWidth - 340)),
+          left: Math.max(16, Math.min(targetRect.left, window.innerWidth - 380)),
         };
       case 'bottom':
         return {
           top: targetRect.bottom + margin,
-          left: Math.max(16, Math.min(targetRect.left, window.innerWidth - 340)),
+          left: Math.max(16, Math.min(targetRect.left, window.innerWidth - 380)),
         };
       case 'left':
         return {
-          top: targetRect.top,
+          top: Math.max(16, targetRect.top),
           right: window.innerWidth - targetRect.left + margin,
         };
       case 'right':
         return {
-          top: targetRect.top,
+          top: Math.max(16, targetRect.top),
           left: targetRect.right + margin,
         };
     }
@@ -144,7 +156,7 @@ export default function BuilderTutorial({ onComplete }: BuilderTutorialProps) {
         </defs>
         <rect
           x="0" y="0" width="100%" height="100%"
-          fill="rgba(0,0,0,0.65)"
+          fill="rgba(0,0,0,0.6)"
           mask="url(#tutorial-mask)"
         />
       </svg>
@@ -168,38 +180,41 @@ export default function BuilderTutorial({ onComplete }: BuilderTutorialProps) {
         className="absolute z-10"
         style={{ ...getTooltipStyle(), pointerEvents: 'auto' }}
       >
-        <div className="bg-[var(--bg-secondary)] border border-[rgba(255,255,255,0.1)] rounded-2xl p-5 shadow-2xl max-w-[320px]"
+        <div className="bg-[var(--bg-secondary)] border border-[rgba(255,255,255,0.1)] rounded-2xl p-6 shadow-2xl max-w-[360px]"
           style={{ backdropFilter: 'blur(12px)' }}>
-          {/* Step icon + title */}
-          <div className="flex items-center gap-2.5 mb-3">
-            <span className="text-2xl">{step.icon}</span>
-            <h3 className="text-white font-bold text-base">{step.title}</h3>
+          {/* Step number + icon + title */}
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--toss-blue)] text-white text-sm font-bold flex-shrink-0">
+              {currentStep + 1}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">{step.icon}</span>
+              <h3 className="text-white font-bold text-[16px] leading-tight">{step.title}</h3>
+            </div>
           </div>
 
           {/* Description */}
-          <p className="text-[var(--text-secondary)] text-sm leading-relaxed whitespace-pre-line mb-5">
+          <p className="text-[var(--text-secondary)] text-[14px] leading-relaxed whitespace-pre-line mb-5 pl-11">
             {step.description}
           </p>
 
           {/* Step indicator + buttons */}
           <div className="flex items-center justify-between">
-            {/* Step dots */}
             <div className="flex gap-1.5">
               {STEPS.map((_, i) => (
                 <div
                   key={i}
-                  className={`w-2 h-2 rounded-full transition-all ${
+                  className={`h-2 rounded-full transition-all ${
                     i === currentStep
                       ? 'bg-[var(--toss-blue)] w-5'
                       : i < currentStep
-                        ? 'bg-[var(--toss-blue)]/40'
-                        : 'bg-[rgba(255,255,255,0.15)]'
+                        ? 'bg-[var(--toss-blue)]/40 w-2'
+                        : 'bg-[rgba(255,255,255,0.15)] w-2'
                   }`}
                 />
               ))}
             </div>
 
-            {/* Buttons */}
             <div className="flex gap-2">
               <button
                 onClick={handleDone}
@@ -209,9 +224,9 @@ export default function BuilderTutorial({ onComplete }: BuilderTutorialProps) {
               </button>
               <button
                 onClick={handleNext}
-                className="px-5 py-2 bg-[var(--toss-blue)] hover:bg-[#1b6ff5] text-white text-sm font-semibold rounded-lg transition-colors"
+                className="px-5 py-2.5 bg-[var(--toss-blue)] hover:bg-[#1b6ff5] text-white text-sm font-bold rounded-lg transition-colors"
               >
-                {isLast ? '시작하기!' : '다음 →'}
+                {isLast ? '완료!' : '다음 →'}
               </button>
             </div>
           </div>
