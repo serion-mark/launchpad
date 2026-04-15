@@ -303,7 +303,9 @@ export default function DashboardPage() {
                     </a>
                     {(project.status === 'active' || project.status === 'deployed') && (
                       <a
-                        href={`/preview?projectId=${project.id}`}
+                        href={project.deployedUrl || `/preview?projectId=${project.id}`}
+                        target={project.deployedUrl ? '_blank' : undefined}
+                        rel={project.deployedUrl ? 'noopener noreferrer' : undefined}
                         className="rounded-xl bg-[var(--bg-elevated)] px-4 py-2.5 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-hover)] transition-colors"
                       >
                         미리보기
