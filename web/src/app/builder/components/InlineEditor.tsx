@@ -251,13 +251,16 @@ export default function InlineEditor({
         )}
 
         {/* AI 수정 요청 버튼 */}
-        <div className="flex items-center gap-2 pt-1">
+        <div className="flex flex-col gap-1 pt-1">
           <button
             onClick={handleSendToChat}
             className="flex-1 rounded-lg bg-[var(--bg-elevated)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--border-hover)] transition-colors"
           >
             AI에게 수정 요청
           </button>
+          <p className="text-[10px] text-[var(--text-secondary)] text-center leading-tight">
+            버튼을 누르면 채팅창에 좌표가 입력됩니다.<br/>좌표 뒤에 원하는 변경사항을 적어주세요!
+          </p>
         </div>
       </div>
     </div>

@@ -5,6 +5,7 @@ interface CreditConfirmModalProps {
   setShowCostModal: (m: 'deploy' | 'download' | 'generate' | null) => void;
   creditBalance: number | null;
   projectName: string;
+  deployedUrl?: string | null;
   onGenerate: () => void;
   onDeploy: () => void;
   onDownload: () => void;
@@ -12,9 +13,10 @@ interface CreditConfirmModalProps {
 
 export default function CreditConfirmModal({
   showCostModal, setShowCostModal,
-  creditBalance, projectName,
+  creditBalance, projectName, deployedUrl,
   onGenerate, onDeploy, onDownload,
 }: CreditConfirmModalProps) {
+  const isRedeploy = !!deployedUrl;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowCostModal(null)}>
       <div className="w-[480px] max-w-[90vw] rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] p-6" onClick={e => e.stopPropagation()}>
@@ -41,23 +43,40 @@ export default function CreditConfirmModal({
             </div>
           </>
         ) : showCostModal === 'deploy' ? (
-          <>
-            <h3 className="text-lg font-bold text-[var(--text-primary)] mb-1">🌐 온라인 게시</h3>
-            <p className="text-sm text-[var(--text-secondary)] mb-4">만든 앱을 인터넷에 게시하여 누구나 접속할 수 있게 합니다.</p>
-            <div className="rounded-xl bg-[var(--bg-elevated)] p-4 mb-4 space-y-3">
-              <div className="flex justify-between text-sm"><span className="text-[var(--text-secondary)]">내 앱 주소</span><span className="text-[var(--text-primary)]">{projectName || 'myapp'}.foundry.ai.kr</span></div>
-              <div className="flex justify-between text-sm"><span className="text-[var(--text-secondary)]">보안 연결 (HTTPS)</span><span className="text-[var(--toss-green)]">✅ 자동 적용</span></div>
-              <div className="flex justify-between text-sm"><span className="text-[var(--text-secondary)]">게시 후 수정</span><span className="text-[var(--toss-green)]">✅ 언제든 가능</span></div>
-              <div className="flex justify-between text-sm"><span className="text-[var(--text-secondary)]">호스팅 비용</span><span className="text-[var(--toss-yellow)] font-bold">월 29,000원</span></div>
-            </div>
-            <div className="rounded-xl bg-[var(--toss-green)]/10 border border-[var(--toss-green)]/20 p-3 mb-4">
-              <p className="text-xs text-[var(--toss-green)]">🎉 앱 생성 시 24시간 무료 체험이 자동 제공됩니다. 이후 계속 사용하시려면 호스팅 구독이 필요합니다.</p>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setShowCostModal(null)} className="flex-1 rounded-xl bg-[var(--bg-elevated)] py-3 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--border-hover)]">취소</button>
-              <button onClick={() => { setShowCostModal(null); onDeploy(); }} className="flex-1 rounded-xl bg-[var(--toss-blue)] py-3 text-sm font-bold text-white hover:bg-[var(--toss-blue-hover)]">온라인 게시하기</button>
-            </div>
-          </>
+          isRedeploy ? (
+            <>
+              <h3 className="text-lg font-bold text-[var(--text-primary)] mb-1">🔄 수정사항 반영</h3>
+              <p className="text-sm text-[var(--text-secondary)] mb-4">수정된 내용을 게시된 앱에 반영합니다.</p>
+              <div className="rounded-xl bg-[var(--bg-elevated)] p-4 mb-4 space-y-3">
+                <div className="flex justify-between text-sm"><span className="text-[var(--text-secondary)]">앱 주소</span><span className="text-[var(--toss-blue)] font-medium">{projectName || 'myapp'}.foundry.ai.kr</span></div>
+                <div className="flex justify-between text-sm"><span className="text-[var(--text-secondary)]">반영 시간</span><span className="text-[var(--text-primary)]">약 2~5분 소요</span></div>
+              </div>
+              <div className="rounded-xl bg-[var(--toss-blue)]/10 border border-[var(--toss-blue)]/20 p-3 mb-4">
+                <p className="text-xs text-[var(--toss-blue)]">💡 수정사항이 게시된 앱에 바로 반영됩니다. 추가 비용은 없습니다.</p>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => setShowCostModal(null)} className="flex-1 rounded-xl bg-[var(--bg-elevated)] py-3 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--border-hover)]">취소</button>
+                <button onClick={() => { setShowCostModal(null); onDeploy(); }} className="flex-1 rounded-xl bg-[var(--toss-blue)] py-3 text-sm font-bold text-white hover:bg-[var(--toss-blue-hover)]">반영하기</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <h3 className="text-lg font-bold text-[var(--text-primary)] mb-1">🌐 온라인 게시</h3>
+              <p className="text-sm text-[var(--text-secondary)] mb-4">만든 앱을 인터넷에 게시하여 누구나 접속할 수 있게 합니다.</p>
+              <div className="rounded-xl bg-[var(--bg-elevated)] p-4 mb-4 space-y-3">
+                <div className="flex justify-between text-sm"><span className="text-[var(--text-secondary)]">내 앱 주소</span><span className="text-[var(--text-primary)]">{projectName || 'myapp'}.foundry.ai.kr</span></div>
+                <div className="flex justify-between text-sm"><span className="text-[var(--text-secondary)]">보안 연결 (HTTPS)</span><span className="text-[var(--toss-green)]">✅ 자동 적용</span></div>
+                <div className="flex justify-between text-sm"><span className="text-[var(--text-secondary)]">게시 후 수정</span><span className="text-[var(--toss-green)]">✅ 언제든 가능</span></div>
+              </div>
+              <div className="rounded-xl bg-[var(--toss-green)]/10 border border-[var(--toss-green)]/20 p-3 mb-4">
+                <p className="text-xs text-[var(--toss-green)]">🎉 24시간 무료 체험이 자동 제공됩니다. 체험 종료 후 계속 게시하시려면 호스팅 결제가 필요합니다.</p>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => setShowCostModal(null)} className="flex-1 rounded-xl bg-[var(--bg-elevated)] py-3 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--border-hover)]">취소</button>
+                <button onClick={() => { setShowCostModal(null); onDeploy(); }} className="flex-1 rounded-xl bg-[var(--toss-blue)] py-3 text-sm font-bold text-white hover:bg-[var(--toss-blue-hover)]">온라인 게시하기</button>
+              </div>
+            </>
+          )
         ) : (
           <>
             <h3 className="text-lg font-bold text-[var(--text-primary)] mb-1">📦 소스코드 다운로드</h3>

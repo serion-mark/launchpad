@@ -721,6 +721,7 @@ function BuilderContent() {
           setShowCostModal={setShowCostModal}
           creditBalance={creditBalance}
           projectName={project?.name || ''}
+          deployedUrl={project?.deployedUrl}
           onGenerate={handleGenerate}
           onDeploy={handleDeploy}
           onDownload={handleDownload}

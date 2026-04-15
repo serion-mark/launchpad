@@ -188,6 +188,9 @@ export default function VisualEditPopup({
           >
             AI에게 수정 요청
           </button>
+          <p style={{ fontSize: '10px', color: '#8b95a1', textAlign: 'center', marginTop: '4px', lineHeight: '1.4' }}>
+            버튼을 누르면 채팅창에 좌표가 입력됩니다.<br/>좌표 뒤에 원하는 변경사항을 적어주세요!
+          </p>
         </>
       ) : (
         <>
