@@ -700,6 +700,7 @@ function BuilderContent() {
         onInlineEditSaved={() => setUnsavedCount(c => c + 1)}
         isSaving={isSaving}
         onSavingChange={setIsSaving}
+        onStartTutorial={() => setShowTutorial(true)}
       />
 
       {/* 빌더 튜토리얼 (첫 방문 가이드) */}

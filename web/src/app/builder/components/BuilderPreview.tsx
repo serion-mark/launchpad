@@ -61,6 +61,7 @@ interface BuilderPreviewProps {
   onInlineEditSaved: () => void;
   isSaving: boolean;
   onSavingChange: (saving: boolean) => void;
+  onStartTutorial?: () => void;
 }
 
 export default function BuilderPreview({
@@ -83,6 +84,7 @@ export default function BuilderPreview({
   onInlineEditSaved,
   isSaving,
   onSavingChange,
+  onStartTutorial,
 }: BuilderPreviewProps) {
 
   const isPreviewFocused = buildPhase === 'done' || buildPhase === 'generating';
@@ -217,8 +219,9 @@ export default function BuilderPreview({
           <button
             onClick={() => setShowTutorial(true)}
             className="rounded-md bg-[var(--toss-blue)]/10 px-2.5 py-1 text-[10px] font-medium text-[var(--toss-blue)] hover:bg-[var(--toss-blue)]/20 transition-colors"
+            title="사용법 보기"
           >
-            ? 사용법
+            사용법
           </button>
         </div>
       </div>
@@ -393,50 +396,70 @@ export default function BuilderPreview({
           />
         </div>
       )}
-      {/* ── 사용법 튜토리얼 모달 ── */}
+      {/* ── 사용법 모달 ── */}
       {showTutorial && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div onClick={() => setShowTutorial(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)' }} />
-          <div style={{ position: 'relative', width: '90%', maxWidth: 520, maxHeight: '80vh', overflow: 'auto', borderRadius: 16, background: 'var(--bg-card)', border: '1px solid var(--border-primary)', padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-            <button onClick={() => setShowTutorial(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: 'var(--text-tertiary)' }}>&times;</button>
+          <div style={{ position: 'relative', width: '92%', maxWidth: 560, maxHeight: '85vh', overflow: 'auto', borderRadius: 20, background: 'var(--bg-card)', border: '1px solid var(--border-primary)', padding: '32px 32px 28px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <button onClick={() => setShowTutorial(false)} style={{ position: 'absolute', top: 18, right: 18, background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-tertiary)', lineHeight: 1 }}>&times;</button>
 
-            <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 6, color: 'var(--text-primary)' }}>Foundry 빌더 사용법</h2>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 24 }}>아래 순서대로 진행하면 나만의 앱이 만들어집니다!</p>
+            {/* 헤더 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)' }}>Foundry 빌더 사용법</h2>
+            </div>
+            <p style={{ fontSize: 15, color: 'var(--text-secondary)', marginBottom: 10 }}>아래 순서대로 진행하면 나만의 앱이 만들어집니다!</p>
 
+            {/* 튜토리얼 체험 버튼 */}
+            {onStartTutorial && (
+              <button
+                onClick={() => { setShowTutorial(false); onStartTutorial(); }}
+                style={{
+                  width: '100%', padding: '14px 0', borderRadius: 14, marginBottom: 24,
+                  border: '2px solid var(--toss-blue)', background: 'rgba(49,130,246,0.06)', color: 'var(--toss-blue)',
+                  fontSize: 15, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}
+              >
+                <span style={{ fontSize: 18 }}>&#9654;</span> 인터랙티브 튜토리얼 체험하기
+              </button>
+            )}
+
+            {/* 단계별 안내 */}
             {[
-              { step: 1, title: 'AI와 대화하기', desc: '왼쪽 채팅창에서 질문에 답하세요. 업종, 기능, 디자인을 AI가 물어봅니다.' },
-              { step: 2, title: '앱 자동 생성', desc: '질문이 끝나면 AI가 앱을 자동으로 만듭니다. 약 20~40분 소요되며, 오른쪽에서 실시간으로 확인할 수 있습니다.' },
-              { step: 3, title: '미리보기 확인', desc: '생성이 완료되면 오른쪽 미리보기에서 앱을 확인하세요. 모바일/데스크톱 전환도 가능합니다.' },
-              { step: 4, title: '직접 수정하기 (편집 모드)', desc: '상단의 "편집" 버튼을 켜면, 미리보기에서 텍스트/색상/이미지를 직접 클릭해서 수정할 수 있습니다.' },
-              { step: 5, title: 'AI에게 수정 요청', desc: '편집 패널의 "AI에게 수정 요청" 버튼을 누르면, 채팅으로 더 복잡한 수정을 요청할 수 있습니다.' },
-              { step: 6, title: '온라인 게시 (배포)', desc: '수정이 끝나면 왼쪽 하단의 "온라인 게시" 버튼을 눌러주세요. 실제 URL에 반영됩니다! 게시하지 않으면 미리보기에서만 변경이 보입니다.' },
-              { step: 7, title: '외부에서 보기', desc: '"외부에서 보기" 링크를 클릭하면 실제 배포된 앱을 브라우저에서 확인할 수 있습니다.' },
+              { step: 1, icon: '💬', title: 'AI와 대화하기', desc: '왼쪽 채팅창에서 질문에 답하세요. 업종, 기능, 디자인을 AI가 물어봅니다.' },
+              { step: 2, icon: '🤖', title: '앱 자동 생성', desc: '질문이 끝나면 AI가 앱을 자동으로 만듭니다. 약 20~40분 소요되며, 오른쪽 미리보기에서 실시간으로 확인 가능합니다.' },
+              { step: 3, icon: '📱', title: '미리보기 확인', desc: '생성 완료 후 오른쪽에서 앱을 확인하세요. 모바일/데스크톱 전환도 가능합니다.' },
+              { step: 4, icon: '✏️', title: '직접 수정 (편집 모드)', desc: '상단 "편집" 버튼을 켜면 미리보기에서 텍스트, 색상, 이미지를 직접 클릭해 수정할 수 있습니다.' },
+              { step: 5, icon: '🧠', title: 'AI에게 수정 요청', desc: '복잡한 수정은 채팅으로 AI에게 요청하세요. "메뉴 추가해줘", "색상 바꿔줘" 등 자연어로 가능!' },
+              { step: 6, icon: '🌐', title: '온라인 게시 (배포)', desc: '수정이 끝나면 왼쪽 하단 "온라인 게시"를 눌러주세요. 실제 URL에 반영됩니다! 게시 안 하면 미리보기에서만 보입니다.' },
+              { step: 7, icon: '📦', title: '다운로드', desc: '코드를 ZIP으로 다운로드할 수 있습니다. 소유권은 100% 고객님 것!' },
             ].map(item => (
-              <div key={item.step} style={{ display: 'flex', gap: 14, marginBottom: 18 }}>
+              <div key={item.step} style={{ display: 'flex', gap: 14, marginBottom: 20 }}>
                 <div style={{
-                  width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                  width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
                   background: 'var(--toss-blue)', color: '#fff',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 13, fontWeight: 700,
+                  fontSize: 15, fontWeight: 700,
                 }}>{item.step}</div>
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{item.title}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{item.desc}</div>
+                <div style={{ paddingTop: 2 }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span>{item.icon}</span> {item.title}
+                  </div>
+                  <div style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.7 }}>{item.desc}</div>
                 </div>
               </div>
             ))}
 
-            <div style={{ marginTop: 20, padding: '12px 16px', borderRadius: 10, background: 'var(--toss-blue)', opacity: 0.08 }} />
-            <div style={{ marginTop: -38, padding: '12px 16px', textAlign: 'center' }}>
-              <p style={{ fontSize: 12, color: 'var(--toss-blue)', fontWeight: 600 }}>
+            {/* 하단 팁 */}
+            <div style={{ marginTop: 8, padding: '14px 18px', borderRadius: 12, background: 'rgba(49,130,246,0.06)', border: '1px solid rgba(49,130,246,0.15)', textAlign: 'center' }}>
+              <p style={{ fontSize: 14, color: 'var(--toss-blue)', fontWeight: 600 }}>
                 궁금한 점이 있으면 언제든 채팅으로 AI에게 물어보세요!
               </p>
             </div>
 
             <button onClick={() => setShowTutorial(false)} style={{
-              width: '100%', marginTop: 16, padding: '12px 0', borderRadius: 12,
+              width: '100%', marginTop: 16, padding: '14px 0', borderRadius: 14,
               border: 'none', background: 'var(--toss-blue)', color: '#fff',
-              fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              fontSize: 15, fontWeight: 700, cursor: 'pointer',
             }}>
               확인
             </button>
