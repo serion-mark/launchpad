@@ -171,7 +171,7 @@ export default function InlineEditor({
 
         {/* 텍스트 편집 */}
         {el.isText && (
-          <div>
+          <div data-tutorial="inline-text">
             <label className="text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">텍스트</label>
             <div className="mt-1 flex gap-2">
               <input
@@ -193,7 +193,7 @@ export default function InlineEditor({
         )}
 
         {/* 색상 편집 */}
-        <div className="flex gap-4">
+        <div data-tutorial="inline-color" className="flex gap-4">
           <div>
             <label className="text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">글자색</label>
             <div className="mt-1 flex items-center gap-2">
@@ -250,16 +250,20 @@ export default function InlineEditor({
           </div>
         )}
 
-        {/* AI 수정 요청 버튼 */}
-        <div className="flex flex-col gap-1 pt-1">
+        {/* AI 수정 요청 / 기능 부여 버튼 */}
+        <div data-tutorial="inline-ai" className="flex flex-col gap-1 pt-1">
           <button
             onClick={handleSendToChat}
             className="flex-1 rounded-lg bg-[var(--bg-elevated)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] hover:bg-[var(--border-hover)] transition-colors"
           >
-            AI에게 수정 요청
+            {el.tagName === 'BUTTON' || el.tagName === 'A' ? '버튼에 기능 부여하기' : 'AI에게 수정 요청'}
           </button>
           <p className="text-[10px] text-[var(--text-secondary)] text-center leading-tight">
-            버튼을 누르면 채팅창에 좌표가 입력됩니다.<br/>좌표 뒤에 원하는 변경사항을 적어주세요!
+            {el.tagName === 'BUTTON' || el.tagName === 'A' ? (
+              <>버튼을 클릭하면 채팅창에 좌표가 입력됩니다.<br/>기능을 설명하면 AI가 구현합니다!</>
+            ) : (
+              <>버튼을 누르면 채팅창에 좌표가 입력됩니다.<br/>좌표 뒤에 원하는 변경사항을 적어주세요!</>
+            )}
           </p>
         </div>
 

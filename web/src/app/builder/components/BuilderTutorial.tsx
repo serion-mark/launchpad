@@ -12,46 +12,46 @@ interface TutorialStep {
 
 const STEPS: TutorialStep[] = [
   {
-    title: '채팅으로 AI에게 요청하세요',
-    description: '"버튼 색 바꿔줘", "로그인 페이지 추가해줘"\n이런 식으로 입력하면 AI가 코드를 수정합니다.',
-    icon: '💬',
-    targetSelector: '[data-tutorial="chat-input"]',
-    position: 'top',
-  },
-  {
-    title: '편집 버튼으로 직접 수정',
-    description: '이 버튼을 켜면 편집 모드가 활성화됩니다.\n미리보기에서 텍스트, 색상, 이미지를\n직접 클릭해서 수정할 수 있어요!',
+    title: '편집 모드 켜기',
+    description: '이 버튼을 누르면 편집 모드가 켜집니다!\n미리보기에서 원하는 곳을 클릭하면\n바로 수정할 수 있어요.',
     icon: '✏️',
     targetSelector: '[data-tutorial="edit-btn"]',
     position: 'bottom',
   },
   {
-    title: '미리보기에서 확인',
-    description: '수정한 내용이 여기에 바로 반영됩니다.\n모바일/데스크톱 전환도 가능해요.\n편집 모드에서 요소를 클릭하면 바로 수정!',
-    icon: '📱',
+    title: '클릭해서 글자/색상 바로 수정',
+    description: '편집 모드에서 미리보기의 텍스트를 클릭하면\n글자 내용, 글자색, 배경색을\n바로 변경할 수 있습니다!',
+    icon: '🎨',
     targetSelector: '[data-tutorial="preview"]',
     position: 'left',
   },
   {
-    title: '온라인 게시로 배포하기',
-    description: '수정이 끝나면 이 버튼을 꼭 눌러주세요!\n실제 URL에 반영됩니다.\n게시 안 하면 미리보기에서만 보여요.',
+    title: '버튼에 기능 부여하기',
+    description: '미리보기에서 버튼을 클릭한 뒤\n"버튼에 기능 부여하기"를 누르세요.\n예: "회원가입 페이지로 이동하게 만들어줘"',
+    icon: '🔗',
+    targetSelector: '[data-tutorial="preview"]',
+    position: 'left',
+  },
+  {
+    title: '채팅으로 AI에게 요청',
+    description: '더 복잡한 수정은 채팅으로!\n"메뉴 추가해줘", "페이지 만들어줘"\n자연어로 말하면 AI가 코드를 수정합니다.',
+    icon: '💬',
+    targetSelector: '[data-tutorial="chat-input"]',
+    position: 'top',
+  },
+  {
+    title: '온라인 게시 (중요!)',
+    description: '수정이 끝나면 반드시 이 버튼을 누르세요!\n누르지 않으면 미리보기에서만 보이고\n실제 URL에는 반영되지 않습니다.',
     icon: '🌐',
     targetSelector: '[data-tutorial="deploy-btn"]',
     position: 'top',
   },
   {
     title: '코드 다운로드',
-    description: '완성된 앱의 전체 코드를 ZIP으로 받을 수 있어요.\n코드 소유권은 100% 고객님 것입니다!',
+    description: '완성된 앱의 전체 코드를 ZIP으로 받으세요.\n코드 소유권은 100% 고객님 것입니다!\n개발자에게 바로 인수인계 가능해요.',
     icon: '📦',
     targetSelector: '[data-tutorial="download-btn"]',
     position: 'top',
-  },
-  {
-    title: '언제든 사용법 다시 보기',
-    description: '여기 "사용법" 버튼을 누르면\n사용법 가이드를 언제든 다시 볼 수 있어요.',
-    icon: '📖',
-    targetSelector: '[data-tutorial="help-btn"]',
-    position: 'bottom',
   },
 ];
 
