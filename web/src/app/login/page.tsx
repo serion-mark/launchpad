@@ -148,13 +148,12 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* 소셜 로그인 */}
-          <div className="mt-7">
+          {/* 소셜 로그인 — 카카오 심사 승인 후 활성화 예정 */}
+          {/* <div className="mt-7">
             <div className="relative mb-5">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[var(--border-primary)]" /></div>
               <div className="relative flex justify-center text-xs"><span className="bg-[var(--bg-secondary)] px-3 text-[var(--text-tertiary)]">간편 로그인</span></div>
             </div>
-            {/* 카카오 로그인 */}
             <button
               onClick={() => { window.location.href = `${API_BASE}/auth/kakao`; }}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#FEE500] py-3.5 text-[#191919] font-semibold text-sm hover:bg-[#F5DC00] transition-colors"
@@ -173,7 +172,7 @@ export default function LoginPage() {
                 <span className="text-sm font-bold">A</span>
               </button>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>
