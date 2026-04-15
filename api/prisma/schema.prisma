@@ -41,6 +41,7 @@ model User {
   creditBalance CreditBalance?
   memory        UserMemory?
   meetings      MeetingHistory[]
+  inquiries     Inquiry[]
   @@map("users")
 }
 
@@ -190,6 +191,30 @@ model UserMemory {
   updatedAt     DateTime @updatedAt
 
   @@map("user_memories")
+}
+
+// ── 문의 시스템 ──────────────────────────────────────
+model Inquiry {
+  id          String    @id @default(cuid())
+  name        String
+  email       String
+  phone       String?
+  content     String
+  source      String    @default("chatbot")
+  status      String    @default("pending")
+  reply       String?
+  repliedAt   DateTime?
+  repliedBy   String?
+  userId      String?
+  user        User?     @relation(fields: [userId], references: [id])
+  metadata    Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status])
+  @@index([email])
+  @@index([createdAt])
+  @@map("inquiries")
 }
 
 // ── AI 회의 기록 ──────────────────────────────────────

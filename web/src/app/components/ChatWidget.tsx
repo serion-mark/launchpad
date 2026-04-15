@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type FormEvent } from 'react';
 import MarkdownRenderer from './MarkdownRenderer';
+import { API_BASE } from '@/lib/api';
 
 // ── FAQ 데이터 ──
 const FAQ: { keywords: string[]; answer: string; link?: { label: string; href: string } }[] = [
@@ -97,6 +98,11 @@ function findAnswer(input: string): { answer: string; link?: { label: string; hr
 }
 
 export default function ChatWidget({ bubbleColor }: { bubbleColor?: string } = {}) {
+  const [mode, setMode] = useState<'chat' | 'inquiry' | 'inquiryDone'>('chat');
+  const [inquiryForm, setInquiryForm] = useState({ name: '', email: '', phone: '', content: '' });
+  const [inquiryLoading, setInquiryLoading] = useState(false);
+  const [inquiryError, setInquiryError] = useState('');
+
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -150,6 +156,36 @@ export default function ChatWidget({ bubbleColor }: { bubbleColor?: string } = {
     sendMessage(input);
   };
 
+  const handleInquirySubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setInquiryError('');
+    if (!inquiryForm.name.trim()) { setInquiryError('이름을 입력해주세요.'); return; }
+    if (!inquiryForm.email.trim()) { setInquiryError('이메일을 입력해주세요.'); return; }
+    if (!inquiryForm.content.trim()) { setInquiryError('문의 내용을 입력해주세요.'); return; }
+    setInquiryLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/inquiry`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: inquiryForm.name.trim(),
+          email: inquiryForm.email.trim(),
+          phone: inquiryForm.phone.trim() || undefined,
+          content: inquiryForm.content.trim(),
+          source: 'chatbot',
+          metadata: { chatHistory: messages.map(m => ({ role: m.role, text: m.text })) },
+        }),
+      });
+      if (!res.ok) throw new Error('전송 실패');
+      setMode('inquiryDone');
+      setInquiryForm({ name: '', email: '', phone: '', content: '' });
+    } catch {
+      setInquiryError('문의 전송에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setInquiryLoading(false);
+    }
+  };
+
   return (
     <>
       {/* 플로팅 버튼 */}
@@ -178,100 +214,217 @@ export default function ChatWidget({ bubbleColor }: { bubbleColor?: string } = {
           {/* 헤더 */}
           <div className="flex items-center gap-3 border-b border-[var(--border-primary)] bg-[var(--bg-card)] px-5 py-4">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--toss-blue)]/20">
-              <span className="text-lg">F</span>
+              <span className="text-lg">{mode === 'chat' ? 'F' : mode === 'inquiry' ? '?' : '!'}</span>
             </div>
             <div>
-              <div className="text-sm font-bold text-[var(--text-primary)]">Foundry 도우미</div>
-              <div className="text-xs text-[var(--text-tertiary)]">무엇이든 물어보세요</div>
+              <div className="text-sm font-bold text-[var(--text-primary)]">
+                {mode === 'chat' ? 'Foundry 도우미' : mode === 'inquiry' ? '문의 남기기' : '접수 완료'}
+              </div>
+              <div className="text-xs text-[var(--text-tertiary)]">
+                {mode === 'chat' ? '무엇이든 물어보세요' : mode === 'inquiry' ? '이메일로 답변드립니다' : '감사합니다'}
+              </div>
             </div>
           </div>
 
-          {/* 메시지 영역 */}
-          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3" style={{ minHeight: '200px' }}>
-            {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                    msg.role === 'user'
-                      ? 'bg-[var(--toss-blue)] text-white rounded-br-md'
-                      : 'bg-[var(--bg-elevated)] text-[var(--text-primary)] rounded-bl-md'
-                  }`}
-                >
-                  {msg.role === 'bot'
-                    ? <MarkdownRenderer content={msg.text} />
-                    : <div style={{ whiteSpace: 'pre-wrap' }}>{msg.text}</div>
-                  }
-                  {msg.link && (
-                    <a
-                      href={msg.link.href}
-                      className={`mt-2 inline-block text-xs font-bold underline underline-offset-2 ${
-                        msg.role === 'user' ? 'text-blue-100' : 'text-[var(--toss-blue)]'
+          {/* ── 채팅 모드 ── */}
+          {mode === 'chat' && (
+            <>
+              {/* 메시지 영역 */}
+              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3" style={{ minHeight: '200px' }}>
+                {messages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div
+                      className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                        msg.role === 'user'
+                          ? 'bg-[var(--toss-blue)] text-white rounded-br-md'
+                          : 'bg-[var(--bg-elevated)] text-[var(--text-primary)] rounded-bl-md'
                       }`}
                     >
-                      {msg.link.label} &rarr;
-                    </a>
-                  )}
-                </div>
+                      {msg.role === 'bot'
+                        ? <MarkdownRenderer content={msg.text} />
+                        : <div style={{ whiteSpace: 'pre-wrap' }}>{msg.text}</div>
+                      }
+                      {msg.link && (
+                        <a
+                          href={msg.link.href}
+                          className={`mt-2 inline-block text-xs font-bold underline underline-offset-2 ${
+                            msg.role === 'user' ? 'text-blue-100' : 'text-[var(--toss-blue)]'
+                          }`}
+                        >
+                          {msg.link.label} &rarr;
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {isLoading && (
+                  <div className="flex justify-start">
+                    <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-[var(--bg-elevated)] px-4 py-2.5 text-sm text-[var(--text-secondary)]">
+                      <span className="inline-flex gap-1">
+                        <span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
+                        <span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span>
+                        <span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span>
+                      </span>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
               </div>
-            ))}
-            {isLoading && (
-              <div className="flex justify-start">
-                <div className="max-w-[85%] rounded-2xl rounded-bl-md bg-[var(--bg-elevated)] px-4 py-2.5 text-sm text-[var(--text-secondary)]">
-                  <span className="inline-flex gap-1">
-                    <span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span>
-                    <span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span>
-                    <span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span>
-                  </span>
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
 
-          {/* 빠른 버튼 */}
-          {showQuickButtons && (
-            <div className="flex flex-wrap gap-2 px-4 pb-3">
-              {QUICK_BUTTONS.map(btn => (
+              {/* 빠른 버튼 + 문의 남기기 */}
+              {showQuickButtons && (
+                <div className="flex flex-wrap gap-2 px-4 pb-3">
+                  {QUICK_BUTTONS.map(btn => (
+                    <button
+                      key={btn.label}
+                      onClick={() => sendMessage(btn.message)}
+                      className="rounded-full border border-[var(--toss-blue)]/30 bg-[var(--toss-blue)]/10 px-3.5 py-1.5 text-xs font-medium text-[var(--toss-blue)] hover:bg-[var(--toss-blue)]/20 transition-colors"
+                    >
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* 문의 남기기 버튼 (항상 표시) */}
+              <div className="px-4 pb-2">
                 <button
-                  key={btn.label}
-                  onClick={() => sendMessage(btn.message)}
-                  className="rounded-full border border-[var(--toss-blue)]/30 bg-[var(--toss-blue)]/10 px-3.5 py-1.5 text-xs font-medium text-[var(--toss-blue)] hover:bg-[var(--toss-blue)]/20 transition-colors"
+                  onClick={() => setMode('inquiry')}
+                  className="w-full rounded-xl border border-[var(--border-primary)] bg-[var(--bg-elevated)] py-2 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-card)] transition-colors flex items-center justify-center gap-1.5"
                 >
-                  {btn.label}
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  문의 남기기
                 </button>
-              ))}
-            </div>
+              </div>
+
+              {/* 입력 */}
+              <form onSubmit={handleSubmit} className="flex items-center gap-2 border-t border-[var(--border-primary)] px-4 py-3">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  placeholder="궁금한 점을 입력하세요..."
+                  className="flex-1 rounded-xl bg-[var(--bg-elevated)] px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none focus:ring-1 focus:ring-[#3182f6]/50"
+                />
+                <button
+                  type="submit"
+                  disabled={!input.trim() || isLoading}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--toss-blue)] text-white disabled:opacity-40 hover:bg-[var(--toss-blue-hover)] transition-colors"
+                >
+                  <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </form>
+
+              {/* 하단 CTA */}
+              <div className="border-t border-[var(--border-primary)] bg-[var(--bg-card)] px-4 py-3">
+                <a
+                  href="/start"
+                  className="block rounded-xl bg-[var(--toss-blue)] py-2.5 text-center text-sm font-bold text-white hover:bg-[var(--toss-blue-hover)] transition-colors"
+                >
+                  지금 앱 만들어보기 &rarr;
+                </a>
+              </div>
+            </>
           )}
 
-          {/* 입력 */}
-          <form onSubmit={handleSubmit} className="flex items-center gap-2 border-t border-[var(--border-primary)] px-4 py-3">
-            <input
-              type="text"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              placeholder="궁금한 점을 입력하세요..."
-              className="flex-1 rounded-xl bg-[var(--bg-elevated)] px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none focus:ring-1 focus:ring-[#3182f6]/50"
-            />
-            <button
-              type="submit"
-              disabled={!input.trim() || isLoading}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--toss-blue)] text-white disabled:opacity-40 hover:bg-[var(--toss-blue-hover)] transition-colors"
-            >
-              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
-              </svg>
-            </button>
-          </form>
+          {/* ── 문의 남기기 모드 ── */}
+          {mode === 'inquiry' && (
+            <form onSubmit={handleInquirySubmit} className="flex-1 overflow-y-auto px-5 py-5 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">
+                  이름 <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={inquiryForm.name}
+                  onChange={e => setInquiryForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="홍길동"
+                  className="w-full rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-primary)] px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none focus:ring-1 focus:ring-[#3182f6]/50"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">
+                  이메일 <span className="text-red-400">*</span>
+                  <span className="font-normal text-[var(--text-tertiary)] ml-1">(답변받을 주소)</span>
+                </label>
+                <input
+                  type="email"
+                  value={inquiryForm.email}
+                  onChange={e => setInquiryForm(f => ({ ...f, email: e.target.value }))}
+                  placeholder="email@example.com"
+                  className="w-full rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-primary)] px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none focus:ring-1 focus:ring-[#3182f6]/50"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">
+                  전화번호 <span className="font-normal text-[var(--text-tertiary)]">(선택)</span>
+                </label>
+                <input
+                  type="tel"
+                  value={inquiryForm.phone}
+                  onChange={e => setInquiryForm(f => ({ ...f, phone: e.target.value }))}
+                  placeholder="010-0000-0000"
+                  className="w-full rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-primary)] px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none focus:ring-1 focus:ring-[#3182f6]/50"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1.5">
+                  문의 내용 <span className="text-red-400">*</span>
+                </label>
+                <textarea
+                  value={inquiryForm.content}
+                  onChange={e => setInquiryForm(f => ({ ...f, content: e.target.value }))}
+                  placeholder="궁금한 점이나 요청사항을 자유롭게 작성해주세요."
+                  rows={4}
+                  className="w-full rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-primary)] px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-tertiary)] outline-none focus:ring-1 focus:ring-[#3182f6]/50 resize-none"
+                />
+              </div>
+              {inquiryError && (
+                <p className="text-xs text-red-400">{inquiryError}</p>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => { setMode('chat'); setInquiryError(''); }}
+                  className="flex-1 rounded-xl border border-[var(--border-primary)] py-2.5 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] transition-colors"
+                >
+                  &#8592; 돌아가기
+                </button>
+                <button
+                  type="submit"
+                  disabled={inquiryLoading}
+                  className="flex-1 rounded-xl bg-[var(--toss-blue)] py-2.5 text-sm font-bold text-white hover:bg-[var(--toss-blue-hover)] transition-colors disabled:opacity-50"
+                >
+                  {inquiryLoading ? '전송 중...' : '보내기'}
+                </button>
+              </div>
+            </form>
+          )}
 
-          {/* 하단 CTA */}
-          <div className="border-t border-[var(--border-primary)] bg-[var(--bg-card)] px-4 py-3">
-            <a
-              href="/start"
-              className="block rounded-xl bg-[var(--toss-blue)] py-2.5 text-center text-sm font-bold text-white hover:bg-[var(--toss-blue-hover)] transition-colors"
-            >
-              지금 앱 만들어보기 &rarr;
-            </a>
-          </div>
+          {/* ── 문의 완료 모드 ── */}
+          {mode === 'inquiryDone' && (
+            <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 text-center">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-500/10">
+                <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="#22c55e" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className="text-base font-bold text-[var(--text-primary)] mb-2">문의가 접수되었습니다!</h3>
+              <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-6">
+                입력하신 이메일로<br />빠르게 답변드리겠습니다.
+              </p>
+              <button
+                onClick={() => setMode('chat')}
+                className="rounded-xl border border-[var(--border-primary)] px-6 py-2.5 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] transition-colors"
+              >
+                &#8592; 채팅으로 돌아가기
+              </button>
+            </div>
+          )}
         </div>
       )}
     </>
