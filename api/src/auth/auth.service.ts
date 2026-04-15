@@ -12,14 +12,14 @@ export class AuthService {
     private config: ConfigService,
   ) {}
 
-  async signup(email: string, password: string, name?: string) {
+  async signup(email: string, password: string, name?: string, phone?: string) {
     // 이메일 형식 검증
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       throw new BadRequestException('유효한 이메일 주소를 입력해주세요');
     }
     // 비밀번호 길이 검증
-    if (!password || password.length < 6) {
-      throw new BadRequestException('비밀번호는 6자 이상이어야 합니다');
+    if (!password || password.length < 8) {
+      throw new BadRequestException('비밀번호는 8자 이상이어야 합니다');
     }
 
     const existing = await this.prisma.user.findUnique({ where: { email } });
@@ -27,10 +27,19 @@ export class AuthService {
 
     const hashed = await bcrypt.hash(password, 10);
     const user = await this.prisma.user.create({
-      data: { email, password: hashed, name, provider: 'email' },
+      data: { email, password: hashed, name, businessPhone: phone || null, provider: 'email' },
     });
 
     return this.issueToken(user.id, user.email);
+  }
+
+  /** 이메일 중복 확인 */
+  async checkEmail(email: string) {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new BadRequestException('유효한 이메일 주소를 입력해주세요');
+    }
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    return { available: !existing };
   }
 
   async login(email: string, password: string) {

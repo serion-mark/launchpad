@@ -12,8 +12,13 @@ export class AuthController {
   ) {}
 
   @Post('signup')
-  signup(@Body() body: { email: string; password: string; name?: string }) {
-    return this.auth.signup(body.email, body.password, body.name);
+  signup(@Body() body: { email: string; password: string; name?: string; phone?: string }) {
+    return this.auth.signup(body.email, body.password, body.name, body.phone);
+  }
+
+  @Post('check-email')
+  checkEmail(@Body() body: { email: string }) {
+    return this.auth.checkEmail(body.email);
   }
 
   @Post('login')
