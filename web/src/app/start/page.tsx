@@ -956,7 +956,7 @@ function StartPage() {
       <header className="border-b border-[var(--border-primary)] px-5 py-4 md:px-8">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <h1>
-            <Logo />
+            <a href="/"><Logo /></a>
           </h1>
           <div className="flex items-center gap-2.5">
             <ThemeToggle />
