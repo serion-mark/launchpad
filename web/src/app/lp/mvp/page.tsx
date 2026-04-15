@@ -273,7 +273,7 @@ export default function LpMvpPage() {
       </div>
 
       {/* ── 챗봇 ── */}
-      <ChatWidget />
+      <ChatWidget bubbleColor="#FBBF24" />
     </div>
   );
 }

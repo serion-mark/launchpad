@@ -96,7 +96,7 @@ function findAnswer(input: string): { answer: string; link?: { label: string; hr
   };
 }
 
-export default function ChatWidget() {
+export default function ChatWidget({ bubbleColor }: { bubbleColor?: string } = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -155,7 +155,8 @@ export default function ChatWidget() {
       {/* 플로팅 버튼 */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--toss-blue)] text-white shadow-lg shadow-[#3182f6]/30 hover:bg-[var(--toss-blue-hover)] transition-all hover:scale-105 active:scale-95"
+        className={`fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all hover:scale-105 active:scale-95 ${bubbleColor ? '' : 'bg-[var(--toss-blue)] text-white shadow-[#3182f6]/30 hover:bg-[var(--toss-blue-hover)]'}`}
+        style={bubbleColor ? { background: bubbleColor, color: '#191f28', boxShadow: `0 10px 15px ${bubbleColor}50` } : undefined}
         aria-label="상담 챗봇"
       >
         {isOpen ? (
