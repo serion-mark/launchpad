@@ -262,6 +262,13 @@ export default function InlineEditor({
             버튼을 누르면 채팅창에 좌표가 입력됩니다.<br/>좌표 뒤에 원하는 변경사항을 적어주세요!
           </p>
         </div>
+
+        {/* 온라인 게시 안내 */}
+        <div className="rounded-lg bg-[var(--toss-blue)]/5 border border-[var(--toss-blue)]/20 px-3 py-2.5">
+          <p className="text-[10px] text-[var(--toss-blue)] leading-relaxed font-medium text-center">
+            적용 후 <strong>&quot;온라인 게시&quot;</strong>를 눌러야<br/>실제 URL에도 변경이 반영됩니다!
+          </p>
+        </div>
       </div>
     </div>
   );
