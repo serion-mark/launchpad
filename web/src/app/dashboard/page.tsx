@@ -319,28 +319,7 @@ export default function DashboardPage() {
                     </button>
                   </div>
 
-                  {/* 독립 패키지 안내 */}
-                  {(project.status === 'active' || project.status === 'deployed') && project.buildStatus === 'done' && (
-                    <div className="mt-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-elevated)]/30 p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-sm">🚀</span>
-                        <span className="text-xs font-bold text-[var(--text-primary)]">이 앱을 독립시키기</span>
-                      </div>
-                      <p className="text-xs text-[var(--text-tertiary)] mb-3">사업이 성장했나요? 내 도메인으로 독립 운영하세요.</p>
-                      <div className="flex gap-2">
-                        <a href="/credits?tab=independence" className="flex-1 rounded-lg bg-[var(--bg-elevated)] py-2 text-center text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--border-hover)] transition-colors">
-                          📦 코드팩 99만
-                        </a>
-                        <a href="/credits?tab=independence" className="flex-1 rounded-lg bg-[var(--bg-elevated)] py-2 text-center text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--border-hover)] transition-colors">
-                          📦 프로팩 199만
-                        </a>
-                        <a href="/credits?tab=independence" className="flex-1 rounded-lg bg-[var(--bg-elevated)] py-2 text-center text-xs font-medium text-[var(--toss-yellow)] hover:bg-[var(--border-hover)] transition-colors">
-                          📦 엔터 499만
-                        </a>
-                      </div>
-                      <p className="text-[10px] text-[var(--text-tertiary)] mt-2 text-center">💡 정부사업비로 정산 가능 (세금계산서 발행)</p>
-                    </div>
-                  )}
+                  {/* 독립 패키지 안내 — 가격 정리 후 재활성화 예정 */}
 
                   {deleteId === project.id && (
                     <div className="mt-4 rounded-xl border border-[var(--toss-red)]/20 bg-[var(--toss-red)]/8 p-4">
