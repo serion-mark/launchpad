@@ -27,8 +27,8 @@ type AppModelTier = 'flash' | 'smart' | 'pro';
 
 const APP_MODELS: Record<AppModelTier, { model: string; maxTokens: number; label: string }> = {
   flash: { model: 'claude-haiku-4-5-20251001', maxTokens: 8192, label: 'Flash (빠르고 저렴)' },
-  smart: { model: 'claude-sonnet-4-20250514', maxTokens: 16384, label: 'Smart (균형잡힌)' },
-  pro:   { model: 'claude-sonnet-4-20250514', maxTokens: 16384, label: 'Pro (최고 품질)' },
+  smart: { model: 'claude-sonnet-4-6', maxTokens: 16384, label: 'Smart (균형잡힌)' },
+  pro:   { model: 'claude-sonnet-4-6', maxTokens: 16384, label: 'Pro (최고 품질)' },
 };
 
 // 레거시 모델맵 (기존 chat/generate 호환)
@@ -569,49 +569,24 @@ export class AiService {
     }
   }
 
-  /** Sonnet + Opus Advisor로 코드 수정 (품질 향상 + 비용 효율) */
-  private async callSonnetWithAdvisor(system: string, userContent: string): Promise<{ content: string; inputTokens: number; outputTokens: number }> {
-    try {
-      const response = await this.anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 16384,
-        system,
-        messages: [{ role: 'user', content: userContent }],
-        tools: [{
-          type: 'advisor_20250301' as any,
-          model: 'claude-opus-4-20250515',
-          max_uses: 3,
-        } as any],
-      });
-      const content = response.content
-        .filter(block => block.type === 'text')
-        .map(block => (block as Anthropic.TextBlock).text)
-        .join('\n');
-      this.logger.log(`[Advisor] Sonnet+Opus 수정 완료 (in: ${response.usage.input_tokens}, out: ${response.usage.output_tokens})`);
-      return {
-        content,
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens,
-      };
-    } catch (err) {
-      // Advisor 실패 시 Sonnet 단독으로 폴백
-      this.logger.warn(`[Advisor] Opus Advisor 실패, Sonnet 단독 폴백: ${err}`);
-      const response = await this.anthropic.messages.create({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 16384,
-        system,
-        messages: [{ role: 'user', content: userContent }],
-      });
-      const content = response.content
-        .filter(block => block.type === 'text')
-        .map(block => (block as Anthropic.TextBlock).text)
-        .join('\n');
-      return {
-        content,
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens,
-      };
-    }
+  /** Sonnet 4.6으로 코드 수정 (Haiku 대비 품질 대폭 향상) */
+  private async callSonnetForModify(system: string, userContent: string): Promise<{ content: string; inputTokens: number; outputTokens: number }> {
+    const response = await this.anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 16384,
+      system,
+      messages: [{ role: 'user', content: userContent }],
+    });
+    const content = response.content
+      .filter(block => block.type === 'text')
+      .map(block => (block as Anthropic.TextBlock).text)
+      .join('\n');
+    this.logger.log(`[Modify] Sonnet 4.6 수정 완료 (in: ${response.usage.input_tokens}, out: ${response.usage.output_tokens})`);
+    return {
+      content,
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+    };
   }
 
   // ── 빌더 채팅 (실시간 대화) ────────────────────────
@@ -1525,9 +1500,9 @@ ${targetFileContents.map(f => `[FILE: ${f.path}]\n${f.content}`).join('\n\n')}
 ${JSON.stringify(project.projectContext || {}, null, 2)}`;
 
     let result: { content: string; inputTokens: number; outputTokens: number; actualTier?: AppModelTier; fellBack?: boolean };
-    // Sonnet + Opus Advisor로 코드 수정 (품질 향상!)
-    this.logger.log(`[${params.projectId}] 코드 수정: Sonnet + Opus Advisor 사용`);
-    const sonnetResult = await this.callSonnetWithAdvisor(MODIFY_SYSTEM_PROMPT, userContent);
+    // Sonnet 4.6으로 코드 수정 (Haiku 대비 품질 대폭 향상!)
+    this.logger.log(`[${params.projectId}] 코드 수정: Sonnet 4.6 사용`);
+    const sonnetResult = await this.callSonnetForModify(MODIFY_SYSTEM_PROMPT, userContent);
     result = { ...sonnetResult, actualTier: 'smart' as AppModelTier, fellBack: false };
 
     const modifiedFiles = this.parseFileOutput(result.content, '');
