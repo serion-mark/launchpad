@@ -206,11 +206,10 @@ export default function BuilderChat({
     if (buildPhase === 'generating') return '생성 중 궁금한 점을 물어보세요...';
     if (buildPhase !== 'done') return '수정사항을 말씀해주세요...';
     const hints = [
-      '예: "버튼을 누르면 상품 목록이 보이게 해줘"',
-      '예: "배경색을 파란색으로 바꿔줘"',
+      '기능 상담, 전략 질문을 해보세요! (코드 수정은 편집 모드)',
+      '예: "이 앱에 어떤 기능을 추가하면 좋을까?"',
+      '예: "회원가입 기능이 필요한데 어떻게 하면 될까?"',
       '예: "새 페이지를 추가해줘"',
-      '예: "로그인 기능을 넣어줘"',
-      '예: "글씨 크기를 더 크게 해줘"',
     ];
     return hints[modifyCount % hints.length];
   };
@@ -448,9 +447,26 @@ export default function BuilderChat({
       return;
     }
 
-    // done 상태: 수정 vs 일반 대화
+    // done 상태: 📍좌표 있으면 코드 수정, 아니면 상담 대화
+    const hasCoordinate = userMsg.content.includes('📍') || !!selectedElement;
     if (buildPhase === 'done' && projectId) {
-      if (isModifyRequest) {
+      // 📍좌표 없이 수정 키워드만 있으면 → 편집 모드 안내
+      if (isModifyRequest && !hasCoordinate) {
+        const guideMsg: Message = {
+          id: (Date.now() + 1).toString(), role: 'assistant',
+          content: '💡 **코드 수정은 편집 모드를 사용해주세요!**\n\n'
+            + '**편집 모드 사용법:**\n'
+            + '1. 상단의 **"편집"** 버튼을 켜세요\n'
+            + '2. 미리보기에서 수정할 부분을 **클릭**하세요\n'
+            + '3. 텍스트/색상을 직접 수정하거나, **"버튼에 기능 부여하기"**를 눌러주세요\n\n'
+            + '이 채팅에서는 기능 상담, 전략 질문, 앱 관련 문의가 가능합니다!',
+          timestamp: new Date().toISOString(), type: 'text',
+        };
+        setMessages([...newMessages, guideMsg]);
+        setIsTyping(false);
+        return;
+      }
+      if (hasCoordinate) {
         // 단계별 진행 상태 표시 (같은 메시지 ID로 content 업데이트)
         const statusMsgId = `modify-${Date.now()}`;
         const updateStatus = (content: string) => {
