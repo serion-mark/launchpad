@@ -569,23 +569,49 @@ export class AiService {
     }
   }
 
-  /** Haiku로 코드 수정 호출 (Sonnet 대비 1/12 비용!) */
-  private async callHaikuForModify(system: string, userContent: string): Promise<{ content: string; inputTokens: number; outputTokens: number }> {
-    const response = await this.anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 8192,
-      system,
-      messages: [{ role: 'user', content: userContent }],
-    });
-    const content = response.content
-      .filter(block => block.type === 'text')
-      .map(block => (block as Anthropic.TextBlock).text)
-      .join('\n');
-    return {
-      content,
-      inputTokens: response.usage.input_tokens,
-      outputTokens: response.usage.output_tokens,
-    };
+  /** Sonnet + Opus Advisor로 코드 수정 (품질 향상 + 비용 효율) */
+  private async callSonnetWithAdvisor(system: string, userContent: string): Promise<{ content: string; inputTokens: number; outputTokens: number }> {
+    try {
+      const response = await this.anthropic.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 16384,
+        system,
+        messages: [{ role: 'user', content: userContent }],
+        tools: [{
+          type: 'advisor_20250301' as any,
+          model: 'claude-opus-4-20250515',
+          max_uses: 3,
+        } as any],
+      });
+      const content = response.content
+        .filter(block => block.type === 'text')
+        .map(block => (block as Anthropic.TextBlock).text)
+        .join('\n');
+      this.logger.log(`[Advisor] Sonnet+Opus 수정 완료 (in: ${response.usage.input_tokens}, out: ${response.usage.output_tokens})`);
+      return {
+        content,
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+      };
+    } catch (err) {
+      // Advisor 실패 시 Sonnet 단독으로 폴백
+      this.logger.warn(`[Advisor] Opus Advisor 실패, Sonnet 단독 폴백: ${err}`);
+      const response = await this.anthropic.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 16384,
+        system,
+        messages: [{ role: 'user', content: userContent }],
+      });
+      const content = response.content
+        .filter(block => block.type === 'text')
+        .map(block => (block as Anthropic.TextBlock).text)
+        .join('\n');
+      return {
+        content,
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+      };
+    }
   }
 
   // ── 빌더 채팅 (실시간 대화) ────────────────────────
@@ -1499,10 +1525,10 @@ ${targetFileContents.map(f => `[FILE: ${f.path}]\n${f.content}`).join('\n\n')}
 ${JSON.stringify(project.projectContext || {}, null, 2)}`;
 
     let result: { content: string; inputTokens: number; outputTokens: number; actualTier?: AppModelTier; fellBack?: boolean };
-    // Haiku로 코드 수정 (Sonnet 대비 1/12 비용! + Claude용 프롬프트 호환!)
-    this.logger.log(`[${params.projectId}] 코드 수정: Claude Haiku 사용 (비용 절감)`);
-    const haikuResult = await this.callHaikuForModify(MODIFY_SYSTEM_PROMPT, userContent);
-    result = { ...haikuResult, actualTier: 'flash' as AppModelTier, fellBack: true };
+    // Sonnet + Opus Advisor로 코드 수정 (품질 향상!)
+    this.logger.log(`[${params.projectId}] 코드 수정: Sonnet + Opus Advisor 사용`);
+    const sonnetResult = await this.callSonnetWithAdvisor(MODIFY_SYSTEM_PROMPT, userContent);
+    result = { ...sonnetResult, actualTier: 'smart' as AppModelTier, fellBack: false };
 
     const modifiedFiles = this.parseFileOutput(result.content, '');
     const actualTier: CreditModelTier = result.fellBack ? 'flash' : (tier as CreditModelTier);
