@@ -62,6 +62,7 @@ interface BuilderPreviewProps {
   isSaving: boolean;
   onSavingChange: (saving: boolean) => void;
   onStartTutorial?: () => void;
+  isTyping?: boolean;
 }
 
 export default function BuilderPreview({
@@ -85,14 +86,15 @@ export default function BuilderPreview({
   isSaving,
   onSavingChange,
   onStartTutorial,
+  isTyping = false,
 }: BuilderPreviewProps) {
 
   const isPreviewFocused = buildPhase === 'done' || buildPhase === 'generating';
   const [showTutorial, setShowTutorial] = useState(false);
 
-  // 재배포 중 브라우저 이탈 방지
+  // 수정/재배포 중 브라우저 이탈 방지
   useEffect(() => {
-    if (!isRedeploying && !isSaving) return;
+    if (!isRedeploying && !isSaving && !isTyping) return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
     };
@@ -238,8 +240,8 @@ export default function BuilderPreview({
         </div>
       </div>
 
-      {/* 재배포 중 경고 배너 */}
-      {(isRedeploying || isSaving) && (
+      {/* 수정/재배포 중 경고 배너 */}
+      {(isRedeploying || isSaving || isTyping) && (
         <div className="flex items-center justify-center gap-2 bg-[#ff6b35] px-4 py-2.5 text-white">
           <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
           <span className="text-xs font-bold">수정 적용 중입니다 — 프로그램 종료, 새로고침, 뒤로가기를 누르지 마세요!</span>

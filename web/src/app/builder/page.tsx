@@ -701,6 +701,7 @@ function BuilderContent() {
         isSaving={isSaving}
         onSavingChange={setIsSaving}
         onStartTutorial={() => setShowTutorial(true)}
+        isTyping={isTyping}
       />
 
       {/* 빌더 튜토리얼 (첫 방문 가이드) */}
