@@ -2121,10 +2121,9 @@ ${existingFiles.slice(0, 15).map(f => `[FILE: ${f.path}]\n${f.content}`).join('\
 마크다운 코드 블록(\`\`\`) 사용 금지! 순수 코드만 출력하세요.
 
 잘린 코드의 마지막 30줄:
-${lastLines}`,
-      }, {
-        role: 'assistant',
-        content: lastLines.split('\n').slice(-3).join('\n').trimEnd() || '// continue',
+${lastLines}
+
+위 코드의 마지막 줄부터 이어서 나머지 코드만 작성해주세요.`,
       }]);
 
       // 이어붙이기 (중복 줄 제거)
