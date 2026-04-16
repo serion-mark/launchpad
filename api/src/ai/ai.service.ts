@@ -863,7 +863,7 @@ export class AiService {
 
       // 400/404/403 또는 모델 접근 불가 → Haiku(flash)로 폴백
       if (tier !== 'flash' && (error.status === 400 || error.status === 404 || error.status === 403 || error.message?.includes('model'))) {
-        this.logger.warn(`${tier} 모델 사용 불가 (${error.status}), flash로 폴백합니다`);
+        this.logger.warn(`${tier} 모델 사용 불가 (${error.status}), flash로 폴백합니다. 상세: ${error.message?.slice(0, 200)}`);
 
         await this.rateLimitDelay(3000);
         const fallbackModel = APP_MODELS.flash;
