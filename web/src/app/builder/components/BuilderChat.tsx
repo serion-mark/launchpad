@@ -164,10 +164,17 @@ export default function BuilderChat({
   isSaving,
 }: BuilderChatProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [mode, setMode] = useState<'build' | 'discuss'>('build');
   const [isAgentRunning, setIsAgentRunning] = useState(false);
   const [agentTask, setAgentTask] = useState('');
+
+  // textarea 높이 리셋 (input이 비워질 때)
+  useEffect(() => {
+    if (!input && inputRef.current) {
+      inputRef.current.style.height = 'auto';
+    }
+  }, [input]);
 
   // 칩 선택 상태
   const [selectedChips, setSelectedChips] = useState<string[]>([]);
@@ -927,14 +934,27 @@ export default function BuilderChat({
 
       {/* 입력 */}
       <div data-tutorial="chat-input" className="border-t border-[var(--border-secondary)] bg-[var(--bg-header)] px-4 py-3">
-        <div className="flex gap-2">
-          <input
+        <div className="flex gap-2 items-end">
+          <textarea
             ref={inputRef}
             value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && !e.nativeEvent.isComposing && sendMessage()}
+            onChange={e => {
+              setInput(e.target.value);
+              // 자동 높이 조절
+              const el = e.target;
+              el.style.height = 'auto';
+              el.style.height = Math.min(el.scrollHeight, 150) + 'px';
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                sendMessage();
+              }
+            }}
             placeholder={getPlaceholder()}
-            className="flex-1 rounded-xl border border-[var(--border-secondary)] bg-[var(--bg-subtle)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder-[var(--text-disabled)] outline-none focus:border-[var(--toss-blue)]/50 transition-colors"
+            rows={1}
+            className="flex-1 rounded-xl border border-[var(--border-secondary)] bg-[var(--bg-subtle)] px-4 py-3 text-sm text-[var(--text-primary)] placeholder-[var(--text-disabled)] outline-none focus:border-[var(--toss-blue)]/50 transition-colors resize-none overflow-y-auto"
+            style={{ minHeight: 44, maxHeight: 150 }}
             disabled={isTyping}
           />
           {buildPhase === 'done' && (
