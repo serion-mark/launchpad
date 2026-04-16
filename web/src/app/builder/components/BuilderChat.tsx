@@ -515,7 +515,7 @@ export default function BuilderChat({
               replyContent += `수정된 파일 (${modifyResult.modifiedFiles.length}개): ${paths}\n`;
               if (modifyResult.totalCredits > 0) replyContent += `💰 ${modifyResult.totalCredits}cr 사용 | 잔액: ${creditBalance !== null ? (creditBalance - modifyResult.totalCredits).toLocaleString() : '?'}cr\n`;
               if (modifyResult.fellBack) replyContent += `⚠️ Flash 모델로 자동 전환됨\n`;
-              replyContent += `\n🔄 미리보기에 반영 중입니다. (약 2~3분)\n추가 수정이 필요하면 말씀해주세요!`;
+              replyContent += `\n🔄 미리보기에 반영 중입니다. (약 2~3분)\n**미리보기에서 결과를 꼭 확인해주세요!**\n반영되지 않았다면 다시 요청해주세요.`;
               updateStatus(replyContent);
               setIsTyping(false);
               setMessages(prev => {
