@@ -36,7 +36,7 @@ export const MODELS: Record<ModelTier, ModelConfig> = {
     },
     standard: {
         provider: 'anthropic',
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet-4-20250514',
         inputCostPer1M: 3,
         outputCostPer1M: 15,
         maxTokens: 16384,
@@ -44,7 +44,7 @@ export const MODELS: Record<ModelTier, ModelConfig> = {
     },
     premium: {
         provider: 'anthropic',
-        model: 'claude-sonnet-4-6',
+        model: 'claude-sonnet-4-20250514',
         inputCostPer1M: 5,
         outputCostPer1M: 25,
         maxTokens: 16384,
@@ -86,12 +86,12 @@ const CREDIT_COST: Record<TaskType, number> = {
 // ── AI 회의실 모델 매핑 ─────────────────────────────────
 export const MEETING_MODELS = {
     standard: {
-        claude: 'claude-sonnet-4-6',
+        claude: 'claude-sonnet-4-20250514',
         gpt: 'gpt-4o',
         gemini: 'gemini-2.5-flash',
     },
     premium: {
-        claude: 'claude-sonnet-4-6',  // Opus 크레딧 부족 시 Sonnet 사용
+        claude: 'claude-sonnet-4-20250514',  // Opus 크레딧 부족 시 Sonnet 사용
         gpt: 'gpt-4o',
         gemini: 'gemini-2.5-flash',
     },
@@ -119,7 +119,7 @@ export class LLMRouter {
 
     // ── 범용 프로바이더별 호출 메서드 (AI 회의실/스마트 분석용) ──
 
-    async callAnthropic(system: string, user: string, model = 'claude-sonnet-4-6', maxTokens = 4096): Promise<string> {
+    async callAnthropic(system: string, user: string, model = 'claude-sonnet-4-20250514', maxTokens = 4096): Promise<string> {
         const response = await this.anthropic.messages.create({
             model,
             max_tokens: maxTokens,

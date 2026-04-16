@@ -27,8 +27,8 @@ type AppModelTier = 'flash' | 'smart' | 'pro';
 
 const APP_MODELS: Record<AppModelTier, { model: string; maxTokens: number; label: string }> = {
   flash: { model: 'claude-haiku-4-5-20251001', maxTokens: 8192, label: 'Flash (빠르고 저렴)' },
-  smart: { model: 'claude-sonnet-4-6', maxTokens: 16384, label: 'Smart (균형잡힌)' },
-  pro:   { model: 'claude-sonnet-4-6', maxTokens: 16384, label: 'Pro (최고 품질)' },
+  smart: { model: 'claude-sonnet-4-20250514', maxTokens: 16384, label: 'Smart (균형잡힌)' },
+  pro:   { model: 'claude-sonnet-4-20250514', maxTokens: 16384, label: 'Pro (최고 품질)' },
 };
 
 // 레거시 모델맵 (기존 chat/generate 호환)
@@ -569,11 +569,11 @@ export class AiService {
     }
   }
 
-  /** Sonnet 4.6으로 코드 수정 */
-  private async callSonnetForModify(system: string, userContent: string): Promise<{ content: string; inputTokens: number; outputTokens: number }> {
+  /** Haiku로 코드 수정 호출 (Sonnet 대비 1/12 비용!) */
+  private async callHaikuForModify(system: string, userContent: string): Promise<{ content: string; inputTokens: number; outputTokens: number }> {
     const response = await this.anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 16384,
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 8192,
       system,
       messages: [{ role: 'user', content: userContent }],
     });
@@ -581,7 +581,6 @@ export class AiService {
       .filter(block => block.type === 'text')
       .map(block => (block as Anthropic.TextBlock).text)
       .join('\n');
-    this.logger.log(`[Modify] Sonnet 4.6 수정 완료 (in: ${response.usage.input_tokens}, out: ${response.usage.output_tokens})`);
     return {
       content,
       inputTokens: response.usage.input_tokens,
@@ -861,9 +860,9 @@ export class AiService {
         }
       }
 
-      // 400/404/403 또는 모델 접근 불가 → Haiku(flash)로 폴백
-      if (tier !== 'flash' && (error.status === 400 || error.status === 404 || error.status === 403 || error.message?.includes('model'))) {
-        this.logger.warn(`${tier} 모델 사용 불가 (${error.status}), flash로 폴백합니다. 상세: ${error.message?.slice(0, 200)}`);
+      // 404 또는 모델 접근 불가 → Haiku(flash)로 폴백
+      if (tier !== 'flash' && (error.status === 404 || error.status === 403 || error.message?.includes('model'))) {
+        this.logger.warn(`${tier} 모델 사용 불가 (${error.status}), flash로 폴백합니다`);
 
         await this.rateLimitDelay(3000);
         const fallbackModel = APP_MODELS.flash;
@@ -1500,10 +1499,10 @@ ${targetFileContents.map(f => `[FILE: ${f.path}]\n${f.content}`).join('\n\n')}
 ${JSON.stringify(project.projectContext || {}, null, 2)}`;
 
     let result: { content: string; inputTokens: number; outputTokens: number; actualTier?: AppModelTier; fellBack?: boolean };
-    // Sonnet 4.6으로 코드 수정 (Haiku 대비 품질 대폭 향상!)
-    this.logger.log(`[${params.projectId}] 코드 수정: Sonnet 4.6 사용`);
-    const sonnetResult = await this.callSonnetForModify(MODIFY_SYSTEM_PROMPT, userContent);
-    result = { ...sonnetResult, actualTier: 'smart' as AppModelTier, fellBack: false };
+    // Haiku로 코드 수정 (Sonnet 대비 1/12 비용! + Claude용 프롬프트 호환!)
+    this.logger.log(`[${params.projectId}] 코드 수정: Claude Haiku 사용 (비용 절감)`);
+    const haikuResult = await this.callHaikuForModify(MODIFY_SYSTEM_PROMPT, userContent);
+    result = { ...haikuResult, actualTier: 'flash' as AppModelTier, fellBack: true };
 
     const modifiedFiles = this.parseFileOutput(result.content, '');
     const actualTier: CreditModelTier = result.fellBack ? 'flash' : (tier as CreditModelTier);
@@ -2121,9 +2120,10 @@ ${existingFiles.slice(0, 15).map(f => `[FILE: ${f.path}]\n${f.content}`).join('\
 마크다운 코드 블록(\`\`\`) 사용 금지! 순수 코드만 출력하세요.
 
 잘린 코드의 마지막 30줄:
-${lastLines}
-
-위 코드의 마지막 줄부터 이어서 나머지 코드만 작성해주세요.`,
+${lastLines}`,
+      }, {
+        role: 'assistant',
+        content: lastLines.split('\n').slice(-3).join('\n').trimEnd() || '// continue',
       }]);
 
       // 이어붙이기 (중복 줄 제거)
