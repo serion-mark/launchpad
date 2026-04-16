@@ -487,7 +487,7 @@ export default function BuilderChat({
             const errorMsgs: Record<string, string> = {
               credit: '💳 크레딧이 부족합니다. [크레딧 충전하기 →](/credits) 후 다시 시도해주세요.',
               network: '🌐 네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
-              api: '⚠️ AI 수정에 실패했습니다. 더 간단한 요청으로 다시 시도해주세요.\n\n예: "메인 페이지 배경색을 파란색으로 바꿔줘"',
+              api: '⚠️ 이 요청은 AI가 자동으로 처리하기 어렵습니다.\n\n**이런 방법을 시도해보세요:**\n• 이미지 변경: 편집 모드에서 이미지를 클릭하면 URL을 직접 변경할 수 있습니다\n• 색상/텍스트 변경: 편집 모드에서 클릭하여 직접 수정하세요\n• 기능 추가: "로그인 페이지 만들어줘"처럼 구체적으로 요청해주세요',
             };
             updateStatus(errorMsgs[modifyResult._error] || errorMsgs.api);
             setIsTyping(false);
@@ -524,15 +524,15 @@ export default function BuilderChat({
               });
             }, 2000);
           } else if (modifyResult) {
-            updateStatus('요청을 분석했지만 수정할 코드를 찾지 못했습니다. 좀 더 구체적으로 말씀해주세요.\n\n예: "메인 페이지 배경색을 파란색으로 바꿔줘"');
+            updateStatus('요청을 분석했지만 수정할 코드를 찾지 못했습니다.\n\n**이렇게 시도해보세요:**\n• "메인 페이지 제목 글자를 빨간색으로 바꿔줘"\n• "상품 카드에 가격 표시해줘"\n• 편집 모드에서 직접 클릭하여 수정할 수도 있습니다!');
             setIsTyping(false);
           } else {
-            updateStatus('좀 더 구체적으로 말씀해주세요. 예: "메인 페이지 배경색을 파란색으로 바꿔줘"');
+            updateStatus('요청을 이해하지 못했습니다.\n\n**이렇게 말씀해주세요:**\n• "배경색을 파란색으로 바꿔줘"\n• "로그인 페이지 추가해줘"\n• 또는 편집 모드에서 직접 클릭하여 수정하세요!');
             setIsTyping(false);
           }
         } catch (err) {
           console.error('Modify API error:', err);
-          updateStatus('⚠️ 코드 수정에 실패했습니다.\n\n다시 시도하거나 좀 더 구체적으로 요청해주세요.\n예: "메인 페이지 배경색을 파란색으로 바꿔줘"');
+          updateStatus('⚠️ 코드 수정 중 오류가 발생했습니다.\n\n**다시 시도해보세요:**\n• 같은 요청을 한 번 더 보내보세요\n• "배경색 바꿔줘"처럼 간단하게 요청해보세요\n• 편집 모드에서 직접 수정할 수도 있습니다!');
           setIsTyping(false);
         }
         return; // 무조건 return! 일반 채팅으로 절대 빠지지 않게!
@@ -846,7 +846,7 @@ export default function BuilderChat({
                     const errorMsgs: Record<string, string> = {
                       credit: '💳 크레딧이 부족합니다. [크레딧 충전하기 →](/credits) 후 다시 시도해주세요.',
                       network: '🌐 네트워크 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
-                      api: '⚠️ AI 수정에 실패했습니다. 채팅으로 구체적인 수정을 요청해주세요.',
+                      api: '⚠️ 이 요청은 AI가 처리하기 어렵습니다. 채팅에서 "배경색 바꿔줘"처럼 구체적으로 요청하거나, 편집 모드에서 직접 수정해보세요!',
                     };
                     setMessages(prev => [...prev, {
                       id: Date.now().toString(), role: 'assistant' as const,
