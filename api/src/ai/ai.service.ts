@@ -569,24 +569,50 @@ export class AiService {
     }
   }
 
-  /** Sonnet 4.6으로 코드 수정 (Haiku 대비 품질 대폭 향상) */
+  /** Sonnet 4.6 + Opus 4.6 Advisor로 코드 수정 (품질 극대화) */
   private async callSonnetForModify(system: string, userContent: string): Promise<{ content: string; inputTokens: number; outputTokens: number }> {
-    const response = await this.anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 16384,
-      system,
-      messages: [{ role: 'user', content: userContent }],
-    });
-    const content = response.content
-      .filter(block => block.type === 'text')
-      .map(block => (block as Anthropic.TextBlock).text)
-      .join('\n');
-    this.logger.log(`[Modify] Sonnet 4.6 수정 완료 (in: ${response.usage.input_tokens}, out: ${response.usage.output_tokens})`);
-    return {
-      content,
-      inputTokens: response.usage.input_tokens,
-      outputTokens: response.usage.output_tokens,
-    };
+    try {
+      // Sonnet + Opus Advisor 조합
+      const response = await this.anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 16384,
+        system,
+        messages: [{ role: 'user', content: userContent }],
+        tools: [{
+          type: 'advisor_20260301',
+          model: 'claude-opus-4-6',
+          max_uses: 3,
+        } as any],
+      });
+      const content = response.content
+        .filter(block => block.type === 'text')
+        .map(block => (block as Anthropic.TextBlock).text)
+        .join('\n');
+      this.logger.log(`[Modify] Sonnet 4.6 + Opus Advisor 수정 완료 (in: ${response.usage.input_tokens}, out: ${response.usage.output_tokens})`);
+      return {
+        content,
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+      };
+    } catch (err: any) {
+      // Advisor 실패 시 Sonnet 단독 폴백
+      this.logger.warn(`[Modify] Opus Advisor 실패 (${err?.status || 'unknown'}), Sonnet 4.6 단독 폴백`);
+      const response = await this.anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 16384,
+        system,
+        messages: [{ role: 'user', content: userContent }],
+      });
+      const content = response.content
+        .filter(block => block.type === 'text')
+        .map(block => (block as Anthropic.TextBlock).text)
+        .join('\n');
+      return {
+        content,
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+      };
+    }
   }
 
   // ── 빌더 채팅 (실시간 대화) ────────────────────────
