@@ -284,7 +284,7 @@ export default function BuilderPreview({
               <iframe
                 ref={iframeRef}
                 key={iframeKey}
-                src={deployedUrl}
+                src={`${deployedUrl}?v=${iframeKey}`}
                 className="h-full w-full border-0 bg-white"
                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
                 title="앱 미리보기"
