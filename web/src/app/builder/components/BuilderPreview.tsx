@@ -90,6 +90,16 @@ export default function BuilderPreview({
   const isPreviewFocused = buildPhase === 'done' || buildPhase === 'generating';
   const [showTutorial, setShowTutorial] = useState(false);
 
+  // 재배포 중 브라우저 이탈 방지
+  useEffect(() => {
+    if (!isRedeploying && !isSaving) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [isRedeploying, isSaving]);
+
   // ── 비주얼 에디터: 편집 모드 ──
   const [editMode, setEditMode] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -227,6 +237,14 @@ export default function BuilderPreview({
           </button>
         </div>
       </div>
+
+      {/* 재배포 중 경고 배너 */}
+      {(isRedeploying || isSaving) && (
+        <div className="flex items-center justify-center gap-2 bg-[#ff6b35] px-4 py-2.5 text-white">
+          <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
+          <span className="text-xs font-bold">수정 적용 중입니다 — 프로그램 종료, 새로고침, 뒤로가기를 누르지 마세요!</span>
+        </div>
+      )}
 
       {/* 미리보기 영역 */}
       <div className="flex-1 overflow-auto">
