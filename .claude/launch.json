@@ -2,11 +2,11 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "launchpad-web",
+      "name": "foundry-web",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3001,
-      "cwd": "/Users/mark/Desktop/정부지원사업 MVP 빌더(가칭)/launchpad/web"
+      "cwd": "web"
     }
   ]
 }

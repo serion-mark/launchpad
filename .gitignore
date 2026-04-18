@@ -6,3 +6,5 @@ package-lock.json
 api/dist/
 node_modules
 memory/BASICS.md
+demos/
+유령파일모음/
