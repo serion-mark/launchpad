@@ -30,6 +30,35 @@ export default function BuilderAgentPage() {
           </span>
         </div>
         <div className="flex items-center gap-2 text-xs">
+          {/* 실시간 상태 뱃지 */}
+          {state.status === 'streaming' && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
+              </span>
+              <span className="hidden sm:inline">작업 중</span>
+              <span className="font-mono text-[10px] opacity-70">
+                iter {state.iteration}
+              </span>
+            </span>
+          )}
+          {state.status === 'awaiting_answer' && !state.submittingAnswer && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 font-medium text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+              💬 <span className="hidden sm:inline">답변 대기</span>
+            </span>
+          )}
+          {state.submittingAnswer && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+              <span className="inline-block h-2 w-2 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+              <span className="hidden sm:inline">전송 중</span>
+            </span>
+          )}
+          {state.status === 'complete' && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+              ✅ <span className="hidden sm:inline">완료</span>
+            </span>
+          )}
           {state.sessionId && (
             <span className="hidden font-mono text-slate-500 sm:inline dark:text-slate-400">
               {state.sessionId.slice(0, 8)}

@@ -53,6 +53,11 @@ export interface UseAgentStreamState {
   pendingCard: CardRequest | null;
   error: string | null;
   costUsd: number;
+  // 실시간 활동 표시용 — 사용자가 진행 상황을 체감할 수 있도록
+  lastActivity: string;        // 최신 도구/텍스트의 짧은 요약
+  iteration: number;           // 현재 iter 번호
+  toolCount: number;           // 누적 도구 호출 수
+  submittingAnswer: boolean;   // 답변 POST 중 (answer → 서버 도달 전)
 }
 
 export function useAgentStream() {
@@ -63,6 +68,10 @@ export function useAgentStream() {
     pendingCard: null,
     error: null,
     costUsd: 0,
+    lastActivity: '',
+    iteration: 0,
+    toolCount: 0,
+    submittingAnswer: false,
   });
   const abortRef = useRef<AbortController | null>(null);
 
@@ -74,13 +83,41 @@ export function useAgentStream() {
     (ev: AgentEvent) => {
       switch (ev.type) {
         case 'start':
-          setState((s) => ({ ...s, sessionId: ev.sessionId, status: 'streaming' }));
+          setState((s) => ({
+            ...s,
+            sessionId: ev.sessionId,
+            status: 'streaming',
+            lastActivity: '🚀 세션 시작 — Agent 준비 중...',
+          }));
           append({ kind: 'system', text: `세션 시작 (${ev.sessionId.slice(0, 8)})`, ts: Date.now() });
           break;
-        case 'assistant_text':
+        case 'iteration':
+          setState((s) => ({
+            ...s,
+            iteration: ev.n,
+            lastActivity: `🧠 Agent 생각 중... (iter ${ev.n})`,
+          }));
+          break;
+        case 'assistant_text': {
+          const preview = ev.text.replace(/\s+/g, ' ').slice(0, 60);
+          setState((s) => ({ ...s, lastActivity: `💬 ${preview}${ev.text.length > 60 ? '...' : ''}` }));
           append({ kind: 'assistant', text: ev.text, ts: Date.now() });
           break;
-        case 'tool_call':
+        }
+        case 'tool_call': {
+          const input = ev.input as any;
+          let summary = ev.name;
+          if (ev.name === 'Bash') summary = `💻 실행: ${String(input?.command ?? '').slice(0, 50)}`;
+          else if (ev.name === 'Write') summary = `📝 작성: ${input?.path ?? ''}`;
+          else if (ev.name === 'Read') summary = `📖 읽기: ${input?.path ?? ''}`;
+          else if (ev.name === 'Glob') summary = `🔍 탐색: ${input?.pattern ?? ''}`;
+          else if (ev.name === 'Grep') summary = `🔎 검색: "${input?.pattern ?? ''}"`;
+          else if (ev.name === 'AskUser') summary = `❓ 질문 카드 준비`;
+          setState((s) => ({
+            ...s,
+            lastActivity: summary,
+            toolCount: s.toolCount + 1,
+          }));
           append({
             kind: 'tool',
             name: ev.name,
@@ -88,6 +125,7 @@ export function useAgentStream() {
             ts: Date.now(),
           });
           break;
+        }
         case 'tool_result':
           setState((s) => {
             const reversed = [...s.entries].reverse();
@@ -101,11 +139,21 @@ export function useAgentStream() {
               ok: ev.ok,
               durationMs: ev.durationMs,
             } as ChatEntry;
-            return { ...s, entries: updated };
+            return {
+              ...s,
+              entries: updated,
+              lastActivity: ev.ok ? '✅ 완료 — 다음 단계 준비 중' : '⚠️ 오류 — 수정 시도 중',
+            };
           });
           break;
         case 'card_request':
-          setState((s) => ({ ...s, pendingCard: ev.card, status: 'awaiting_answer' }));
+          setState((s) => ({
+            ...s,
+            pendingCard: ev.card,
+            status: 'awaiting_answer',
+            lastActivity: '👉 답변을 기다리는 중',
+            submittingAnswer: false,
+          }));
           append({ kind: 'card', card: ev.card, ts: Date.now() });
           break;
         case 'card_answered':
@@ -115,7 +163,14 @@ export function useAgentStream() {
                 ? { ...e, answered: ev.answerSummary }
                 : e,
             );
-            return { ...s, pendingCard: null, entries: updated, status: 'streaming' };
+            return {
+              ...s,
+              pendingCard: null,
+              entries: updated,
+              status: 'streaming',
+              submittingAnswer: false,
+              lastActivity: '🧠 답변 반영 — 작업 재개',
+            };
           });
           break;
         case 'complete':
@@ -123,15 +178,22 @@ export function useAgentStream() {
             ...s,
             status: 'complete',
             costUsd: ev.totalCostUsd ?? s.costUsd,
+            lastActivity: '🎉 작업 완료',
           }));
+          // 비용 달러 UI 노출 X — 향후 크레딧 단위로 전환 예정
           append({
             kind: 'system',
-            text: `완료 — ${ev.totalIterations} iters, $${(ev.totalCostUsd ?? 0).toFixed(4)}, ${(ev.durationMs / 1000).toFixed(1)}s`,
+            text: `완료 — ${ev.totalIterations} steps · ${(ev.durationMs / 1000).toFixed(1)}s`,
             ts: Date.now(),
           });
           break;
         case 'error':
-          setState((s) => ({ ...s, status: 'error', error: ev.message }));
+          setState((s) => ({
+            ...s,
+            status: 'error',
+            error: ev.message,
+            lastActivity: `❌ ${ev.message}`,
+          }));
           append({ kind: 'system', text: `❌ ${ev.message}`, ts: Date.now() });
           break;
       }
@@ -151,6 +213,10 @@ export function useAgentStream() {
         pendingCard: null,
         error: null,
         costUsd: 0,
+        lastActivity: '🚀 Agent 연결 중...',
+        iteration: 0,
+        toolCount: 0,
+        submittingAnswer: false,
       });
 
       const controller = new AbortController();
@@ -215,6 +281,14 @@ export function useAgentStream() {
   const submitAnswer = useCallback(
     async (answer: string) => {
       if (state.status !== 'awaiting_answer' || !state.sessionId || !state.pendingCard) return;
+      // 즉시 UI 피드백 — 답변 전송 중 상태
+      setState((s) => ({
+        ...s,
+        submittingAnswer: true,
+        lastActivity: '📤 답변 전송 중...',
+      }));
+      append({ kind: 'user', text: answer, ts: Date.now() });
+
       const token = getToken();
       try {
         const res = await fetch(
@@ -230,11 +304,13 @@ export function useAgentStream() {
         );
         if (!res.ok) {
           const txt = await res.text().catch(() => res.statusText);
+          setState((s) => ({ ...s, submittingAnswer: false }));
           append({ kind: 'system', text: `답변 전달 실패: ${txt}`, ts: Date.now() });
           return;
         }
-        append({ kind: 'user', text: answer, ts: Date.now() });
+        // 성공 — card_answered 이벤트가 오면 submittingAnswer=false로 전환됨
       } catch (err: any) {
+        setState((s) => ({ ...s, submittingAnswer: false }));
         append({ kind: 'system', text: `답변 전달 실패: ${err?.message}`, ts: Date.now() });
       }
     },

@@ -3,6 +3,7 @@
 // 종합 카드 — 답지 빈 칸을 한 번에 표시
 // 반응형: 모바일 1열 세로 (h-12 터치) / PC 2~3열 그리드
 // 번호 입력 친화: 옵션마다 [1] [2] [3]
+// 복수 선택 지원 + 기타 옵션 클릭 시 인라인 입력창
 
 import { useState } from 'react';
 import type { CardRequest } from '../useAgentStream';
@@ -14,19 +15,53 @@ interface Props {
 }
 
 export default function AnswerSheetCard({ card, onSubmit, disabled }: Props) {
-  // 각 질문별 선택 상태 (번호 클릭 시 반영)
-  const [picks, setPicks] = useState<Record<string, number>>({});
+  // 각 질문별 선택 상태 — 복수 선택 가능 (Set<번호>)
+  const [picks, setPicks] = useState<Record<string, Set<number>>>({});
+  // 기타 옵션 선택 시 각 질문별 자유 입력
+  const [freeInputs, setFreeInputs] = useState<Record<string, string>>({});
+  // 카드 전체 자유 입력 (하단)
   const [freeText, setFreeText] = useState('');
 
-  const handlePick = (qId: string, num: number) => {
-    setPicks((p) => ({ ...p, [qId]: num }));
+  const togglePick = (qId: string, num: number) => {
+    setPicks((prev) => {
+      const set = new Set(prev[qId] ?? []);
+      if (set.has(num)) set.delete(num);
+      else set.add(num);
+      return { ...prev, [qId]: set };
+    });
   };
 
+  const isPicked = (qId: string, num: number) => picks[qId]?.has(num) ?? false;
+
+  // 질문 하나에서 기타(needsInput) 옵션이 선택됐는지
+  const hasFreeOption = (q: CardRequest['questions'][number]) =>
+    (q.options ?? []).some((o) => o.needsInput && isPicked(q.id, o.num));
+
   const handleSubmitPicks = () => {
-    // 질문 순서대로 번호 문자열 생성 ("1, 2, 1")
-    const nums = card.questions.map((q) => picks[q.id] ?? '').filter(Boolean);
-    if (nums.length === 0) return;
-    onSubmit(nums.join(', '));
+    // 복수 선택 지원 — 각 질문의 선택된 옵션 label을 "+" 로 연결한 자연어 조합 생성
+    // Agent가 free_text로 재해석 (answer-parser.service.ts 규칙과 호환)
+    const parts = card.questions
+      .map((q) => {
+        const selected = picks[q.id];
+        if (!selected || selected.size === 0) return null;
+        const labels = [...selected]
+          .map((n) => {
+            const opt = q.options.find((o) => o.num === n);
+            if (!opt) return '';
+            if (opt.needsInput) {
+              const txt = (freeInputs[q.id] ?? '').trim();
+              return txt ? `${opt.label}: ${txt}` : opt.label;
+            }
+            return opt.label;
+          })
+          .filter(Boolean);
+        if (labels.length === 0) return null;
+        return `${q.question} → ${labels.join(' + ')}`;
+      })
+      .filter(Boolean);
+
+    if (parts.length === 0) return;
+    onSubmit(parts.join('\n'));
   };
 
   const handleSubmitFree = () => {
@@ -37,7 +72,9 @@ export default function AnswerSheetCard({ card, onSubmit, disabled }: Props) {
 
   const handleQuickStart = () => onSubmit(card.quickStart.value);
 
-  const allPicked = card.questions.every((q) => picks[q.id] !== undefined);
+  // 질문마다 최소 1개 선택됐는지 (complete 기준 완화 — 복수 선택 가능하므로)
+  const anyPicked = card.questions.some((q) => (picks[q.id]?.size ?? 0) > 0);
+  const allPicked = card.questions.every((q) => (picks[q.id]?.size ?? 0) > 0);
 
   return (
     <div
@@ -70,16 +107,19 @@ export default function AnswerSheetCard({ card, onSubmit, disabled }: Props) {
         {card.questions.map((q, idx) => (
           <div key={q.id}>
             <p className="mb-2 text-sm font-semibold text-slate-800 sm:text-base dark:text-slate-200">
-              {idx + 1}. {q.emoji ?? ''} {q.question}
+              {idx + 1}. {q.emoji ?? ''} {q.question}{' '}
+              <span className="ml-1 text-xs font-normal text-slate-400">
+                (복수 선택 가능)
+              </span>
             </p>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {q.options.map((opt) => {
-                const picked = picks[q.id] === opt.num;
+                const picked = isPicked(q.id, opt.num);
                 return (
                   <button
                     key={opt.num}
                     type="button"
-                    onClick={() => handlePick(q.id, opt.num)}
+                    onClick={() => togglePick(q.id, opt.num)}
                     disabled={disabled}
                     className={[
                       'flex min-h-12 items-center gap-2 rounded-lg border-2 px-3 py-2 text-left text-sm transition',
@@ -93,10 +133,28 @@ export default function AnswerSheetCard({ card, onSubmit, disabled }: Props) {
                       [{opt.num}]
                     </span>
                     <span className="flex-1">{opt.label}</span>
+                    {picked && (
+                      <span className="text-xs text-blue-500 dark:text-blue-400">✓</span>
+                    )}
                   </button>
                 );
               })}
             </div>
+
+            {/* "기타" 옵션이 선택됐으면 인라인 입력창 노출 */}
+            {hasFreeOption(q) && (
+              <input
+                type="text"
+                value={freeInputs[q.id] ?? ''}
+                onChange={(e) =>
+                  setFreeInputs((prev) => ({ ...prev, [q.id]: e.target.value }))
+                }
+                placeholder="직접 입력하세요 (예: 특정 사이트 이름, 색상 키워드 등)"
+                disabled={disabled}
+                style={{ fontSize: '16px' }}
+                className="mt-2 w-full rounded-lg border border-blue-300 bg-blue-50/50 px-3 py-2 outline-none focus:border-blue-500 disabled:opacity-50 dark:border-blue-800 dark:bg-blue-950/20 dark:text-slate-100"
+              />
+            )}
           </div>
         ))}
       </div>
@@ -111,10 +169,11 @@ export default function AnswerSheetCard({ card, onSubmit, disabled }: Props) {
         <button
           type="button"
           onClick={handleSubmitPicks}
-          disabled={disabled || !allPicked}
+          disabled={disabled || !anyPicked}
           className="flex-1 rounded-xl bg-blue-600 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40 sm:text-base"
         >
-          선택 완료 → 진행
+          선택 완료 → 진행{' '}
+          {allPicked ? '' : anyPicked ? '(일부만 선택됨)' : ''}
         </button>
         <button
           type="button"

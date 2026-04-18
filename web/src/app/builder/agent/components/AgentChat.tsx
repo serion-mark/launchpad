@@ -23,17 +23,20 @@ export default function AgentChat({ state, onStart, onSubmitAnswer }: Props) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [state.entries.length]);
 
-  const disabled =
-    state.status === 'streaming' ||
-    state.status === 'complete' ||
-    state.status === 'error';
+  // 입력창 비활성: 백엔드 작업 진행 중 / 답변 전송 중일 때만
+  // complete / error 상태에서는 활성화 (새 요청 / 재시도 가능하도록)
+  const disabled = state.status === 'streaming' || state.submittingAnswer;
 
   const handleSubmit = () => {
     const text = input.trim();
     if (!text) return;
     if (state.status === 'awaiting_answer') {
       onSubmitAnswer(text);
-    } else if (state.status === 'idle') {
+    } else if (
+      state.status === 'idle' ||
+      state.status === 'complete' ||
+      state.status === 'error'
+    ) {
       onStart(text);
     }
     setInput('');
@@ -59,14 +62,47 @@ export default function AgentChat({ state, onStart, onSubmitAnswer }: Props) {
           </div>
         )}
 
-        {state.entries.map((entry, idx) => (
-          <ChatEntryRow
-            key={idx}
-            entry={entry}
-            onCardSubmit={onSubmitAnswer}
-            cardDisabled={state.pendingCard?.pendingId !== (entry.kind === 'card' ? entry.card.pendingId : '') || entry.kind !== 'card' || state.status !== 'awaiting_answer'}
-          />
-        ))}
+        {state.entries.map((entry, idx) => {
+          const entryCardId = entry.kind === 'card' ? entry.card.pendingId : '';
+          const isActiveCard =
+            entry.kind === 'card' &&
+            state.pendingCard?.pendingId === entryCardId &&
+            state.status === 'awaiting_answer' &&
+            !state.submittingAnswer;
+          return (
+            <ChatEntryRow
+              key={idx}
+              entry={entry}
+              onCardSubmit={onSubmitAnswer}
+              cardDisabled={!isActiveCard}
+            />
+          );
+        })}
+
+        {/* 작업 중 타이핑 인디케이터 — Agent가 생각/도구 실행 중일 때 */}
+        {state.status === 'streaming' && (
+          <div
+            className="flex items-center gap-2 rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+            aria-label="Agent 작업 중"
+          >
+            <span className="flex gap-1">
+              <span className="h-2 w-2 animate-bounce rounded-full bg-blue-500 [animation-delay:0ms]" />
+              <span className="h-2 w-2 animate-bounce rounded-full bg-blue-500 [animation-delay:150ms]" />
+              <span className="h-2 w-2 animate-bounce rounded-full bg-blue-500 [animation-delay:300ms]" />
+            </span>
+            <span className="flex-1 truncate">
+              {state.lastActivity || '🧠 Agent가 생각 중...'}
+            </span>
+          </div>
+        )}
+
+        {/* 답변 전송 직후 인디케이터 — 카드 답변 보내고 서버 처리 대기 */}
+        {state.submittingAnswer && (
+          <div className="flex items-center gap-2 rounded-2xl rounded-tl-sm bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
+            <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+            <span>📤 답변 전달 중 — Agent가 이어서 작업할 거예요</span>
+          </div>
+        )}
       </div>
 
       {/* 입력창 */}
@@ -85,9 +121,13 @@ export default function AgentChat({ state, onStart, onSubmitAnswer }: Props) {
             placeholder={
               state.status === 'awaiting_answer'
                 ? '번호("1, 2"), "시작", 또는 자연어로 답변'
-                : state.status === 'idle'
-                  ? '예: 예쁜 미용실 예약앱'
-                  : '응답 대기 중...'
+                : state.status === 'complete'
+                  ? '새 요청을 입력하세요 (예: 쇼핑몰 만들어줘)'
+                  : state.status === 'error'
+                    ? '다시 시도할 요청을 입력하세요'
+                    : state.status === 'idle'
+                      ? '예: 예쁜 미용실 예약앱'
+                      : '응답 대기 중...'
             }
             disabled={disabled}
             style={{ fontSize: '16px' }}
@@ -102,12 +142,22 @@ export default function AgentChat({ state, onStart, onSubmitAnswer }: Props) {
             보내기
           </button>
         </div>
-        <div className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-          {state.status === 'idle' && '아이디어 한 마디부터 시작해요'}
-          {state.status === 'streaming' && '⏳ Agent가 작업 중...'}
-          {state.status === 'awaiting_answer' && '👆 종합 카드 답변을 기다리고 있어요 — 번호/자연어/&quot;시작&quot; 중 편한 걸로'}
-          {state.status === 'complete' && `✅ 완료 — 비용 $${state.costUsd.toFixed(4)}`}
-          {state.status === 'error' && `❌ ${state.error}`}
+        <div className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
+          <span className="flex-1 truncate">
+            {state.status === 'idle' && '아이디어 한 마디부터 시작해요'}
+            {state.status === 'streaming' && (state.lastActivity || '⏳ Agent가 작업 중...')}
+            {state.status === 'awaiting_answer' &&
+              (state.submittingAnswer
+                ? '📤 답변 전송 중...'
+                : '👆 종합 카드 답변을 기다리고 있어요 — 번호/자연어/"시작" 중 편한 걸로')}
+            {state.status === 'complete' && '✅ 완료 — 새 요청도 입력 가능해요'}
+            {state.status === 'error' && `❌ ${state.error}`}
+          </span>
+          {(state.status === 'streaming' || state.status === 'awaiting_answer') && (
+            <span className="shrink-0 font-mono text-[10px] text-slate-400">
+              iter {state.iteration} · tools {state.toolCount}
+            </span>
+          )}
         </div>
       </div>
     </div>
