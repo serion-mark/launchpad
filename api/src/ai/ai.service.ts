@@ -7,6 +7,7 @@ import { CreditService, type ModelTier as CreditModelTier } from '../credit/cred
 import { SupabaseService } from '../supabase/supabase.service';
 import { MemoryService } from './memory.service';
 import { PrismaService } from '../prisma.service';
+import { PromptComposerService } from './prompt-composer.service';
 
 // ── F7: SSE 진행상황 이벤트 타입 ─────────────────────
 export type GenerationProgress = {
@@ -560,6 +561,7 @@ export class AiService {
     private supabaseService: SupabaseService,
     private memoryService: MemoryService,
     private prisma: PrismaService,
+    private promptComposer: PromptComposerService,
   ) {
     this.anthropic = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
@@ -1257,7 +1259,12 @@ ${schemaContent}
 ${recentContext ? `이미 생성된 파일 (import 참고):\n${recentContext}` : ''}
 ${smartAnalysisContext ? `\n${smartAnalysisContext}\n위 분석을 참고하세요.` : ''}`;
 
-        const frontendResult = await this.callWithFallback(tier, FRONTEND_SYSTEM_PROMPT, [{
+        // Phase 0.5: 프롬프트 .md 분리 — 페이지 타입별 시스템 프롬프트 동적 생성
+        const pageTypeHint = `${task.pageName || ''} ${task.filePath || ''}`;
+        const pageType = this.promptComposer.normalizeType(pageTypeHint);
+        const dynamicSystemPrompt = await this.promptComposer.composeForPage(pageType);
+
+        const frontendResult = await this.callWithFallback(tier, dynamicSystemPrompt, [{
           role: 'user',
           content: filePrompt,
         }]);
@@ -1314,9 +1321,12 @@ ${smartAnalysisContext ? `\n${smartAnalysisContext}\n위 분석을 참고하세�
         // F4: 코드 잘림 감지 → 이어서 생성
         if (allFiles[i].path.match(/\.(tsx?|jsx?)$/) && this.isCodeTruncated(allFiles[i].content)) {
           this.logger.warn(`[F4 코드 잘림 감지] ${allFiles[i].path} — 이어서 생성 시도`);
+          // Phase 0.5: 페이지 타입별 시스템 프롬프트 사용
+          const f4PageType = this.promptComposer.normalizeType(allFiles[i].path);
+          const f4SystemPrompt = await this.promptComposer.composeForPage(f4PageType);
           allFiles[i] = {
             ...allFiles[i],
-            content: await this.continueGeneration(tier, FRONTEND_SYSTEM_PROMPT, allFiles[i].content, allFiles[i].path),
+            content: await this.continueGeneration(tier, f4SystemPrompt, allFiles[i].content, allFiles[i].path),
           };
         }
       }
