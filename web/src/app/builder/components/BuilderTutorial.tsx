@@ -27,17 +27,10 @@ const STEPS: TutorialStep[] = [
   },
   {
     title: '버튼에 기능 부여하기',
-    description: '미리보기에서 버튼을 클릭한 뒤\n"버튼에 기능 부여하기"를 누르세요.\n예: "회원가입 페이지로 이동하게 만들어줘"',
+    description: '미리보기에서 버튼을 클릭한 뒤\n"AI에게 수정 요청" 버튼을 누르세요.\n채팅창에 위치 정보가 자동으로 입력됩니다.\n그 뒤에 원하는 기능을 적으면 끝!\n예: "회원가입 페이지로 이동하게 해줘"',
     icon: '🔗',
     targetSelector: '[data-tutorial="preview"]',
     position: 'left',
-  },
-  {
-    title: '채팅으로 AI에게 요청',
-    description: '더 복잡한 수정은 채팅으로!\n"메뉴 추가해줘", "페이지 만들어줘"\n자연어로 말하면 AI가 코드를 수정합니다.',
-    icon: '💬',
-    targetSelector: '[data-tutorial="chat-input"]',
-    position: 'top',
   },
   {
     title: '온라인 게시 (중요!)',
