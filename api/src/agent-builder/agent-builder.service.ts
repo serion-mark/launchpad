@@ -1,22 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
 import { SandboxService } from './sandbox.service';
+import { PromptLoaderService } from './prompt-loader.service';
 import { AgentToolExecutor, AGENT_TOOLS } from './agent-tools';
 import {
   AgentStreamEvent,
   AGENT_MAX_ITERATIONS,
 } from './stream-event.types';
-
-// Day 1 최소 system prompt — Day 2에서 agent-core.md로 교체 예정
-const DAY1_SYSTEM_PROMPT = `당신은 Foundry Agent입니다.
-사용자 요청을 받으면 샌드박스 디렉토리에서 도구(Bash, Write, Read, Glob, Grep)를 써서 작업을 수행하세요.
-
-원칙:
-- 한 번에 작은 단위로 진행 (파일 1개, 명령 1개)
-- 각 단계마다 결과를 확인 (Read 또는 Bash로 검증)
-- 에러가 나면 원인을 파악하고 수정
-- 작업이 끝나면 최종 결과를 한 줄로 보고
-- 추가 질문 없이 주어진 지시를 그대로 수행 (Day 2부터 답지 모델로 고도화됨)`;
 
 const MODEL = 'claude-sonnet-4-6';
 
@@ -31,7 +21,10 @@ export class AgentBuilderService {
   private readonly logger = new Logger(AgentBuilderService.name);
   private readonly anthropic: Anthropic;
 
-  constructor(private readonly sandbox: SandboxService) {
+  constructor(
+    private readonly sandbox: SandboxService,
+    private readonly promptLoader: PromptLoaderService,
+  ) {
     this.anthropic = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
     });
@@ -47,7 +40,11 @@ export class AgentBuilderService {
 
     const executor = new AgentToolExecutor(this.sandbox, cwd);
 
-    // 2. 메시지 스택 초기화
+    // 2. system prompt 로드 (agent-core + intent-patterns + vague-detection + selection-triggers)
+    // cache_control 1h TTL 적용 — 13K+ 토큰이므로 캐시 효과 큼 (V-0 검증)
+    const systemPrompt = await this.promptLoader.getSystemPrompt();
+
+    // 3. 메시지 스택 초기화
     const messages: Anthropic.Messages.MessageParam[] = [
       { role: 'user', content: prompt },
     ];
@@ -63,7 +60,13 @@ export class AgentBuilderService {
         const res = await this.anthropic.messages.create({
           model: MODEL,
           max_tokens: 8192,
-          system: DAY1_SYSTEM_PROMPT,
+          system: [
+            {
+              type: 'text',
+              text: systemPrompt,
+              cache_control: { type: 'ephemeral' },
+            },
+          ],
           tools: AGENT_TOOLS as any,
           messages,
         });

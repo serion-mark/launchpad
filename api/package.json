@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "tsc && cp -r src/ai/prompts dist/ai/",
+    "build": "tsc && cp -r src/ai/prompts dist/ai/ && cp -r src/agent-builder/prompts dist/agent-builder/",
     "start": "node dist/main.js",
     "dev": "ts-node src/main.ts",
     "prisma:generate": "prisma generate",

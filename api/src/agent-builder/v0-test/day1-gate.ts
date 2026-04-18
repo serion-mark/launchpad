@@ -3,13 +3,16 @@
 
 import { SandboxService } from '../sandbox.service';
 import { AgentBuilderService } from '../agent-builder.service';
+import { PromptLoaderService } from '../prompt-loader.service';
 import type { AgentStreamEvent } from '../stream-event.types';
 
 async function main() {
   console.log('🧪 Day 1 Gate — Agent loop 도구 호출 검증\n');
 
   const sandbox = new SandboxService();
-  const service = new AgentBuilderService(sandbox);
+  const promptLoader = new PromptLoaderService();
+  await promptLoader.load();
+  const service = new AgentBuilderService(sandbox, promptLoader);
 
   const events: AgentStreamEvent[] = [];
   const start = Date.now();
