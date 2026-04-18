@@ -15,6 +15,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.114",
     "@anthropic-ai/sdk": "^0.89.0",
     "@google/generative-ai": "^0.24.1",
     "@nestjs/common": "^11.1.17",
@@ -29,6 +30,7 @@
     "bcryptjs": "^3.0.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "fast-glob": "^3.3.3",
     "openai": "^6.32.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",

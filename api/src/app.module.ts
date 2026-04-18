@@ -7,6 +7,7 @@ import { CreditModule } from './credit/credit.module';
 import { AiModule } from './ai/ai.module';
 import { AdminModule } from './admin/admin.module';
 import { InquiryModule } from './inquiry/inquiry.module';
+import { AgentBuilderModule } from './agent-builder/agent-builder.module';
 import { PrismaService } from './prisma.service';
 
 @Module({
@@ -19,6 +20,7 @@ import { PrismaService } from './prisma.service';
     AiModule,
     AdminModule,
     InquiryModule,
+    AgentBuilderModule,
   ],
   providers: [PrismaService],
   exports: [PrismaService],
