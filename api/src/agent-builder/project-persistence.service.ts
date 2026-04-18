@@ -98,7 +98,16 @@ export class ProjectPersistenceService {
             const stat = fs.statSync(full);
             if (stat.size > MAX_FILE_BYTES) continue;
             if (totalBytes + stat.size > MAX_TOTAL_BYTES) continue;
-            const content = fs.readFileSync(full, 'utf8');
+            // binary 파일 감지 — 첫 1KB에 null 바이트 있으면 skip
+            // (PostgreSQL JSON 은 \u0000 을 저장할 수 없음)
+            const buf = fs.readFileSync(full);
+            const sampleLen = Math.min(buf.length, 1024);
+            let hasNull = false;
+            for (let i = 0; i < sampleLen; i++) {
+              if (buf[i] === 0) { hasNull = true; break; }
+            }
+            if (hasNull) continue;
+            const content = buf.toString('utf8');
             out.push({ path: relPath, content });
             totalBytes += stat.size;
             if (out.length >= MAX_TOTAL_FILES) return;

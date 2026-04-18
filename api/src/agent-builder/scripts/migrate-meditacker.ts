@@ -10,7 +10,9 @@ import * as path from 'path';
 import { PrismaClient } from '@prisma/client';
 
 const TMP_DIR = '/tmp';
-const TARGET_USER_ID = 'cmmvse7h00000rh8h9fxxipdd'; // mark@serion.ai.kr
+// 실제 sandbox cwd 의 userId (test@serion.ai.kr 계정으로 만들었음)
+// 필요 시 mark 로 옮길 땐 projects.userId 업데이트 쿼리 별도 실행
+const TARGET_USER_ID = 'cmn2v5prs0000rhikee5i9j23'; // test@serion.ai.kr
 const PROJECT_NAME = '메디트래커';
 const DESCRIPTION = 'Agent Mode로 생성 — 복약관리 + 건강수치 기록 + 진료기록 + 의료진 연동 + 병원 예약';
 const SUB_DIR = 'meditacker';
@@ -52,7 +54,15 @@ function collectFiles(root: string): { path: string; content: string }[] {
           const stat = fs.statSync(full);
           if (stat.size > MAX_FILE_BYTES) continue;
           if (totalBytes + stat.size > MAX_TOTAL_BYTES) continue;
-          const content = fs.readFileSync(full, 'utf8');
+          // binary 파일 감지 — null 바이트 있으면 skip (PostgreSQL JSON 저장 불가)
+          const buf = fs.readFileSync(full);
+          const sampleLen = Math.min(buf.length, 1024);
+          let hasNull = false;
+          for (let i = 0; i < sampleLen; i++) {
+            if (buf[i] === 0) { hasNull = true; break; }
+          }
+          if (hasNull) continue;
+          const content = buf.toString('utf8');
           out.push({ path: relPath, content });
           totalBytes += stat.size;
           if (out.length >= MAX_TOTAL_FILES) return;
