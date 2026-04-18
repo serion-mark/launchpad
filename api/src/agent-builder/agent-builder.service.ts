@@ -2,10 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
 import { SandboxService } from './sandbox.service';
 import { PromptLoaderService } from './prompt-loader.service';
+import { SessionStoreService } from './session-store.service';
+import { AnswerParserService } from './answer-parser.service';
 import { AgentToolExecutor, AGENT_TOOLS } from './agent-tools';
 import {
   AgentStreamEvent,
   AGENT_MAX_ITERATIONS,
+  CardRequest,
 } from './stream-event.types';
 
 const MODEL = 'claude-sonnet-4-6';
@@ -24,6 +27,8 @@ export class AgentBuilderService {
   constructor(
     private readonly sandbox: SandboxService,
     private readonly promptLoader: PromptLoaderService,
+    private readonly sessionStore: SessionStoreService,
+    private readonly parser: AnswerParserService,
   ) {
     this.anthropic = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
@@ -104,6 +109,58 @@ export class AgentBuilderService {
               input: tu.input,
             });
 
+            // AskUser는 SSE로 카드 방출 후 사용자 답변 대기 (pause/resume)
+            if (tu.name === 'AskUser') {
+              const askStart = Date.now();
+              const input = tu.input as any;
+              const card: CardRequest = {
+                pendingId: tu.id,
+                title: input.title ?? '',
+                questions: Array.isArray(input.questions) ? input.questions : [],
+                assumed: input.assumed,
+                inputHint:
+                  input.inputHint ?? '번호("1, 2, 1") 또는 자연어로 편하게 말씀해주세요.',
+                quickStart: {
+                  label: input.quickStartLabel ?? '추정값 그대로 바로 시작 →',
+                  value: 'DEFAULT_ALL',
+                },
+                allowFreeText: true,
+              };
+              onEvent({ type: 'card_request', card });
+
+              let resultContent: string;
+              let resultOk = true;
+              try {
+                const userRaw = await this.sessionStore.waitForAnswer(sessionId, tu.id, card);
+                const parsed = this.parser.parse(userRaw, card);
+                resultContent = this.parser.summarize(parsed);
+                onEvent({
+                  type: 'card_answered',
+                  pendingId: tu.id,
+                  answerSummary: parsed.message,
+                });
+              } catch (err: any) {
+                resultContent = `[AskUser 실패] ${err?.message ?? String(err)}`;
+                resultOk = false;
+              }
+
+              onEvent({
+                type: 'tool_result',
+                id: tu.id,
+                ok: resultOk,
+                output: resultContent,
+                durationMs: Date.now() - askStart,
+              });
+
+              toolResultBlocks.push({
+                type: 'tool_result',
+                tool_use_id: tu.id,
+                content: resultContent,
+                is_error: !resultOk,
+              });
+              continue;
+            }
+
             const result = await executor.execute(tu.name, tu.input);
 
             onEvent({
@@ -142,6 +199,7 @@ export class AgentBuilderService {
         where: `iter ${iter}`,
       });
     } finally {
+      this.sessionStore.cancelSession(sessionId, 'run 종료');
       // Day 1은 정리하지 않음 — 검증 편의. Day 5 이후 정리 크론 추가.
       // await this.sandbox.cleanup(cwd);
     }

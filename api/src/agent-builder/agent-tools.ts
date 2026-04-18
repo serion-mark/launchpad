@@ -69,6 +69,63 @@ export const AGENT_TOOLS = [
       required: ['pattern'],
     },
   },
+  {
+    name: 'AskUser',
+    description:
+      '사용자에게 종합 카드로 한 번에 물어본다. 답지의 빈 칸이 여러 개일 때 사용 (꼬리 질문 금지, 원샷 1번만). 옵션마다 번호를 붙여 번호/클릭/자연어 3중 입력을 받는다. 작업 중에는 절대 사용하지 말고, 작업 시작 전에만 사용하라.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        title: {
+          type: 'string',
+          description: '카드 상단에 표시될 한 줄 인사 (예: "미용실 예약앱 만들어드릴게요! 답지만 채우면 시작!")',
+        },
+        questions: {
+          type: 'array',
+          description: '최대 2~3개의 질문. 각 질문은 2~4개 옵션 + "기타" 포함.',
+          items: {
+            type: 'object',
+            properties: {
+              id: { type: 'string', description: '답지 필드 키 (예: "benchmarkSites")' },
+              question: { type: 'string', description: '질문 한 줄' },
+              emoji: { type: 'string' },
+              options: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    num: { type: 'number', description: '번호 [1] [2] [3]' },
+                    label: { type: 'string' },
+                    value: { type: 'string' },
+                    needsInput: {
+                      type: 'boolean',
+                      description: '"기타 (직접 입력)" 같은 자유 입력 옵션',
+                    },
+                  },
+                  required: ['num', 'label', 'value'],
+                },
+              },
+            },
+            required: ['id', 'question', 'options'],
+          },
+        },
+        assumed: {
+          type: 'object',
+          description: 'AI가 미리 추정한 답지 칸 (✓ 추정 표시). 키=필드, 값=추정값.',
+          additionalProperties: { type: 'string' },
+        },
+        inputHint: {
+          type: 'string',
+          description: '사용자 안내 (예: "1, 2, 1 같이 번호로 또는 자연어로 말씀해주세요")',
+        },
+        quickStartLabel: {
+          type: 'string',
+          description: '"그대로 시작" 버튼 라벨 (예: "추정값 그대로 바로 시작 →")',
+        },
+      },
+      required: ['title', 'questions', 'inputHint', 'quickStartLabel'],
+    },
+  },
 ];
 
 export type ToolResult = { ok: boolean; output: string; durationMs: number };

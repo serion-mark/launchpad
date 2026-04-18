@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Body,
+  Param,
   Req,
   Res,
   UseGuards,
@@ -12,6 +13,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import type { Response } from 'express';
 import { AgentBuilderService } from './agent-builder.service';
+import { SessionStoreService } from './session-store.service';
 import type { AgentStreamEvent } from './stream-event.types';
 
 // 신규 라우트: /api/ai/agent-build
@@ -21,7 +23,10 @@ import type { AgentStreamEvent } from './stream-event.types';
 export class AgentBuilderController {
   private readonly logger = new Logger(AgentBuilderController.name);
 
-  constructor(private readonly agentBuilder: AgentBuilderService) {}
+  constructor(
+    private readonly agentBuilder: AgentBuilderService,
+    private readonly sessionStore: SessionStoreService,
+  ) {}
 
   @Post('agent-build')
   agentBuild(
@@ -73,5 +78,29 @@ export class AgentBuilderController {
       .finally(() => {
         if (!closed) res.end();
       });
+  }
+
+  // 종합 카드 답변 수신 — SSE 스트림은 그대로 열려 있고, 이 엔드포인트는 별도 HTTP POST
+  // 사용자가 "1, 2, 1" / "시작" / "자연어" 중 하나를 보내면 Agent loop이 재개됨
+  @Post('agent-build/:sessionId/answer')
+  submitAnswer(
+    @Param('sessionId') sessionId: string,
+    @Body() body: { answer: string; pendingId?: string },
+  ) {
+    if (process.env.AGENT_MODE_ENABLED !== 'true') {
+      throw new HttpException('Agent Mode 비활성화됨', HttpStatus.FORBIDDEN);
+    }
+    if (!body || typeof body.answer !== 'string') {
+      throw new HttpException('answer 필수 (string)', HttpStatus.BAD_REQUEST);
+    }
+    const result = this.sessionStore.submitAnswer(
+      sessionId,
+      body.pendingId ?? null,
+      body.answer,
+    );
+    if (result.ok === false) {
+      throw new HttpException(`답변 전달 실패: ${result.reason}`, HttpStatus.NOT_FOUND);
+    }
+    return { ok: true };
   }
 }

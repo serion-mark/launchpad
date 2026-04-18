@@ -8,6 +8,8 @@
 import { SandboxService } from '../sandbox.service';
 import { AgentBuilderService } from '../agent-builder.service';
 import { PromptLoaderService } from '../prompt-loader.service';
+import { SessionStoreService } from '../session-store.service';
+import { AnswerParserService } from '../answer-parser.service';
 import type { AgentStreamEvent } from '../stream-event.types';
 
 type Scenario = {
@@ -112,7 +114,9 @@ async function main() {
   const sandbox = new SandboxService();
   const promptLoader = new PromptLoaderService();
   await promptLoader.load();
-  const service = new AgentBuilderService(sandbox, promptLoader);
+  const sessionStore = new SessionStoreService();
+  const parser = new AnswerParserService();
+  const service = new AgentBuilderService(sandbox, promptLoader, sessionStore, parser);
 
   const results: { scenario: Scenario; pass: boolean; reasons: string[]; text: string; toolCalls: number }[] = [];
 
