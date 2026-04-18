@@ -811,29 +811,62 @@ export class AiService {
   }
 
   /** 모델별 폴백 호출 — Sonnet/Opus 404 시 Haiku로 자동 폴백 + 크레딧 보정 + rate limit 재시도 */
+  /**
+   * Phase 0.5 v2: effort 파라미터 + Prompt Caching (1시간 TTL) 지원
+   *
+   * @param tier        flash/smart/pro 모델 티어
+   * @param system      시스템 프롬프트 (긴 .md 조합)
+   * @param messages    user 메시지
+   * @param effort      'low' | 'medium' | 'high' | 'max'
+   *                    - 'low': F4 방지 최우선 (Step 3 파일 생성용)
+   *                    - 'medium': 균형 (Step 1 아키텍처, Step 2 스키마용)
+   *                    Haiku(flash)는 effort 미지원 → 자동 무시
+   * @param cacheSystem true면 system을 1시간 TTL cache_control로 래핑 (토큰 절감)
+   */
   private async callWithFallback(
     tier: AppModelTier,
     system: string,
     messages: Anthropic.MessageParam[],
     retryCount: number = 0,
+    effort?: 'low' | 'medium' | 'high' | 'max',
+    cacheSystem: boolean = false,
   ): Promise<{ content: string; actualTier: AppModelTier; inputTokens: number; outputTokens: number; fellBack: boolean }> {
     const model = APP_MODELS[tier];
 
     // 호출 간 딜레이 (rate limit 방지)
     if (retryCount === 0) await this.rateLimitDelay(2000);
 
+    // Phase 0.5 v2: system 배열 구조 + 선택적 cache_control
+    const systemPayload = cacheSystem
+      ? [{ type: 'text', text: system, cache_control: { type: 'ephemeral', ttl: '1h' } }]
+      : system;
+
+    // Phase 0.5 v2: effort 파라미터 (Sonnet/Opus만 지원, Haiku는 미지원)
+    const supportsEffort = tier !== 'flash';
+    const baseParams: any = {
+      model: model.model,
+      max_tokens: model.maxTokens,
+      system: systemPayload,
+      messages,
+    };
+    if (supportsEffort && effort) {
+      baseParams.output_config = { effort };
+    }
+
     try {
-      const response = await this.anthropic.messages.create({
-        model: model.model,
-        max_tokens: model.maxTokens,
-        system,
-        messages,
-      });
+      const response = await this.anthropic.messages.create(baseParams);
 
       const content = response.content
         .filter(block => block.type === 'text')
         .map(block => (block as Anthropic.TextBlock).text)
         .join('\n');
+
+      // Phase 0.5 v2: cache hit 로깅 (성능 측정)
+      const cacheRead = (response.usage as any).cache_read_input_tokens ?? 0;
+      const cacheCreate = (response.usage as any).cache_creation_input_tokens ?? 0;
+      if (cacheSystem && (cacheRead > 0 || cacheCreate > 0)) {
+        this.logger.log(`[cache] ${tier} effort=${effort || 'default'} — read:${cacheRead} create:${cacheCreate}`);
+      }
 
       return {
         content,
@@ -849,13 +882,14 @@ export class AiService {
           const waitSec = Math.min(30, 10 * (retryCount + 1)); // 10s, 20s, 30s
           this.logger.warn(`Rate limit 도달, ${waitSec}초 후 재시도 (${retryCount + 1}/3)`);
           await this.rateLimitDelay(waitSec * 1000);
-          return this.callWithFallback(tier, system, messages, retryCount + 1);
+          return this.callWithFallback(tier, system, messages, retryCount + 1, effort, cacheSystem);
         }
         // 3회 재시도 실패 → flash 폴백 (에러보다 낫다)
         if (tier !== 'flash') {
           this.logger.warn(`Rate limit 3회 재시도 실패, flash로 폴백합니다`);
           await this.rateLimitDelay(5000);
           const fb = APP_MODELS.flash;
+          // Haiku는 effort 미지원 → 일반 호출
           const fbRes = await this.anthropic.messages.create({ model: fb.model, max_tokens: fb.maxTokens, system, messages });
           const fbContent = fbRes.content.filter(b => b.type === 'text').map(b => (b as Anthropic.TextBlock).text).join('\n');
           return { content: fbContent, actualTier: 'flash' as AppModelTier, inputTokens: fbRes.usage.input_tokens, outputTokens: fbRes.usage.output_tokens, fellBack: true };
@@ -868,6 +902,7 @@ export class AiService {
 
         await this.rateLimitDelay(3000);
         const fallbackModel = APP_MODELS.flash;
+        // Haiku는 effort/caching 미지원 → 일반 호출
         const response = await this.anthropic.messages.create({
           model: fallbackModel.model,
           max_tokens: fallbackModel.maxTokens,
@@ -1048,7 +1083,7 @@ ${chatSummary ? `대화 내역:\n${chatSummary}` : ''}${smartAnalysisContext}
 - 배달/주문 유형: 메뉴/상품 목록, 장바구니, 주문 + 배달 추적, 리뷰
 - SaaS/관리도구/POS 유형: 대시보드(KPI 카드), 데이터 테이블(CRUD), 차트/통계, 설정
 위 유형에 해당하지 않으면 사용자 설명 기반으로 적절한 UI를 구성하세요.`,
-      }]);
+      }], 0, 'medium', true);
 
       if (archResult.fellBack) fellBack = true;
 
@@ -1086,7 +1121,7 @@ ${JSON.stringify(dbTables, null, 2)}
 2. 모든 테이블에 user_id uuid references auth.users
 3. RLS 정책 (본인 데이터만 접근)
 4. updated_at 자동 갱신 트리거`,
-      }]);
+      }], 0, 'medium', true);
 
       if (schemaResult.fellBack) fellBack = true;
 
@@ -1215,59 +1250,42 @@ ${JSON.stringify(dbTables, null, 2)}
         // 이미 생성된 파일 컨텍스트 (최근 5개만 — 토큰 절약)
         const recentContext = generatedFileList.slice(-5).map(fp => `- ${fp}`).join('\n');
 
+        // Phase 0.5 v2: filePrompt 간결화 — .md 중복 제거, What(사용자 요구)만 남김
+        // How(기술 지침)는 system prompt의 .md 조합에서 담당 → 중복 제거로 토큰 절약 + Sonnet 혼란 방지
         const filePrompt = task.isComponent
-          ? `다음 컴포넌트 파일 1개만 생성해주세요. 다른 파일은 생성하지 마세요!
+          ? `[FILE: ${task.filePath}] 형식으로 컴포넌트 파일 1개만 출력.
 
 파일 경로: ${task.filePath}
 소속 페이지: ${task.pageName}
 생성할 컴포넌트: ${task.components.join(', ')}
-
 앱 이름: ${architecture.appName || ''}
-테마: ${params.theme || 'basic-light'}
 DB 테이블: ${tableNames}
-
-⚠️ 규칙:
-- [FILE: ${task.filePath}] 형식으로 이 파일 1개만 출력!
-- export로 컴포넌트를 내보내세요 (page.tsx에서 import할 수 있도록)
-- 'use client' 첫 줄 필수
-- Supabase 클라이언트: import { createClient } from '@/utils/supabase/client'
 
 ${recentContext ? `이미 생성된 파일 (import 참고):\n${recentContext}` : ''}`
 
-          : `다음 페이지 파일 1개만 생성해주세요. 다른 파일은 생성하지 마세요!
+          : `[FILE: ${task.filePath}] 형식으로 페이지 파일 1개만 출력.
 
 파일 경로: ${task.filePath}
 페이지: ${task.pageName} (${pages.find(p => task.filePath.includes(p.path))?.path || '/'})
 설명: ${task.pageDescription}
 포함할 컴포넌트: ${task.components.join(', ') || '없음 (단순 페이지)'}
-
 앱 이름: ${architecture.appName || ''}
-테마: ${params.theme || 'basic-light'}
 DB 테이블: ${tableNames}
 
-Supabase SQL 스키마:
+Supabase SQL 스키마 (참고):
 ${schemaContent}
-
-⚠️ 규칙:
-- [FILE: ${task.filePath}] 형식으로 이 파일 1개만 출력!
-- 컴포넌트는 같은 파일 안에 정의하세요 (별도 파일 X)
-- 'use client' 첫 줄 필수
-- Supabase 클라이언트: import { createClient } from '@/utils/supabase/client'
-- 로그인/회원가입: supabase.auth.signInWithPassword / signUp
-- 데이터 CRUD: supabase.from('테이블명').select/insert/update/delete
 
 ${recentContext ? `이미 생성된 파일 (import 참고):\n${recentContext}` : ''}
 ${smartAnalysisContext ? `\n${smartAnalysisContext}\n위 분석을 참고하세요.` : ''}`;
 
-        // Phase 0.5: 프롬프트 .md 분리 — 페이지 타입별 시스템 프롬프트 동적 생성
-        const pageTypeHint = `${task.pageName || ''} ${task.filePath || ''}`;
-        const pageType = this.promptComposer.normalizeType(pageTypeHint);
-        const dynamicSystemPrompt = await this.promptComposer.composeForPage(pageType);
+        // Phase 0.5 v2: 파일 경로 기반 page vs component 자동 분기 + .md 조합 프롬프트
+        const dynamicSystemPrompt = await this.promptComposer.composeForFile(task.filePath, task.pageName);
 
+        // Phase 0.5 v2: effort='low' (F4 방지 최우선) + cache_control 1h TTL (토큰 절감)
         const frontendResult = await this.callWithFallback(tier, dynamicSystemPrompt, [{
           role: 'user',
           content: filePrompt,
-        }]);
+        }], 0, 'low', true);
 
         if (frontendResult.fellBack) fellBack = true;
 
@@ -1719,10 +1737,11 @@ ${JSON.stringify(project.projectContext || {}, null, 2)}`;
 현재 파일:
 ${existingFiles.slice(0, 15).map(f => `[FILE: ${f.path}]\n${f.content}`).join('\n\n')}`;
 
+    // Phase 0.5 v2: 코드 정리 = medium effort + caching
     const result = await this.callWithFallback(tier, MODIFY_SYSTEM_PROMPT, [{
       role: 'user',
       content: cleanupPrompt,
-    }]);
+    }], 0, 'medium', true);
 
     const cleanedFiles = this.parseFileOutput(result.content, '');
     const actualTier: CreditModelTier = result.fellBack ? 'flash' : (tier as CreditModelTier);
@@ -2138,17 +2157,18 @@ ${existingFiles.slice(0, 15).map(f => `[FILE: ${f.path}]\n${f.content}`).join('\
       this.logger.log(`[F4 이어서 생성] ${filePath} — 시도 ${attempt + 1}/${MAX_CONTINUATIONS}`);
 
       const lastLines = fullContent.split('\n').slice(-30).join('\n');
+      // Phase 0.5 v2: F4 이어서 생성도 effort='low' + cache 적용 (verbose 방지)
       const contResult = await this.callWithFallback(tier, systemPrompt, [{
         role: 'user',
         content: `아래 코드가 중간에 잘렸습니다. 잘린 부분부터 이어서 작성해주세요.
-절대 처음부터 다시 작성하지 마세요. 잘린 지점부터 나머지만 출력하세요.
-마크다운 코드 블록(\`\`\`) 사용 금지! 순수 코드만 출력하세요.
+잘린 부분부터 나머지만 출력하세요 (처음부터 다시 X).
+마크다운 코드 블록 금지. 순수 코드만.
 
 잘린 코드의 마지막 30줄:
 ${lastLines}
 
 위 코드의 마지막 줄부터 이어서 나머지 코드만 작성해주세요.`,
-      }]);
+      }], 0, 'low', true);
 
       // 이어붙이기 (중복 줄 제거)
       const continuation = this.sanitizeCode(contResult.content, filePath);
@@ -2213,10 +2233,11 @@ ${errorLog.slice(0, 1500)}
 현재 파일:
 ${targetFiles.map(f => `[FILE: ${f.path}]\n${f.content}`).join('\n\n')}`;
 
+    // Phase 0.5 v2: F6 빌드 에러 수정 = medium effort + caching
     const result = await this.callWithFallback(modelTier, MODIFY_SYSTEM_PROMPT, [{
       role: 'user',
       content: fixPrompt,
-    }]);
+    }], 0, 'medium', true);
 
     const fixedFiles = this.parseFileOutput(result.content, '');
 

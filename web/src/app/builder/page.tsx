@@ -622,9 +622,9 @@ function BuilderContent() {
 
   return (
     <div className="flex h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
-      {/* 앱 생성 중 경고 배너 */}
+      {/* 앱 생성 중 경고 배너 (하단 고정 — 상단 탭/생성 정보 가리지 않음) */}
       {buildPhase === "generating" && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 9999, background: "#ef4444", color: "#fff", padding: "12px 20px", textAlign: "center", fontSize: 14, fontWeight: 700 }}>
+        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 9999, background: "#ef4444", color: "#fff", padding: "12px 20px", textAlign: "center", fontSize: 14, fontWeight: 700 }}>
           🚨 앱 생성 중입니다! 보통 20분 ~ MVP 설계가 클수록 시간이 길어집니다. 새로고침·뒤로가기·창 닫기 시 모든 생성이 취소됩니다!
         </div>
       )}
