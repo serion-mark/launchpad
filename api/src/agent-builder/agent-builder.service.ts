@@ -4,6 +4,7 @@ import { SandboxService } from './sandbox.service';
 import { PromptLoaderService } from './prompt-loader.service';
 import { SessionStoreService } from './session-store.service';
 import { AnswerParserService } from './answer-parser.service';
+import { ProjectPersistenceService } from './project-persistence.service';
 import { AgentToolExecutor, AGENT_TOOLS } from './agent-tools';
 import {
   AgentStreamEvent,
@@ -29,6 +30,7 @@ export class AgentBuilderService {
     private readonly promptLoader: PromptLoaderService,
     private readonly sessionStore: SessionStoreService,
     private readonly parser: AnswerParserService,
+    private readonly persistence: ProjectPersistenceService,
   ) {
     this.anthropic = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
@@ -185,11 +187,23 @@ export class AgentBuilderService {
         }
       }
 
+      // 프로젝트 저장 — cwd 파일 수집 → projects INSERT → "내 프로젝트"에 노출
+      // 실패해도 Agent 완료는 성공 — complete 이벤트에 projectId 없이 emit
+      const persistResult = await this.persistence.persist({
+        userId: String(userId),
+        cwd,
+        userPrompt: prompt,
+      });
+
       onEvent({
         type: 'complete',
         totalIterations: iter,
         totalCostUsd: Number(totalCostUsd.toFixed(6)),
         durationMs: Date.now() - start,
+        projectId: persistResult.ok ? persistResult.projectId : undefined,
+        projectName: persistResult.ok ? persistResult.projectName : undefined,
+        subdomain: persistResult.ok ? persistResult.subdomain : undefined,
+        fileCount: persistResult.ok ? persistResult.fileCount : undefined,
       });
     } catch (err: any) {
       this.logger.error(`[agent-builder] 실패: ${err?.message}`, err?.stack);

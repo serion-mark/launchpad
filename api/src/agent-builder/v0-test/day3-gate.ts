@@ -202,7 +202,10 @@ async function main() {
   await promptLoader.load();
   const sessionStore = new SessionStoreService();
   const parser = new AnswerParserService();
-  const service = new AgentBuilderService(sandbox, promptLoader, sessionStore, parser);
+  const stubPersistence = {
+    persist: async () => ({ ok: false as const, reason: 'test-stub' }),
+  } as any;
+  const service = new AgentBuilderService(sandbox, promptLoader, sessionStore, parser, stubPersistence);
 
   // Part A
   const parserResult = runParserTests(parser);

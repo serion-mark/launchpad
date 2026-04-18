@@ -36,7 +36,16 @@ export type AgentEvent =
   | { type: 'iteration'; n: number; stopReason?: string }
   | { type: 'card_request'; card: CardRequest }
   | { type: 'card_answered'; pendingId: string; answerSummary: string }
-  | { type: 'complete'; totalIterations: number; totalCostUsd?: number; durationMs: number }
+  | {
+      type: 'complete';
+      totalIterations: number;
+      totalCostUsd?: number;
+      durationMs: number;
+      projectId?: string;
+      projectName?: string;
+      subdomain?: string;
+      fileCount?: number;
+    }
   | { type: 'error'; message: string; where?: string };
 
 export type ChatEntry =
@@ -58,6 +67,11 @@ export interface UseAgentStreamState {
   iteration: number;           // 현재 iter 번호
   toolCount: number;           // 누적 도구 호출 수
   submittingAnswer: boolean;   // 답변 POST 중 (answer → 서버 도달 전)
+  // 완료 후 "내 프로젝트" 연결 정보
+  projectId: string | null;
+  projectName: string | null;
+  subdomain: string | null;
+  fileCount: number | null;
 }
 
 export function useAgentStream() {
@@ -72,6 +86,10 @@ export function useAgentStream() {
     iteration: 0,
     toolCount: 0,
     submittingAnswer: false,
+    projectId: null,
+    projectName: null,
+    subdomain: null,
+    fileCount: null,
   });
   const abortRef = useRef<AbortController | null>(null);
 
@@ -179,6 +197,10 @@ export function useAgentStream() {
             status: 'complete',
             costUsd: ev.totalCostUsd ?? s.costUsd,
             lastActivity: '🎉 작업 완료',
+            projectId: ev.projectId ?? null,
+            projectName: ev.projectName ?? null,
+            subdomain: ev.subdomain ?? null,
+            fileCount: ev.fileCount ?? null,
           }));
           // 비용 달러 UI 노출 X — 향후 크레딧 단위로 전환 예정
           append({
@@ -186,6 +208,13 @@ export function useAgentStream() {
             text: `완료 — ${ev.totalIterations} steps · ${(ev.durationMs / 1000).toFixed(1)}s`,
             ts: Date.now(),
           });
+          if (ev.projectId) {
+            append({
+              kind: 'system',
+              text: `📁 "${ev.projectName ?? '프로젝트'}" 내 프로젝트에 저장됨 (${ev.fileCount ?? 0}개 파일)`,
+              ts: Date.now(),
+            });
+          }
           break;
         case 'error':
           setState((s) => ({
@@ -217,6 +246,10 @@ export function useAgentStream() {
         iteration: 0,
         toolCount: 0,
         submittingAnswer: false,
+        projectId: null,
+        projectName: null,
+        subdomain: null,
+        fileCount: null,
       });
 
       const controller = new AbortController();

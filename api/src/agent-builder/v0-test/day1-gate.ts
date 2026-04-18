@@ -8,6 +8,11 @@ import { SessionStoreService } from '../session-store.service';
 import { AnswerParserService } from '../answer-parser.service';
 import type { AgentStreamEvent } from '../stream-event.types';
 
+// 테스트용 stub persistence — DB 접근 없이 no-op
+const stubPersistence = {
+  persist: async () => ({ ok: false as const, reason: 'test-stub' }),
+} as any;
+
 async function main() {
   console.log('🧪 Day 1 Gate — Agent loop 도구 호출 검증\n');
 
@@ -16,7 +21,7 @@ async function main() {
   await promptLoader.load();
   const sessionStore = new SessionStoreService();
   const parser = new AnswerParserService();
-  const service = new AgentBuilderService(sandbox, promptLoader, sessionStore, parser);
+  const service = new AgentBuilderService(sandbox, promptLoader, sessionStore, parser, stubPersistence);
 
   const events: AgentStreamEvent[] = [];
   const start = Date.now();

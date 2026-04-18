@@ -103,6 +103,35 @@ export default function AgentChat({ state, onStart, onSubmitAnswer }: Props) {
             <span>📤 답변 전달 중 — Agent가 이어서 작업할 거예요</span>
           </div>
         )}
+
+        {/* 완료 시 — 내 프로젝트 이동 / 서브도메인 배포 버튼 */}
+        {state.status === 'complete' && state.projectId && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-950/30">
+            <p className="mb-3 text-sm font-semibold text-emerald-900 dark:text-emerald-100">
+              🎉 완성! 다음 중 원하시는 걸 선택해주세요
+            </p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <a
+                href={`/builder?projectId=${state.projectId}`}
+                className="flex min-h-12 items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-white px-3 py-2 text-sm font-semibold text-emerald-800 transition hover:border-emerald-500 hover:bg-emerald-100 dark:border-emerald-700 dark:bg-slate-900 dark:text-emerald-300"
+              >
+                📁 내 프로젝트에서 열기
+              </a>
+              <a
+                href="/dashboard"
+                className="flex min-h-12 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-400 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+              >
+                🌐 서브도메인 배포 (1일 무료)
+              </a>
+            </div>
+            {state.subdomain && (
+              <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-400">
+                예상 URL:{' '}
+                <span className="font-mono">https://{state.subdomain}.foundry.ai.kr</span>
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* 입력창 */}

@@ -36,7 +36,16 @@ export type AgentStreamEvent =
   | { type: 'iteration'; n: number; stopReason?: string }
   | { type: 'card_request'; card: CardRequest }    // ⭐ Day 3: 종합 카드
   | { type: 'card_answered'; pendingId: string; answerSummary: string }
-  | { type: 'complete'; totalIterations: number; totalCostUsd?: number; durationMs: number }
+  | {
+      type: 'complete';
+      totalIterations: number;
+      totalCostUsd?: number;
+      durationMs: number;
+      projectId?: string;       // "내 프로젝트"에 저장된 id
+      projectName?: string;
+      subdomain?: string;       // 배포 시 사용할 서브도메인 (예: "meditacker-abc")
+      fileCount?: number;
+    }
   | { type: 'error'; message: string; where?: string };
 
 export const AGENT_MAX_ITERATIONS = 100;
