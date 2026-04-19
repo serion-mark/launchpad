@@ -229,11 +229,18 @@ export class AgentBuilderService {
 
         onEvent({ type: 'iteration', n: iter, stopReason: res.stop_reason ?? undefined });
 
-        // 비용 추정 (대략 계산 — Anthropic이 usage 응답)
+        // 비용 추정 (Sonnet 4.6 단가: input $3/Mtok, output $15/Mtok)
+        // ⚠️ 서버 로그만 기록 — 고객 SSE 에 전송 금지 (complete 이벤트에서 빠짐)
         if (res.usage) {
           const costInput = (res.usage.input_tokens / 1_000_000) * 3;
           const costOutput = (res.usage.output_tokens / 1_000_000) * 15;
-          totalCostUsd += costInput + costOutput;
+          const costTotal = costInput + costOutput;
+          totalCostUsd += costTotal;
+          this.logger.log(
+            `[cost] session=${sessionId.slice(0, 8)} iter=${iter} ` +
+              `in=${res.usage.input_tokens}tok out=${res.usage.output_tokens}tok ` +
+              `$${costTotal.toFixed(6)} (session_total=$${totalCostUsd.toFixed(6)})`,
+          );
         }
 
         // assistant 응답 전체를 messages에 그대로 push
@@ -374,10 +381,19 @@ export class AgentBuilderService {
         previewUrl = p?.deployedUrl ?? undefined;
       }
 
+      // ⚠️ totalCostUsd 는 complete 이벤트에 포함 X — 고객에게 비용 노출 금지
+      // 서버 로그(아래 logger.log + iter별 [cost] 로그)에만 기록
+      this.logger.log(
+        `[cost] session=${sessionId.slice(0, 8)} END ` +
+          `projectId=${finalProjectId ?? 'none'} ` +
+          `name="${persistResult.ok ? persistResult.projectName : projectName ?? ''}" ` +
+          `iter=${iter} total=$${totalCostUsd.toFixed(6)} durationMs=${Date.now() - start} ` +
+          `isEdit=${!!editingProjectId} fileCount=${persistResult.ok ? persistResult.fileCount ?? 0 : 0}`,
+      );
+
       onEvent({
         type: 'complete',
         totalIterations: iter,
-        totalCostUsd: Number(totalCostUsd.toFixed(6)),
         durationMs: Date.now() - start,
         projectId: finalProjectId,
         projectName: persistResult.ok ? persistResult.projectName : projectName,

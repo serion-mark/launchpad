@@ -153,7 +153,7 @@ async function runIntegration(
       } else if (e.type === 'iteration') {
         console.log(`  [${tag}] iter=${e.n} stop=${e.stopReason}`);
       } else if (e.type === 'complete') {
-        console.log(`  [${tag}] iters=${e.totalIterations} cost=$${e.totalCostUsd} ${e.durationMs}ms`);
+        console.log(`  [${tag}] iters=${e.totalIterations} cost=$${(e as any).totalCostUsd ?? 'n/a'} ${e.durationMs}ms`);
       } else if (e.type === 'error') {
         console.log(`  [${tag}] ${e.message}`);
       }

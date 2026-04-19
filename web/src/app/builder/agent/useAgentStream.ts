@@ -52,7 +52,7 @@ export type AgentEvent =
   | {
       type: 'complete';
       totalIterations: number;
-      totalCostUsd?: number;
+      // totalCostUsd 는 서버 로그에만 기록 — 고객 UI 노출 금지
       durationMs: number;
       projectId?: string;
       projectName?: string;
@@ -81,7 +81,6 @@ export interface UseAgentStreamState {
   sessionId: string | null;
   pendingCard: CardRequest | null;
   error: string | null;
-  costUsd: number;
   // 실시간 활동 표시용
   lastActivity: string;
   iteration: number;
@@ -112,7 +111,6 @@ export function useAgentStream() {
     sessionId: null,
     pendingCard: null,
     error: null,
-    costUsd: 0,
     lastActivity: '',
     iteration: 0,
     toolCount: 0,
@@ -245,7 +243,6 @@ export function useAgentStream() {
             return {
               ...s,
               status: 'complete',
-              costUsd: ev.totalCostUsd ?? s.costUsd,
               lastActivity: '✅ 작업 완료',
               currentStage: null,
               currentLabel: '',
@@ -289,7 +286,6 @@ export function useAgentStream() {
         sessionId: null,
         pendingCard: null,
         error: null,
-        costUsd: 0,
         lastActivity: '🚀 포비 연결 중...',
         iteration: 0,
         toolCount: 0,
@@ -449,7 +445,6 @@ export function useAgentStream() {
         sessionId: null,
         pendingCard: null,
         error: null,
-        costUsd: 0,
         lastActivity: '✅ 이전 작업 이어서',
         iteration: 0,
         toolCount: 0,

@@ -55,7 +55,7 @@ export type AgentStreamEvent =
   | {
       type: 'complete';
       totalIterations: number;
-      totalCostUsd?: number;
+      // totalCostUsd 는 고객 노출 금지 — 서버 로그(agent-builder.service.ts [cost])에만 기록
       durationMs: number;
       projectId?: string;
       projectName?: string;

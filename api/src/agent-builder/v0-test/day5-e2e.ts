@@ -123,7 +123,7 @@ async function runScenario(scenarioId: string) {
       } else if (e.type === 'iteration') {
         console.log(`[${tag}] iter=${e.n} stop=${e.stopReason}`);
       } else if (e.type === 'complete') {
-        console.log(`[${tag}] iters=${e.totalIterations} cost=$${e.totalCostUsd} ${e.durationMs}ms`);
+        console.log(`[${tag}] iters=${e.totalIterations} cost=$${(e as any).totalCostUsd ?? 'n/a'} ${e.durationMs}ms`);
       } else if (e.type === 'error') {
         console.log(`[${tag}] ${e.message}`);
       }
@@ -154,7 +154,7 @@ async function runScenario(scenarioId: string) {
   console.log(`   도구별:        ${JSON.stringify(toolCounts)}`);
   console.log(`   카드 발동:     ${cards.length}회`);
   console.log(`   에러:          ${errors.length}`);
-  console.log(`   💰 비용:       $${complete?.totalCostUsd ?? 0}`);
+  console.log(`   💰 비용:       $${(complete as any)?.totalCostUsd ?? 0}`);
   console.log(`   cwd:           ${cwd}`);
 
   // ── Pass/Fail 판정 ────────────────────────

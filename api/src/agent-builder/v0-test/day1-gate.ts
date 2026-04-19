@@ -56,7 +56,7 @@ async function main() {
       } else if (e.type === 'start') {
         console.log(`[${tag}] cwd=${e.cwd}`);
       } else if (e.type === 'complete') {
-        console.log(`[${tag}] iters=${e.totalIterations} cost=$${e.totalCostUsd} ${e.durationMs}ms`);
+        console.log(`[${tag}] iters=${e.totalIterations} cost=$${(e as any).totalCostUsd ?? 'n/a'} ${e.durationMs}ms`);
       } else if (e.type === 'error') {
         console.log(`[${tag}] ${e.message}`);
       }
