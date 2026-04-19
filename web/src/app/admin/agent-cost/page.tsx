@@ -10,6 +10,8 @@ import { authFetch } from '@/lib/api';
 type CostEntry = {
   ts: string;
   sessionId: string;
+  userId: string | null;
+  email: string | null;
   projectId: string | null;
   name: string;
   iter: number;
@@ -17,6 +19,15 @@ type CostEntry = {
   durationMs: number;
   isEdit: boolean;
   fileCount: number;
+};
+
+type UserAgg = {
+  userId: string | null;
+  email: string | null;
+  sessions: number;
+  createCount: number;
+  editCount: number;
+  totalUsd: number;
 };
 
 type CostData = {
@@ -28,6 +39,7 @@ type CostData = {
     createSessions: { count: number; totalUsd: number };
     editSessions: { count: number; totalUsd: number };
     avgUsdPerSession: number;
+    byUser: UserAgg[];
   };
 };
 
@@ -100,6 +112,54 @@ export default function AdminAgentCostPage() {
         <div><span style={{ color: 'var(--adm-text-sec)' }}>수정당 평균:</span> <span style={{ fontFamily: 'monospace', marginLeft: 6 }}>${s.editSessions.count > 0 ? (s.editSessions.totalUsd / s.editSessions.count).toFixed(4) : '0.0000'}</span></div>
       </div>
 
+      {/* 사용자별 집계 */}
+      <div style={{ background: 'var(--adm-surface)', borderRadius: 14, border: '1px solid var(--adm-border)', overflow: 'hidden', marginBottom: 20 }}>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--adm-border)', fontSize: 13, fontWeight: 600 }}>
+          사용자별 집계 ({s.byUser.length}명)
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: 'var(--adm-bg2)', color: 'var(--adm-text-sec)' }}>
+                <th style={th}>이메일</th>
+                <th style={thNum}>세션</th>
+                <th style={thNum}>🏗 만들기</th>
+                <th style={thNum}>✏️ 수정</th>
+                <th style={thNum}>총 비용 ($)</th>
+                <th style={thNum}>세션당 평균 ($)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {s.byUser.map((u, i) => (
+                <tr key={i} style={{ borderTop: '1px solid var(--adm-border)' }}>
+                  <td style={td}>
+                    {u.email ? (
+                      <span style={{ fontWeight: 500 }}>{u.email}</span>
+                    ) : (
+                      <span style={{ color: 'var(--adm-text-muted)', fontStyle: 'italic' }}>
+                        {u.userId ?? '(anon 또는 구포맷)'}
+                      </span>
+                    )}
+                  </td>
+                  <td style={tdNum}>{u.sessions}</td>
+                  <td style={{ ...tdNum, color: '#22c55e' }}>{u.createCount}</td>
+                  <td style={{ ...tdNum, color: '#a855f7' }}>{u.editCount}</td>
+                  <td style={{ ...tdNum, color: '#eab308', fontWeight: 700 }}>${u.totalUsd.toFixed(4)}</td>
+                  <td style={tdNum}>${u.sessions > 0 ? (u.totalUsd / u.sessions).toFixed(4) : '0.0000'}</td>
+                </tr>
+              ))}
+              {s.byUser.length === 0 && (
+                <tr>
+                  <td colSpan={6} style={{ padding: 40, textAlign: 'center', color: 'var(--adm-text-muted)' }}>
+                    사용자별 집계 가능한 로그 없음 (신포맷 로그 쌓이면 자동 표시)
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* 세션 테이블 */}
       <div style={{ background: 'var(--adm-surface)', borderRadius: 14, border: '1px solid var(--adm-border)', overflow: 'hidden' }}>
         <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--adm-border)', fontSize: 13, fontWeight: 600 }}>
@@ -110,6 +170,7 @@ export default function AdminAgentCostPage() {
             <thead>
               <tr style={{ background: 'var(--adm-bg2)', color: 'var(--adm-text-sec)' }}>
                 <th style={th}>시각</th>
+                <th style={th}>사용자</th>
                 <th style={th}>유형</th>
                 <th style={th}>이름</th>
                 <th style={thNum}>iter</th>
@@ -123,6 +184,15 @@ export default function AdminAgentCostPage() {
               {data.entries.map((e, i) => (
                 <tr key={i} style={{ borderTop: '1px solid var(--adm-border)' }}>
                   <td style={td}>{e.ts}</td>
+                  <td style={td}>
+                    {e.email ? (
+                      <span style={{ fontSize: 11 }}>{e.email}</span>
+                    ) : (
+                      <span style={{ color: 'var(--adm-text-muted)', fontSize: 11, fontStyle: 'italic' }}>
+                        {e.userId ? e.userId.slice(-8) : 'anon'}
+                      </span>
+                    )}
+                  </td>
                   <td style={td}>
                     <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600, color: e.isEdit ? '#a855f7' : '#22c55e', background: e.isEdit ? '#a855f71a' : '#22c55e1a' }}>
                       {e.isEdit ? '✏️ 수정' : '🏗 만들기'}
@@ -138,7 +208,7 @@ export default function AdminAgentCostPage() {
               ))}
               {data.entries.length === 0 && (
                 <tr>
-                  <td colSpan={8} style={{ padding: 40, textAlign: 'center', color: 'var(--adm-text-muted)' }}>
+                  <td colSpan={9} style={{ padding: 40, textAlign: 'center', color: 'var(--adm-text-muted)' }}>
                     로그에 아직 Agent 세션이 없습니다. (배포 이후 새 Agent 세션 종료부터 기록됨)
                   </td>
                 </tr>

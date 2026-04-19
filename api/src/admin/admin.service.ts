@@ -236,6 +236,8 @@ export class AdminService {
     entries: Array<{
       ts: string;
       sessionId: string;
+      userId: string | null;
+      email: string | null;
       projectId: string | null;
       name: string;
       iter: number;
@@ -250,6 +252,14 @@ export class AdminService {
       createSessions: { count: number; totalUsd: number };
       editSessions: { count: number; totalUsd: number };
       avgUsdPerSession: number;
+      byUser: Array<{
+        userId: string | null;
+        email: string | null;
+        sessions: number;
+        createCount: number;
+        editCount: number;
+        totalUsd: number;
+      }>;
     };
   }> {
     const logger = new Logger(AdminService.name);
@@ -269,6 +279,7 @@ export class AdminService {
           createSessions: { count: 0, totalUsd: 0 },
           editSessions: { count: 0, totalUsd: 0 },
           avgUsdPerSession: 0,
+          byUser: [],
         },
       };
     }
@@ -279,25 +290,49 @@ export class AdminService {
     const lines = noAnsi.split('\n').filter((l) => l.includes('[cost]') && l.includes('END'));
 
     const tsRe = /(\d{1,2}\/\d{1,2}\/\d{4}),\s*(\d{1,2}:\d{2}:\d{2}\s*(?:AM|PM))/;
-    const re =
+    // 신포맷 (userId + email 포함): 98d7263 이후 배포 버전부터
+    const reNew =
+      /\[cost\] session=(\S+) END userId=(\S+) email="([^"]*)" projectId=(\S+) name="([^"]*)" iter=(\d+) total=\$([0-9.]+) durationMs=(\d+) isEdit=(true|false) fileCount=(\d+)/;
+    // 구포맷 호환 (userId/email 없이 저장된 초창기 로그)
+    const reOld =
       /\[cost\] session=(\S+) END projectId=(\S+) name="([^"]*)" iter=(\d+) total=\$([0-9.]+) durationMs=(\d+) isEdit=(true|false) fileCount=(\d+)/;
 
     const entries: Awaited<ReturnType<AdminService['getAgentCostLogs']>>['entries'] = [];
     for (const line of lines) {
-      const m = line.match(re);
-      if (!m) continue;
+      const mNew = line.match(reNew);
       const ts = line.match(tsRe);
-      entries.push({
-        ts: ts ? `${ts[1]} ${ts[2]}` : '',
-        sessionId: m[1],
-        projectId: m[2] === 'none' ? null : m[2],
-        name: m[3],
-        iter: parseInt(m[4], 10),
-        totalUsd: parseFloat(m[5]),
-        durationMs: parseInt(m[6], 10),
-        isEdit: m[7] === 'true',
-        fileCount: parseInt(m[8], 10),
-      });
+      if (mNew) {
+        entries.push({
+          ts: ts ? `${ts[1]} ${ts[2]}` : '',
+          sessionId: mNew[1],
+          userId: mNew[2] === 'anon' ? null : mNew[2],
+          email: mNew[3] || null,
+          projectId: mNew[4] === 'none' ? null : mNew[4],
+          name: mNew[5],
+          iter: parseInt(mNew[6], 10),
+          totalUsd: parseFloat(mNew[7]),
+          durationMs: parseInt(mNew[8], 10),
+          isEdit: mNew[9] === 'true',
+          fileCount: parseInt(mNew[10], 10),
+        });
+        continue;
+      }
+      const mOld = line.match(reOld);
+      if (mOld) {
+        entries.push({
+          ts: ts ? `${ts[1]} ${ts[2]}` : '',
+          sessionId: mOld[1],
+          userId: null,
+          email: null,
+          projectId: mOld[2] === 'none' ? null : mOld[2],
+          name: mOld[3],
+          iter: parseInt(mOld[4], 10),
+          totalUsd: parseFloat(mOld[5]),
+          durationMs: parseInt(mOld[6], 10),
+          isEdit: mOld[7] === 'true',
+          fileCount: parseInt(mOld[8], 10),
+        });
+      }
     }
 
     // 최근순 정렬 + limit
@@ -309,6 +344,33 @@ export class AdminService {
     const totalUsd = entries.reduce((sum, e) => sum + e.totalUsd, 0);
     const created = entries.filter((e) => !e.isEdit);
     const edited = entries.filter((e) => e.isEdit);
+
+    // 사용자별 집계 — email 기준 (신포맷 로그만 집계됨, 구포맷은 email 없음)
+    const userMap = new Map<
+      string,
+      { userId: string | null; email: string | null; sessions: number; createCount: number; editCount: number; totalUsd: number }
+    >();
+    for (const e of entries) {
+      const key = e.email || e.userId || '(anon)';
+      const agg =
+        userMap.get(key) ??
+        {
+          userId: e.userId,
+          email: e.email,
+          sessions: 0,
+          createCount: 0,
+          editCount: 0,
+          totalUsd: 0,
+        };
+      agg.sessions++;
+      if (e.isEdit) agg.editCount++;
+      else agg.createCount++;
+      agg.totalUsd += e.totalUsd;
+      userMap.set(key, agg);
+    }
+    const byUser = Array.from(userMap.values())
+      .map((u) => ({ ...u, totalUsd: Number(u.totalUsd.toFixed(6)) }))
+      .sort((a, b) => b.totalUsd - a.totalUsd);
 
     return {
       total: entries.length,
@@ -325,6 +387,7 @@ export class AdminService {
           totalUsd: Number(edited.reduce((s, e) => s + e.totalUsd, 0).toFixed(6)),
         },
         avgUsdPerSession: totalSessions > 0 ? Number((totalUsd / totalSessions).toFixed(6)) : 0,
+        byUser,
       },
     };
   }

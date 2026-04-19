@@ -383,8 +383,18 @@ export class AgentBuilderService {
 
       // ⚠️ totalCostUsd 는 complete 이벤트에 포함 X — 고객에게 비용 노출 금지
       // 서버 로그(아래 logger.log + iter별 [cost] 로그)에만 기록
+      // userId/email 포함 → 어드민에서 누가 얼마 썼는지 집계 가능
+      let ownerEmail: string | undefined;
+      if (userId && userId !== 'anon') {
+        const u = await this.prisma.user
+          .findUnique({ where: { id: String(userId) }, select: { email: true } })
+          .catch(() => null);
+        ownerEmail = u?.email;
+      }
       this.logger.log(
         `[cost] session=${sessionId.slice(0, 8)} END ` +
+          `userId=${userId ?? 'anon'} ` +
+          `email="${ownerEmail ?? ''}" ` +
           `projectId=${finalProjectId ?? 'none'} ` +
           `name="${persistResult.ok ? persistResult.projectName : projectName ?? ''}" ` +
           `iter=${iter} total=$${totalCostUsd.toFixed(6)} durationMs=${Date.now() - start} ` +
