@@ -344,13 +344,62 @@ USING (bucket_id = '${bucketName}' AND auth.uid()::text = (storage.foldername(na
       this.logger.log(`✅ Storage 버킷 '${bucketName}' 생성 완료 (${projectRef})`);
       return { success: true };
     } catch (error: any) {
-      // 버킷이 이미 존재하면 무시
+      // 버킷이 이미 존재하면 무시 (재시도/재배포 호환)
       if (error.message?.includes('already exists') || error.message?.includes('409')) {
         this.logger.log(`Storage 버킷 '${bucketName}' 이미 존재 — 건너뜀`);
         return { success: true };
       }
       this.logger.error(`Storage 버킷 생성 실패: ${error.message}`);
       return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Supabase Auth Admin API — 테스트 계정 자동 생성
+   * (Agent Mode 의 "로그인 바로 확인" UX 용)
+   *
+   * Management API(apiCall) 와 달리 이건 <ref>.supabase.co/auth/v1 엔드포인트 +
+   * service_role key 를 사용한다.
+   */
+  async createTestUser(
+    projectRef: string,
+    serviceKey: string,
+    email: string,
+    password: string,
+  ): Promise<{ success: boolean; userId?: string; error?: string }> {
+    if (!projectRef || !serviceKey) {
+      return { success: false, error: 'projectRef/serviceKey 필수' };
+    }
+    const url = `https://${projectRef}.supabase.co/auth/v1/admin/users`;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          email_confirm: true,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        // 이미 같은 이메일 존재하면 success 로 취급 (재배포 호환)
+        if (res.status === 422 || /already\s+(registered|exists)/i.test(body)) {
+          this.logger.log(`[createTestUser] ${email} 이미 존재 — 기존 계정 사용`);
+          return { success: true };
+        }
+        return { success: false, error: `${res.status} ${body.slice(0, 200)}` };
+      }
+      const data = (await res.json()) as { id?: string };
+      this.logger.log(`[createTestUser] ${email} 생성 완료 (id=${data.id})`);
+      return { success: true, userId: data.id };
+    } catch (err: any) {
+      this.logger.error(`[createTestUser] 실패: ${err?.message}`);
+      return { success: false, error: err?.message ?? String(err) };
     }
   }
 }

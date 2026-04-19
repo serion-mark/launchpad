@@ -93,7 +93,12 @@ export class AgentDeployService {
       append(`파일 복사 완료 → ${destDir}`);
 
       // node_modules 가 복사됐으면 삭제 (재설치)
-      await execAsync(`rm -rf "${destDir}/node_modules" "${destDir}/.next"`).catch(() => {});
+      await execAsync(`rm -rf "${destDir}/node_modules" "${destDir}/.next" "${destDir}/out"`).catch(() => {});
+
+      // ── 4-1. Safety Net: next.config 의 output:'export' 자동 제거 ──
+      //    SSR 인프라 (pm2 next start) 와 static export 는 충돌 (502 원인)
+      //    prompts § 8 에서 지양하지만 Agent 실수 대비 인프라 방어
+      await this.stripOutputExport(destDir, append);
 
       // ── 5. npm install ───────────────────────────
       append('npm install 시작...');
@@ -265,6 +270,29 @@ export class AgentDeployService {
       return cwd;
     } catch {
       return cwd;
+    }
+  }
+
+  // next.config.{ts,js,mjs} 에서 output:'export' / output: "export" 라인 제거
+  // SSR 인프라 보호 — prompts § 8 에서 Agent 에게 안내하지만 실수 방어용
+  private async stripOutputExport(destDir: string, append: (msg: string) => void): Promise<void> {
+    const candidates = ['next.config.ts', 'next.config.js', 'next.config.mjs'];
+    for (const file of candidates) {
+      const full = path.join(destDir, file);
+      try {
+        const content = await fs.readFile(full, 'utf8');
+        // output: "export" 또는 output: 'export' 라인 제거 (공백 허용)
+        const patched = content.replace(
+          /^\s*output\s*:\s*['"]export['"]\s*,?\s*\n/gm,
+          '',
+        );
+        if (patched !== content) {
+          await fs.writeFile(full, patched, 'utf8');
+          append(`[safety] ${file} 에서 output:'export' 자동 제거됨`);
+        }
+      } catch {
+        // 파일 없음 → skip
+      }
     }
   }
 

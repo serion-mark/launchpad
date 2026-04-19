@@ -49,7 +49,8 @@ server {
     }
 
     add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "SAMEORIGIN" always;
+    # foundry.ai.kr (부모 빌더 도메인) 에서 iframe 으로 프리뷰 가능해야 함 → X-Frame-Options 대신 CSP
+    add_header Content-Security-Policy "frame-ancestors 'self' https://foundry.ai.kr https://*.foundry.ai.kr" always;
 }
 `;
 }

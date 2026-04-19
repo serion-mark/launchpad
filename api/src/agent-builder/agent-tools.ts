@@ -323,6 +323,7 @@ export class AgentToolExecutor {
   // provision_supabase — 기존 SupabaseService 재사용
   // 1) 새 Supabase 프로젝트 생성 + SQL push
   // 2) 프로젝트 루트에 .env.local 자동 작성 (NEXT_PUBLIC_*)
+  // 3) 테스트 계정 1개 자동 생성 (로그인 앱 — 사용자 바로 확인 가능)
   private async provisionSupabase(input: any): Promise<string> {
     if (!this.deps.supabase) {
       throw new Error('Supabase 서비스 미주입 (AgentBuilderService 구성 확인)');
@@ -351,11 +352,38 @@ export class AgentToolExecutor {
       `NEXT_PUBLIC_SUPABASE_ANON_KEY=${result.supabaseAnonKey}\n`;
     await fs.writeFile(envPath, envContent, 'utf8');
 
+    // 테스트 계정 자동 생성 — service_role key 는 DB 에 저장돼 있음
+    // (provisionForProject 가 projects.supabaseServiceKey 에 저장)
+    let testAccountLine = '';
+    try {
+      const projectRef = result.supabaseUrl?.match(/https:\/\/([^.]+)/)?.[1];
+      if (projectRef) {
+        const prismaProject = await (this.deps.supabase as any).prisma?.project?.findUnique?.({
+          where: { id: this.deps.projectId },
+        });
+        const serviceKey = prismaProject?.supabaseServiceKey;
+        const subdomain = prismaProject?.subdomain ?? 'app';
+        if (serviceKey) {
+          const email = `test@${subdomain}.foundry.kr`;
+          const password = 'test1234';
+          const r = await this.deps.supabase.createTestUser(projectRef, serviceKey, email, password);
+          if (r.success) {
+            testAccountLine =
+              `- 🧪 테스트 계정 자동 생성: ${email} / ${password}\n` +
+              `  → 사용자가 로그인 UI에서 바로 기능 점검 가능\n`;
+          }
+        }
+      }
+    } catch {
+      // 실패해도 프로비저닝 자체는 성공 — 테스트 계정은 보조 기능
+    }
+
     return (
       `✅ Supabase 자동 프로비저닝 완료\n` +
       `- URL: ${result.supabaseUrl}\n` +
       `- .env.local 자동 주입됨 (${path.relative(this.cwd, envPath)})\n` +
-      `- 스키마 ${sqlSchema.split(';').filter(Boolean).length}개 SQL 문 실행됨`
+      `- 스키마 ${sqlSchema.split(';').filter(Boolean).length}개 SQL 문 실행됨\n` +
+      testAccountLine
     );
   }
 

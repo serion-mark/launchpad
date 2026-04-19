@@ -10,6 +10,7 @@ import { useSearchParams } from 'next/navigation';
 import { authFetch } from '@/lib/api';
 import { useAgentStream } from './useAgentStream';
 import AgentChat from './components/AgentChat';
+import FoundryPreviewPane from './components/FoundryPreviewPane';
 
 function BuilderAgentContent() {
   const params = useSearchParams();
@@ -127,9 +128,19 @@ function BuilderAgentContent() {
         </div>
       )}
 
-      {/* 메인 영역 */}
-      <main className="flex-1 overflow-hidden">
-        <AgentChat state={state} onStart={handleStart} onSubmitAnswer={submitAnswer} />
+      {/* 메인 영역 — PC 2열 (채팅 | 프리뷰), 모바일은 채팅만 */}
+      <main className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 flex-col lg:max-w-xl xl:max-w-2xl">
+          <AgentChat state={state} onStart={handleStart} onSubmitAnswer={submitAnswer} />
+        </div>
+        <div className="hidden flex-1 border-l border-slate-200 lg:flex dark:border-slate-800">
+          <FoundryPreviewPane
+            previewUrl={state.previewUrl}
+            projectName={state.projectName}
+            status={state.status}
+            lastActivity={state.lastActivity}
+          />
+        </div>
       </main>
     </div>
   );
