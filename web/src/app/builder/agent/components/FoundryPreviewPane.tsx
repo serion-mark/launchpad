@@ -28,26 +28,30 @@ export default function FoundryPreviewPane({
   lastActivity,
 }: Props) {
   const [device, setDevice] = useState<DeviceMode>('desktop');
-  const [desktopScale, setDesktopScale] = useState(1);
+  const [dims, setDims] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   const desktopWrapperRef = useRef<HTMLDivElement>(null);
 
-  // PC 모드에서 컨테이너 실제 폭을 ResizeObserver 로 측정 → scale 계산
-  // 컨테이너가 1280 미만이면 축소(scale<1), 이상이면 1:1 (scale=1, 남는 공간은 흰 여백)
+  // PC 모드: 컨테이너 폭·높이 측정 → iframe(1280px viewport) 에 scale 적용
+  // iframe 은 absolute 로 띄워서 부모 flex 계산을 밀지 않게 함
+  // (기존 버그: iframe width:1280px 이 flex-1 부모의 min-width 를 1280 으로 확장시켜
+  //  clientWidth = 1280 → scale=1 → 원본 크기로 삐져나감)
   useEffect(() => {
     if (device !== 'desktop') return;
     const el = desktopWrapperRef.current;
     if (!el) return;
     const update = () => {
-      const w = el.clientWidth;
-      if (w > 0) {
-        setDesktopScale(Math.min(1, w / DESKTOP_VIEWPORT_WIDTH));
-      }
+      setDims({ w: el.clientWidth, h: el.clientHeight });
     };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
   }, [device, previewUrl]);
+
+  const desktopScale =
+    dims.w > 0 ? Math.min(1, dims.w / DESKTOP_VIEWPORT_WIDTH) : 1;
+  const desktopIframeHeight =
+    dims.h > 0 && desktopScale > 0 ? dims.h / desktopScale : 0;
 
   if (!previewUrl) {
     return (
@@ -169,22 +173,26 @@ export default function FoundryPreviewPane({
               )}
             </div>
             {/* viewport simulator — iframe 실제 폭 1280 + scale 로 화면에 맞춤
-                → 앱은 자기를 PC (≥lg) 로 인식 → 2단 레이아웃 표시 */}
+                → 앱은 자기를 PC (≥lg) 로 인식 → 2단 레이아웃 표시
+                iframe 은 absolute 로 띄워야 부모 flex 의 min-width 를 밀지 않음 */}
             <div
               ref={desktopWrapperRef}
               className="relative flex-1 overflow-hidden bg-white"
+              style={{ minWidth: 0 }}
             >
-              <iframe
-                src={previewUrl}
-                title={projectName ?? 'desktop preview'}
-                className="border-0"
-                style={{
-                  width: `${DESKTOP_VIEWPORT_WIDTH}px`,
-                  height: `${100 / (desktopScale || 1)}%`,
-                  transform: `scale(${desktopScale || 1})`,
-                  transformOrigin: 'top left',
-                }}
-              />
+              {dims.w > 0 && (
+                <iframe
+                  src={previewUrl}
+                  title={projectName ?? 'desktop preview'}
+                  className="absolute left-0 top-0 border-0"
+                  style={{
+                    width: `${DESKTOP_VIEWPORT_WIDTH}px`,
+                    height: `${desktopIframeHeight}px`,
+                    transform: `scale(${desktopScale})`,
+                    transformOrigin: 'top left',
+                  }}
+                />
+              )}
             </div>
           </>
         )}
