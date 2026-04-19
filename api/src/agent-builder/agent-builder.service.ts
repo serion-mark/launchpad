@@ -8,6 +8,7 @@ import { ProjectPersistenceService } from './project-persistence.service';
 import { AgentToolExecutor, AGENT_TOOLS } from './agent-tools';
 import { SupabaseService } from '../supabase/supabase.service';
 import { DeployService } from '../project/deploy.service';
+import { AgentDeployService } from './agent-deploy.service';
 import { EventTranslatorService, STAGES } from './event-translator.service';
 import {
   AgentStreamEvent,
@@ -38,6 +39,7 @@ export class AgentBuilderService {
     @Inject(forwardRef(() => DeployService))
     private readonly deploy: DeployService,
     private readonly translator: EventTranslatorService,
+    private readonly agentDeploy: AgentDeployService,
   ) {
     this.anthropic = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
@@ -77,6 +79,7 @@ export class AgentBuilderService {
     const executor = new AgentToolExecutor(this.sandbox, cwd, {
       supabase: this.supabase,
       deploy: this.deploy,
+      agentDeploy: this.agentDeploy,
       persistence: this.persistence,
       userId: String(userId),
       projectId,

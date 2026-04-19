@@ -26,7 +26,8 @@ async function main() {
   const stubSupabase = { provisionForProject: async () => ({ success: false, error: 'stub' }) } as any;
   const stubDeploy = { deployTrial: async () => null } as any;
   const stubTranslator = { translate: () => null, sanitizeOutput: (s: string) => s } as any;
-  const service = new AgentBuilderService(sandbox, promptLoader, sessionStore, parser, stubPersistence, stubSupabase, stubDeploy, stubTranslator);
+  const stubAgentDeploy = { deployAgent: async () => ({ ok: false as const, error: 'stub', stage: 'stub' }) } as any;
+  const service = new AgentBuilderService(sandbox, promptLoader, sessionStore, parser, stubPersistence, stubSupabase, stubDeploy, stubTranslator, stubAgentDeploy);
 
   const events: AgentStreamEvent[] = [];
   const start = Date.now();

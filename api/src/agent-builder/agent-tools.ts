@@ -8,6 +8,7 @@ import { AGENT_TOOL_TIMEOUT_MS } from './stream-event.types';
 import type { SupabaseService } from '../supabase/supabase.service';
 import type { ProjectPersistenceService } from './project-persistence.service';
 import type { DeployService } from '../project/deploy.service';
+import type { AgentDeployService } from './agent-deploy.service';
 
 const execAsync = promisify(exec);
 
@@ -171,7 +172,8 @@ export type ToolResult = { ok: boolean; output: string; durationMs: number };
 // 도구 실행 시 외부 서비스/컨텍스트 주입 — Day 4.5에서 Supabase + Deploy 연동용
 export interface AgentToolDeps {
   supabase?: SupabaseService;
-  deploy?: DeployService;
+  deploy?: DeployService;        // 레거시 (static export). 현재 deploy_to_subdomain 은 agentDeploy 사용
+  agentDeploy?: AgentDeployService; // SSR 파이프라인 (Plan v3 § Day 4.5 원 설계)
   persistence?: ProjectPersistenceService;
   userId?: string;
   projectId?: string;      // startProject 로 미리 생성된 id
@@ -357,17 +359,21 @@ export class AgentToolExecutor {
     );
   }
 
-  // deploy_to_subdomain — 현재 sandbox 파일을 projects.generatedCode 로 업데이트 +
-  // 기존 deployTrial 파이프라인 트리거 (빌드 큐 등록 → nginx 서브도메인 연결)
+  // deploy_to_subdomain — Plan v3 § Day 4.5 원 설계 (SSR 파이프라인)
+  // 1) cwd 파일을 projects.generatedCode 로 저장 (finishProject, DB 동기화)
+  // 2) AgentDeployService.deployAgent 호출 (복사 → npm install → next build → pm2 → nginx)
+  // 3) 성공 시 HTTPS previewUrl 반환
+  //
+  // 기존 deploy.service.ts (static export) 은 안 씀 — 동적 라우트 / Server Component 호환 위해 SSR 전용.
   private async deployToSubdomain(_input: any): Promise<string> {
-    if (!this.deps.deploy || !this.deps.persistence) {
-      throw new Error('Deploy/Persistence 서비스 미주입');
+    if (!this.deps.agentDeploy || !this.deps.persistence) {
+      throw new Error('AgentDeployService/Persistence 미주입');
     }
     if (!this.deps.projectId || !this.deps.userId) {
       throw new Error('projectId/userId 없음 (startProject 선행 필요)');
     }
 
-    // 1) cwd 파일 수집 → generatedCode 업데이트 + status='active'
+    // 1) 파일 스냅샷 DB 저장 (수정 세션에서도 최신 코드 유지)
     const persistResult = await this.deps.persistence.finishProject({
       userId: this.deps.userId,
       cwd: this.cwd,
@@ -378,21 +384,27 @@ export class AgentToolExecutor {
       throw new Error(`파일 저장 실패: ${persistResult.reason}`);
     }
 
-    // 2) deployTrial 호출 (빌드 큐 등록, 즉시 응답)
-    const deployResult = await this.deps.deploy.deployTrial(
-      this.deps.projectId,
-      this.deps.userId,
-    );
-    if (!deployResult) {
-      throw new Error('배포 트리거 실패 (deployTrial null 반환)');
+    // 2) SSR 배포 파이프라인 실행 (동기 실행 — 완료까지 대기)
+    //    복잡한 앱은 2~5분 걸릴 수 있음. Agent loop 이 기다려준다.
+    const result = await this.deps.agentDeploy.deployAgent({
+      projectId: this.deps.projectId,
+      userId: this.deps.userId,
+      cwd: this.cwd,
+    });
+
+    if (result.ok === false) {
+      const logPart = result.logTail ? `\n\n[로그 tail]\n${result.logTail.slice(-1500)}` : '';
+      throw new Error(
+        `배포 실패 (${result.stage}): ${result.error}${logPart}`,
+      );
     }
 
     return (
-      `✅ 서브도메인 배포 트리거됨 (1일 무료 체험)\n` +
-      `- URL: ${deployResult.deployedUrl}\n` +
-      `- 만료: ${deployResult.trialExpiresAt.toISOString()}\n` +
-      `- 빌드는 백그라운드에서 진행됨 (2~3분 소요)\n` +
-      `- 사용자는 "내 프로젝트"에서 빌드 상태 확인 가능`
+      `✅ 서브도메인 배포 완료 (SSR 모드, 1일 무료 체험)\n` +
+      `- URL: ${result.previewUrl}\n` +
+      `- 포트: ${result.port}\n` +
+      `- 서브도메인: ${result.subdomain}\n` +
+      `- 동적 라우트 + Server Component + next/headers 모두 지원됨`
     );
   }
 
