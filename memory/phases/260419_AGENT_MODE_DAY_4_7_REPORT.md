@@ -244,3 +244,148 @@ for (let attempt = 0; attempt < maxAttempts; attempt++) {
 다음은 사장님이 실제 수정 모드로 메디트래커 "회원가입 안 됨" 다시 쳐서 Agent가 `lib/supabase.ts` 진짜 Read 하는지 확인해주면 됨. 만약 여전히 "샌드박스 외부라..." 뜨면 복원 로직 경로 디버깅 필요 — 그때 바로 알려주세요.
 
 GO! 🚀
+
+---
+
+# Part 2 — 사장님 실사용 피드백 라운드 (4/19 저녁 긴급 추가)
+
+51e7db5 배포 후 사장님이 실제로 메디트래커를 써보시며 **3가지 추가 문제** 실증 제보. 연달아 처리 끝에 모두 해결.
+
+## 추가 이슈 4: PC 프리뷰 레이아웃 — viewport simulator (🔴 가장 큰 삽질)
+
+### 증상
+사장님 스샷: `/builder/agent` 프리뷰에 메디트래커 로그인 카드만 작게 보임. 실제 URL(`app-faec.foundry.ai.kr`) 직접 접속 시엔 히어로 + 로그인 2단 PC 레이아웃 정상.
+
+### 진단 (curl로 직접 확인)
+- `/` → `/login` 리다이렉트 (같은 페이지)
+- HTML 에 `lg:block` / `lg:grid` / `lg:hidden` 등 Tailwind `lg:` (≥1024px) 반응형
+- iframe 폭이 1024px 미만이라 앱이 **자기를 모바일로 인식 → `lg:hidden` 발동 → 히어로 숨김**
+
+### 🙇 삽질 타임라인 (6 commits)
+| 커밋 | 시도 | 결과 |
+|---|---|---|
+| [`46b9f92`](https://github.com/serion-mark/launchpad/commit/46b9f92) | viewport simulator 1차 (scale + iframe 1280 고정) | **창 밖 삐져나감** |
+| [`828457d`](https://github.com/serion-mark/launchpad/commit/828457d) | iframe absolute + dims ResizeObserver | "34%" 뱃지 + 큰 빈 공간 |
+| [`5f67c28`](https://github.com/serion-mark/launchpad/commit/5f67c28) | 레거시 /builder LivePreview 패턴 이식 (simulator 폐기) | 쉽지만 여전히 모바일로 렌더 (근본 미해결) |
+| [`12513ff`](https://github.com/serion-mark/launchpad/commit/12513ff) | 채팅 폭 `lg:w-[360px]` 로 축소 → 프리뷰 여유 확보 | "채팅만 줄고 본질 해결 X" 사장님 반려 |
+| [`6af07cb`](https://github.com/serion-mark/launchpad/commit/6af07cb) | 채팅 폭 원복 | — |
+| ✅ [`b401578`](https://github.com/serion-mark/launchpad/commit/b401578) | **simulator 재시도 — `Math.min(1, ...)` 제한 한 줄 제거** | **해결!** |
+
+### 진짜 정답
+```typescript
+// 실패: scale 1 로 제한 → 넓은 화면에서 축소 안 되고 좌상단에 1280 박혀 빈 공간
+const desktopScale = Math.min(1, dims.w / DESKTOP_VIEWPORT_WIDTH);
+
+// 성공: 제한 제거 → 항상 containerW 에 정확히 맞춤
+const desktopScale = dims.w > 0 ? dims.w / DESKTOP_VIEWPORT_WIDTH : 1;
+```
+
+1440px 화면: 프리뷰 864px → scale 0.675 → iframe 1280×H 를 864×(H*0.675) 로 렌더 → 앱은 1280 인식 → lg 발동 → **히어로+로그인 2단 완전 표시** ✅
+
+### 교훈 (기록 가치 큼)
+- **첫 시도가 방향은 맞았지만 한 줄 버그로 실패** → 2~6번은 전부 방향 오판
+- `Math.min` 같은 "안전장치" 습관적 추가가 버그의 원인
+- UI 반응형 문제는 **추측보다 curl / preview / DevTools 직접 측정**이 10배 빠름
+
+---
+
+## 추가 이슈 5: 채팅 입력창 줄바꿈 안 됨
+
+### 증상
+`<input type="text">` 사용 → Shift+Enter 눌러도 single line 유지.
+
+### 수정 ([`439fadc`](https://github.com/serion-mark/launchpad/commit/439fadc))
+- `<input>` → `<textarea rows={1}>` 교체
+- `useEffect` + scrollHeight 기반 auto-grow (max 200px)
+- Enter = 전송, Shift+Enter = 기본 줄바꿈 유지
+- `e.nativeEvent.isComposing` 체크로 한글 IME 조합 중 전송 방지
+- placeholder 에 "Shift+Enter 줄바꿈" 힌트
+
+---
+
+## 추가 이슈 6: 회원가입 후 로그인 실패 (🔴 사장님 "한 번에 되어야 함")
+
+### 증상
+- `test3@serion.ai.kr` 가입 → 로그인 시도 → **"Email not confirmed"**
+- Supabase 기본값(Email Confirmation=ON) 으로 배포된 앱 → 이메일 인증 없이는 로그인 불가
+- Agent Mode UX 원칙 위반: "가입 즉시 로그인 가능해야" 함
+
+### 수정 (2 commits)
+
+**[`a89b87b`](https://github.com/serion-mark/launchpad/commit/a89b87b) — 근본 수정 (신규 앱 자동 적용)**
+- `supabase.service.ts` 에 `setAutoConfirm(ref)` 메서드 추가
+  - `PATCH /v1/projects/{ref}/config/auth` → `mailer_autoconfirm=true`
+  - `UPDATE auth.users SET email_confirmed_at=NOW()` → 기존 미confirm 일괄 복구
+- `provisionForProject` 신규 생성 + idempotency 경로 **둘 다** 자동 호출
+
+**[`f10040c`](https://github.com/serion-mark/launchpad/commit/f10040c) — admin endpoint (기존 앱 일괄 복구용)**
+- `AgentBuilderService.fixAutoConfirmAll(userId)` + `POST /api/ai/agent-build/fix-autoconfirm`
+- 사용자 소유 active 프로젝트 전체를 한 번에 복구
+
+### 긴급 복구 (SSH 직접 실행)
+사장님이 브라우저 콘솔 명령 실행을 싫어하셔서 **자비스가 SSH로 직접 처리**:
+```bash
+ssh -i ~/.ssh/serion-key.pem -p 3181 root@175.45.200.162
+# 11개 active 프로젝트 각각 PATCH config/auth + POST database/query
+```
+
+**결과**: 모두 HTTP 200/201 ✅
+- 메디트래커, 네일샵 POS, 오늘한끼, 백설공주 사과농장, 동네대장밀키트
+- ideabox, bling, date-matching-app, gkdk, 셀즈노트, cpzm_v1
+
+사장님이 `test3@serion.ai.kr / 12345678` 로 로그인 → **바로 성공 확인** ✅
+
+---
+
+## Part 2 전체 커밋 리스트
+
+| # | 커밋 | 내용 |
+|---|---|---|
+| 1 | [`46b9f92`](https://github.com/serion-mark/launchpad/commit/46b9f92) | PC 프리뷰 simulator 1차 |
+| 2 | [`828457d`](https://github.com/serion-mark/launchpad/commit/828457d) | iframe absolute |
+| 3 | [`5f67c28`](https://github.com/serion-mark/launchpad/commit/5f67c28) | 레거시 이식 (simulator 폐기) |
+| 4 | [`12513ff`](https://github.com/serion-mark/launchpad/commit/12513ff) | 채팅 360px (사장님 반려) |
+| 5 | [`6af07cb`](https://github.com/serion-mark/launchpad/commit/6af07cb) | 채팅 원복 |
+| 6 | ✅ [`b401578`](https://github.com/serion-mark/launchpad/commit/b401578) | **simulator 재시도 — Math.min 제거 → 해결** |
+| 7 | [`439fadc`](https://github.com/serion-mark/launchpad/commit/439fadc) | textarea + Shift+Enter |
+| 8 | [`a89b87b`](https://github.com/serion-mark/launchpad/commit/a89b87b) | Supabase autoconfirm (신규 앱) |
+| 9 | [`f10040c`](https://github.com/serion-mark/launchpad/commit/f10040c) | admin fix-autoconfirm endpoint |
+| — | (SSH) | 11개 기존 앱 일괄 복구 |
+
+**Part 2 총 9 commits (프리뷰 6회 포함)**. Part 1(7개) + Part 2(9개) = **4/19 하루 총 16 commits**.
+
+---
+
+## 교훈 (다음 세션/명탐정 v3 에게)
+
+### 1. UI 레이아웃 문제 → 직접 측정 먼저
+- curl 로 실제 HTML 확인
+- preview 띄워서 DevTools 로 width/height 로그
+- `ResizeObserver` 로 실제 측정값 console.log
+- **추측 → 반복 수정 → 실패** 패턴 금지
+
+### 2. "안전장치" 한 줄이 버그일 수 있음
+- `Math.min(1, ...)` 처럼 "혹시 몰라서" 넣는 clamp 주의
+- 원본 공식이 맞는지 먼저 확인, 그 다음 clamp 여부 판단
+
+### 3. 사장님 워크플로우 — 자비스가 직접 처리
+- 브라우저 콘솔 명령 / curl 복붙 / 수동 OFF 등 사장님 손 쓰는 일은 **피할 것**
+- SSH / admin endpoint / 자동화 로 자비스가 완결 처리
+- 사장님이 "네가 해!" 라고 하기 전에 이미 자비스가 했어야 함
+
+### 4. 프로비저닝 기본값 점검
+- Supabase 의 Email Confirmation 처럼 **기본값이 UX 를 망가뜨리는 설정** 체크
+- 다른 외부 서비스 프로비저닝(스토리지, RLS, CORS 등) 도 같은 관점 필요
+
+---
+
+## 4/19 하루 최종 스펙
+
+- **16 commits / 1일 (오전 10 + 오후 6 + 저녁 9 중 중복 제외)**
+- **실증 6이슈 해결**: 사장님이 실사용 중 발견한 문제 6개 전부 당일 해결
+- **검증된 실앱 11개 전부 복구** (autoconfirm 일괄)
+- **배포 평균 31초** — GitHub Actions 안정
+
+사장님 "굿! 해결됨!!!" — 🙏
+
+GO! 🚀
