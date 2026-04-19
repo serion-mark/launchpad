@@ -3,6 +3,7 @@
 // 완료 카드 — 포비 정체성 (Foundry 블루 그라데이션 + 인사이트 1개)
 
 import Link from 'next/link';
+import MarkdownRenderer from '@/app/components/MarkdownRenderer';
 
 interface Props {
   projectName?: string;
@@ -50,7 +51,9 @@ export default function FoundryComplete({
           <div className="mb-1 text-xs font-medium text-amber-700 dark:text-amber-400">
             💡 한 가지 제안
           </div>
-          <div className="text-sm text-amber-900 dark:text-amber-200">{insight}</div>
+          <div className="text-sm text-amber-900 dark:text-amber-200">
+            <MarkdownRenderer content={insight} />
+          </div>
         </div>
       )}
 

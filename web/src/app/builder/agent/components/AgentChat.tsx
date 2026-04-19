@@ -10,6 +10,7 @@ import AnswerSheetCard from './AnswerSheetCard';
 import FoundryProgress from './FoundryProgress';
 import FoundryComplete from './FoundryComplete';
 import FoundryError from './FoundryError';
+import MarkdownRenderer from '@/app/components/MarkdownRenderer';
 
 interface Props {
   state: UseAgentStreamState;
@@ -281,8 +282,8 @@ function ChatEntryRow({
     case 'assistant':
       return (
         <div className="flex justify-start">
-          <div className="max-w-[90%] whitespace-pre-wrap rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-2 text-sm text-slate-800 sm:text-base dark:bg-slate-800 dark:text-slate-100">
-            {entry.text}
+          <div className="max-w-[90%] rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-2 text-sm text-slate-800 sm:text-base dark:bg-slate-800 dark:text-slate-100">
+            <MarkdownRenderer content={entry.text} />
           </div>
         </div>
       );
