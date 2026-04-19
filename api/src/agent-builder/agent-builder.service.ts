@@ -52,6 +52,53 @@ export class AgentBuilderService {
     });
   }
 
+  // 대화 이력을 Anthropic API 호출 가능한 상태로 정리
+  // Anthropic 제약:
+  //   - 첫 메시지는 반드시 role=user
+  //   - assistant 가 tool_use 블록 보내면 다음 user 는 tool_result 를 모두 포함해야
+  //   - user 가 tool_result 보낸 뒤에는 assistant 가 반드시 응답해야
+  // run() 이 중간에 끊긴 경우 위 제약이 깨진 상태로 DB 에 저장될 수 있음 → 안전하게 잘라냄
+  private sanitizeMessageHistory(
+    prior: Anthropic.Messages.MessageParam[],
+  ): Anthropic.Messages.MessageParam[] {
+    if (!Array.isArray(prior) || prior.length === 0) return [];
+
+    // 1) user 로 시작하는 첫 지점까지 앞부분 잘라냄
+    let start = 0;
+    while (start < prior.length && prior[start]?.role !== 'user') start++;
+    let trimmed = prior.slice(start);
+
+    // 2) 뒤에서부터 "깨끗한 종료 지점" 찾기
+    //    허용: assistant 가 tool_use 없이 텍스트/답변으로 끝난 지점
+    //    비허용: assistant(tool_use) 또는 user(tool_result) 로 끝난 상태 (다음 단계가 필요했던 중간 상태)
+    const hasToolUse = (msg: Anthropic.Messages.MessageParam): boolean => {
+      if (typeof msg.content === 'string') return false;
+      if (!Array.isArray(msg.content)) return false;
+      return msg.content.some((b: any) => b?.type === 'tool_use');
+    };
+    const hasToolResult = (msg: Anthropic.Messages.MessageParam): boolean => {
+      if (typeof msg.content === 'string') return false;
+      if (!Array.isArray(msg.content)) return false;
+      return msg.content.some((b: any) => b?.type === 'tool_result');
+    };
+
+    let end = trimmed.length;
+    while (end > 0) {
+      const last = trimmed[end - 1];
+      if (last.role === 'assistant' && !hasToolUse(last)) break; // 깨끗한 종료
+      // user(tool_result) 또는 assistant(tool_use) 는 뒷 메시지 필요 → 잘라냄
+      if (last.role === 'user' && hasToolResult(last)) { end--; continue; }
+      if (last.role === 'assistant' && hasToolUse(last)) { end--; continue; }
+      if (last.role === 'user') break; // plain user 는 괜찮지만 사실 loop 내 위치 — 안전상 break
+      end--;
+    }
+    trimmed = trimmed.slice(0, end);
+
+    // 3) 여전히 user 로 시작하지 않으면 빈 배열 반환
+    if (trimmed.length === 0 || trimmed[0].role !== 'user') return [];
+    return trimmed;
+  }
+
   // Day 4.6: 단계별 진행률 추정 (사용자 체감용, 정확한 값 아님)
   private calcProgress(stage: string): number {
     const map: Record<string, number> = {
@@ -211,10 +258,17 @@ export class AgentBuilderService {
         });
         if (p?.agentMessages && Array.isArray(p.agentMessages)) {
           const prior = p.agentMessages as unknown as Anthropic.Messages.MessageParam[];
-          // 최근 20턴 (user+assistant pair 10쌍) 만 유지 — 비용/토큰 폭주 방지
-          const tail = prior.slice(-20);
-          messages.push(...tail);
-          this.logger.log(`[agent-history] ${editingProjectId} → 과거 ${tail.length}턴 로드`);
+          const sanitized = this.sanitizeMessageHistory(prior.slice(-20));
+          if (sanitized.length > 0) {
+            messages.push(...sanitized);
+            this.logger.log(
+              `[agent-history] ${editingProjectId} → 과거 ${sanitized.length}턴 로드 (원본 ${prior.length}턴)`,
+            );
+          } else {
+            this.logger.log(
+              `[agent-history] ${editingProjectId} → 과거 이력 sanitize 결과 0턴 (새 대화 시작)`,
+            );
+          }
         }
       } catch (err: any) {
         this.logger.warn(`[agent-history] 로드 실패 (새 대화로 진행): ${err?.message}`);
@@ -420,14 +474,16 @@ export class AgentBuilderService {
 
       // 대화 이력 저장 — 다음 세션에서 "그것도 고쳐줘" 같은 참조형 대화 유지
       // 최근 20턴 + 30KB 제한 (비용 폭주 방지)
+      // 저장 시에도 sanitize — 중간 끊긴 상태(tool_use/result 짝 안 맞음) DB 에 남지 않게
       if (finalProjectId) {
         try {
           const MAX_TURNS = 20;
           const MAX_BYTES = 30_000;
-          let tail = messages.slice(-MAX_TURNS);
+          let tail = this.sanitizeMessageHistory(messages.slice(-MAX_TURNS));
           let serialized = JSON.stringify(tail);
           while (serialized.length > MAX_BYTES && tail.length > 2) {
             tail = tail.slice(2); // 가장 오래된 user+assistant 쌍 제거
+            tail = this.sanitizeMessageHistory(tail); // 쌍 제거 후 재검증
             serialized = JSON.stringify(tail);
           }
           await this.prisma.project.update({
