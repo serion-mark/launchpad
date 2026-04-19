@@ -10,6 +10,8 @@ import type { AgentStreamEvent } from '../stream-event.types';
 
 // 테스트용 stub persistence — DB 접근 없이 no-op
 const stubPersistence = {
+  startProject: async () => ({ ok: false as const, reason: 'test-stub' }),
+  finishProject: async () => ({ ok: false as const, reason: 'test-stub' }),
   persist: async () => ({ ok: false as const, reason: 'test-stub' }),
 } as any;
 

@@ -203,6 +203,8 @@ async function main() {
   const sessionStore = new SessionStoreService();
   const parser = new AnswerParserService();
   const stubPersistence = {
+    startProject: async () => ({ ok: false as const, reason: 'test-stub' }),
+    finishProject: async () => ({ ok: false as const, reason: 'test-stub' }),
     persist: async () => ({ ok: false as const, reason: 'test-stub' }),
   } as any;
   const stubSupabase = { provisionForProject: async () => ({ success: false, error: 'stub' }) } as any;
