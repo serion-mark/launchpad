@@ -235,6 +235,39 @@ export class SupabaseService {
   }
 
   /**
+   * 회원가입 이메일 자동 인증 활성화 (mailer_autoconfirm: true)
+   *   Supabase 기본값은 Email Confirmation 필수 → 가입 후 로그인 시 "Email not confirmed" 에러
+   *   Agent Mode 로 만드는 앱은 "가입 즉시 로그인" UX 가 기본이어야 함 → 자동 OFF
+   *   추가로 기존 미confirmed 사용자들도 일괄 confirm (가입만 하고 막힌 사용자 복구)
+   */
+  async setAutoConfirm(ref: string): Promise<{ success: boolean; error?: string }> {
+    if (!this.enabled) return { success: false, error: 'Supabase 미설정' };
+    try {
+      // 1. 프로젝트 Auth 설정: mailer_autoconfirm = true (앞으로의 가입은 자동 confirm)
+      await this.apiCall('PATCH', `/v1/projects/${ref}/config/auth`, {
+        mailer_autoconfirm: true,
+      });
+      this.logger.log(`[setAutoConfirm] ${ref} — 회원가입 자동 인증 활성화`);
+
+      // 2. 이미 가입했지만 confirm 안 된 기존 사용자들 일괄 confirm (복구용)
+      try {
+        await this.apiCall('POST', `/v1/projects/${ref}/database/query`, {
+          query: `UPDATE auth.users SET email_confirmed_at = NOW() WHERE email_confirmed_at IS NULL;`,
+        });
+        this.logger.log(`[setAutoConfirm] ${ref} — 기존 미confirm 사용자 일괄 처리`);
+      } catch (err: any) {
+        // 복구 실패는 경고만 — autoconfirm 자체는 성공
+        this.logger.warn(`[setAutoConfirm] bulk confirm 실패 (무시): ${err?.message}`);
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      this.logger.warn(`[setAutoConfirm] 실패: ${err?.message}`);
+      return { success: false, error: err?.message };
+    }
+  }
+
+  /**
    * 전체 프로비저닝 플로우
    * 1. 프로젝트 생성
    * 2. ACTIVE_HEALTHY 대기
@@ -275,6 +308,10 @@ export class SupabaseService {
         existing.supabaseUrl &&
         existing.supabaseAnonKey
       ) {
+        // 재호출 시에도 autoconfirm 보장 — 예전에 생성된 프로젝트의 Email Confirmation 수정
+        if (existing.supabaseProjectRef) {
+          await this.setAutoConfirm(existing.supabaseProjectRef).catch(() => {});
+        }
         this.logger.log(
           `[provision] ${projectId} 이미 active — 기존 Supabase 재사용 (${existing.supabaseUrl})`,
         );
@@ -325,6 +362,14 @@ export class SupabaseService {
 
       // 4. SQL 마이그레이션 실행
       await this.runMigration(ref, sql);
+
+      // 4-bis. 회원가입 이메일 자동 인증 활성화
+      //   → 기본값(Email Confirmation ON)이면 가입 후 "Email not confirmed" 에러로 로그인 불가
+      //   → Agent Mode UX 원칙: 가입 즉시 로그인 가능해야 함
+      //   실패해도 메인 흐름 계속 (사장님이 Supabase 대시보드에서 수동 OFF 가능)
+      await this.setAutoConfirm(ref).catch((e) =>
+        this.logger.warn(`[provision] setAutoConfirm 경고 (무시): ${e?.message}`),
+      );
 
       // 5. DB에 최종 저장
       await this.prisma.project.update({
