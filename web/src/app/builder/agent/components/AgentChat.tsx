@@ -11,13 +11,11 @@ import FoundryProgress from './FoundryProgress';
 import FoundryComplete from './FoundryComplete';
 import FoundryError from './FoundryError';
 
-export type SendMode = 'chat' | 'build';
-
 interface Props {
   state: UseAgentStreamState;
-  onStart: (prompt: string, mode: SendMode) => void;
+  onStart: (prompt: string) => void;
   onSubmitAnswer: (answer: string) => void;
-  // 수정 모드(기존 프로젝트)에 진입했는지 — 기본 mode 결정
+  // 수정 모드(기존 프로젝트)에 진입했는지 — placeholder 힌트용
   isEditingMode?: boolean;
 }
 
@@ -29,8 +27,6 @@ export default function AgentChat({
 }: Props) {
   const [input, setInput] = useState('');
   const [devOpen, setDevOpen] = useState(false);
-  // 🗨️ 상의(chat) / 🛠️ 만들기(build) — 수정 모드 기본값 = 상의 (보수적)
-  const [mode, setMode] = useState<SendMode>(isEditingMode ? 'chat' : 'build');
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -76,7 +72,7 @@ export default function AgentChat({
       state.status === 'complete' ||
       state.status === 'error'
     ) {
-      onStart(text, mode);
+      onStart(text);
     }
     setInput('');
   };
@@ -201,44 +197,8 @@ export default function AgentChat({
         )}
       </div>
 
-      {/* 입력창 — 모드 토글 + 입력 + 보내기 */}
+      {/* 입력창 — 단일 채팅 (사장님 철학: 제약→맥락, 토글 제거) */}
       <div className="border-t border-slate-200 p-3 sm:p-4 dark:border-slate-800">
-        {/* 💬 상의 / 🛠️ 만들기 토글 (awaiting_answer 때는 숨김) */}
-        {state.status !== 'awaiting_answer' && (
-          <div className="mb-2 flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setMode('chat')}
-              className={[
-                'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition',
-                mode === 'chat'
-                  ? 'text-white'
-                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400',
-              ].join(' ')}
-              style={mode === 'chat' ? { backgroundColor: '#3182F6' } : undefined}
-            >
-              💬 <span>상의</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('build')}
-              className={[
-                'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition',
-                mode === 'build'
-                  ? 'text-white'
-                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400',
-              ].join(' ')}
-              style={mode === 'build' ? { backgroundColor: '#3182F6' } : undefined}
-            >
-              🛠️ <span>만들기</span>
-            </button>
-            <span className="ml-2 text-[10px] text-slate-400 dark:text-slate-500">
-              {mode === 'chat'
-                ? '자유롭게 상의 · 기능 추천 · 아이디어 토론'
-                : '파일 수정 / 기능 추가 실행'}
-            </span>
-          </div>
-        )}
         <div className="flex items-end gap-2">
           <textarea
             ref={inputRef}
@@ -254,11 +214,11 @@ export default function AgentChat({
             placeholder={
               state.status === 'awaiting_answer'
                 ? '번호("1, 2"), "시작", 또는 자연어로 답변 (Shift+Enter 줄바꿈)'
-                : mode === 'chat' && (state.status === 'complete' || state.status === 'idle' || state.status === 'error')
-                  ? '질문 / 추천 요청 (Shift+Enter 줄바꿈)'
-                  : mode === 'build' && (state.status === 'complete' || state.status === 'idle' || state.status === 'error')
-                    ? '만들거나 수정할 내용 (Shift+Enter 줄바꿈)'
-                    : '응답 대기 중...'
+                : state.status === 'complete' || state.status === 'idle' || state.status === 'error'
+                  ? isEditingMode
+                    ? '질문 / 수정 요청 (예: "댓글 기능 추가해줘", Shift+Enter 줄바꿈)'
+                    : '만들고 싶은 앱 / 질문 (Shift+Enter 줄바꿈)'
+                  : '응답 대기 중...'
             }
             disabled={disabled}
             rows={1}

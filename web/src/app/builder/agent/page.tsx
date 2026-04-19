@@ -54,44 +54,28 @@ function BuilderAgentContent() {
       .catch(() => {});
   }, [projectId, authChecked, resumeProject]);
 
-  // 모드별 prompt 래핑 — 상의(chat) vs 만들기(build)
-  // 상의 모드: Agent 도구 호출 없이 자연어 답변만
-  // 만들기 모드: 기존 로직 (수정 모드면 projectId 포함)
-  const handleStart = (userText: string, mode: 'chat' | 'build' = 'build') => {
-    const isEdit = !!(projectId && editingProject);
+  // 단일 채팅 입력 — 토글 제거, Agent 가 맥락으로 판단 (사장님 철학: 제약→맥락)
+  // "추가 기능 뭐 있을까?" 질문 → Agent 는 대화. "댓글 기능 추가해줘" → 도구 호출.
+  //
+  // 수정 모드 판정: URL ?projectId 또는 state.projectId (방금 생성 완료한 세션) 둘 중 하나라도 있으면.
+  //   → 앱 생성 완료 후 같은 세션에서 이어서 대화해도 기존 앱 맥락 유지됨.
+  const handleStart = (userText: string) => {
+    const effectiveProjectId = projectId ?? state.projectId ?? null;
+    const effectiveProjectName = editingProject?.name ?? state.projectName ?? null;
+    const effectiveSubdomain = editingProject?.subdomain ?? state.subdomain ?? null;
+    const isEdit = !!(effectiveProjectId && effectiveProjectName);
 
-    if (mode === 'chat') {
-      // 💬 상의 모드 — 토글은 힌트, Agent 가 맥락으로 최종 판단 (사장님 철학: 제약보다 맥락)
-      // 원칙: 대화/추천 우선. 명백한 실행 요청이면 한 번 확인 후 진행.
-      const chatContext = isEdit
-        ? `[대화 신호: 💬 상의 모드 — 기존 프로젝트 "${editingProject!.name}"]\n` +
-          (editingProject!.subdomain ? `- subdomain: ${editingProject!.subdomain}\n` : '') +
-          `- 사용자 발화: ${userText}\n\n` +
-          `가이드: 사용자가 "상의" 토글을 켠 상태입니다. 기본은 대화/추천.\n` +
-          `- 질문/추천 요청이면 → 자연어로 답변만.\n` +
-          `- 명백한 실행 명령(예: "댓글 기능 추가해줘")이면 → "지금 바로 만들까요?" 한 번 확인 후 사용자 OK 나면 도구 호출.\n` +
-          `- 판단은 네(Agent)가 맥락으로. 제약 아님.`
-        : `[대화 신호: 💬 상의 모드 — 새 아이디어 구체화]\n` +
-          `- 사용자 발화: ${userText}\n\n` +
-          `가이드: 사용자가 "상의" 토글을 켠 상태. 기본은 대화/아이디어 구체화.\n` +
-          `- 모호하면 → 선택지 제시하며 질문.\n` +
-          `- 명백한 제작 요청이면 → "이대로 만들까요?" 한 번 확인 후 답지 카드 또는 작업 시작.\n` +
-          `- 맥락은 네(Agent)가 판단.`;
-      // LLM 엔 context 포함 prompt, UI 버블엔 사용자 순수 발화만
-      // 수정 모드면 projectId 도 전달 → 백엔드가 sandbox 에 기존 generatedCode 복원
-      start(chatContext, userText, isEdit ? (projectId ?? undefined) : undefined);
-      return;
-    }
-
-    // 🛠️ 만들기 모드 — 기존 로직
     if (isEdit) {
       const wrapped =
-        `[만들기 모드 — 기존 프로젝트 "${editingProject!.name}" 수정]\n` +
-        `- projectId: ${projectId}\n` +
-        (editingProject!.subdomain ? `- subdomain: ${editingProject!.subdomain}\n` : '') +
-        `- 사용자 요청: ${userText}\n\n` +
-        `이 앱은 이미 배포된 상태입니다. 처음부터 만들지 말고, 요청된 부분만 수정/추가 후 deploy_to_subdomain 으로 재배포해주세요.`;
-      start(wrapped, userText, projectId ?? undefined);
+        `[기존 프로젝트 "${effectiveProjectName}" 작업 중]\n` +
+        `- projectId: ${effectiveProjectId}\n` +
+        (effectiveSubdomain ? `- subdomain: ${effectiveSubdomain}\n` : '') +
+        `- 사용자 발화: ${userText}\n\n` +
+        `이 앱은 이미 배포된 상태입니다.\n` +
+        `- 질문/추천/상의 요청이면 → 자연어로 답변 (기존 코드 Read 해서 맥락 기반).\n` +
+        `- 수정/추가 요청이면 → 요청된 부분만 수정/추가 후 deploy_to_subdomain 으로 재배포.\n` +
+        `- 맥락은 네가 판단. 처음부터 만들지는 말 것.`;
+      start(wrapped, userText, effectiveProjectId);
     } else {
       start(userText);
     }
@@ -199,7 +183,7 @@ function BuilderAgentContent() {
             state={state}
             onStart={handleStart}
             onSubmitAnswer={submitAnswer}
-            isEditingMode={!!(projectId && editingProject)}
+            isEditingMode={!!((projectId && editingProject) || state.projectId)}
           />
         </div>
         <div className="hidden min-w-0 flex-1 border-l border-slate-200 lg:flex dark:border-slate-800">
