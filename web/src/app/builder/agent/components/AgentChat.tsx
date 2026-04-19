@@ -32,8 +32,16 @@ export default function AgentChat({
   // 🗨️ 상의(chat) / 🛠️ 만들기(build) — 수정 모드 기본값 = 상의 (보수적)
   const [mode, setMode] = useState<SendMode>(isEditingMode ? 'chat' : 'build');
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
+
+  // 채팅 입력창 auto-grow — 내용 따라 높이 조정 (max 200px)
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+  }, [input]);
   const startTsRef = useRef<number | null>(null);
 
   // 작업 중 경과 시간 tick
@@ -231,30 +239,31 @@ export default function AgentChat({
             </span>
           </div>
         )}
-        <div className="flex gap-2">
-          <input
+        <div className="flex items-end gap-2">
+          <textarea
             ref={inputRef}
-            type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              // Enter = 전송, Shift+Enter = 줄바꿈 (기본 동작 유지)
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
                 e.preventDefault();
                 handleSubmit();
               }
             }}
             placeholder={
               state.status === 'awaiting_answer'
-                ? '번호("1, 2"), "시작", 또는 자연어로 답변'
+                ? '번호("1, 2"), "시작", 또는 자연어로 답변 (Shift+Enter 줄바꿈)'
                 : mode === 'chat' && (state.status === 'complete' || state.status === 'idle' || state.status === 'error')
-                  ? '질문 / 추천 요청 (예: 어떤 기능이 좋을까?)'
+                  ? '질문 / 추천 요청 (Shift+Enter 줄바꿈)'
                   : mode === 'build' && (state.status === 'complete' || state.status === 'idle' || state.status === 'error')
-                    ? '만들거나 수정할 내용 (예: 댓글 기능 추가)'
+                    ? '만들거나 수정할 내용 (Shift+Enter 줄바꿈)'
                     : '응답 대기 중...'
             }
             disabled={disabled}
+            rows={1}
             style={{ fontSize: '16px' }}
-            className="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-3 outline-none focus:border-blue-500 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            className="flex-1 resize-none rounded-lg border border-slate-300 bg-white px-3 py-3 leading-6 outline-none focus:border-blue-500 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
           />
           <button
             type="button"
