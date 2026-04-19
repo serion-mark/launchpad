@@ -202,7 +202,7 @@ function BuilderAgentContent() {
             isEditingMode={!!(projectId && editingProject)}
           />
         </div>
-        <div className="hidden flex-1 border-l border-slate-200 lg:flex dark:border-slate-800">
+        <div className="hidden min-w-0 flex-1 border-l border-slate-200 lg:flex dark:border-slate-800">
           <FoundryPreviewPane
             previewUrl={state.previewUrl}
             projectName={state.projectName}

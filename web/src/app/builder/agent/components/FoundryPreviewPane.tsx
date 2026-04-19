@@ -4,15 +4,13 @@
 // 배포 전: 포비 작업 중 플레이스홀더
 // 배포 후: iframe + URL 바 + 📱/🖥 토글
 //
-// PC 모드는 "viewport simulator" 패턴 — iframe 실제 width 를 1280px 로 고정해서
-// 앱이 Tailwind `lg:` (≥1024px) 를 발동하도록 강제 + transform: scale 로 프리뷰 영역에 축소 표시.
-// (그냥 w-full 로 두면 프리뷰 폭이 800px 정도라 앱이 자기를 "모바일" 로 인식해 모바일 레이아웃이 뜸)
+// 레이아웃은 레거시 /builder 의 LivePreview 패턴을 그대로 이식 —
+// PC: 컨테이너 가운데 정렬 + max-w 로 폭 제한 + iframe w-full h-full 로 꽉 채움
+// Mobile: 고정 폭 기기 프레임 (390×844) + 노치
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 
 type DeviceMode = 'desktop' | 'mobile';
-
-const DESKTOP_VIEWPORT_WIDTH = 1280; // Tailwind `xl:` 발동 가능한 PC 기준 viewport
 
 interface Props {
   previewUrl: string | null;
@@ -28,34 +26,10 @@ export default function FoundryPreviewPane({
   lastActivity,
 }: Props) {
   const [device, setDevice] = useState<DeviceMode>('desktop');
-  const [dims, setDims] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
-  const desktopWrapperRef = useRef<HTMLDivElement>(null);
-
-  // PC 모드: 컨테이너 폭·높이 측정 → iframe(1280px viewport) 에 scale 적용
-  // iframe 은 absolute 로 띄워서 부모 flex 계산을 밀지 않게 함
-  // (기존 버그: iframe width:1280px 이 flex-1 부모의 min-width 를 1280 으로 확장시켜
-  //  clientWidth = 1280 → scale=1 → 원본 크기로 삐져나감)
-  useEffect(() => {
-    if (device !== 'desktop') return;
-    const el = desktopWrapperRef.current;
-    if (!el) return;
-    const update = () => {
-      setDims({ w: el.clientWidth, h: el.clientHeight });
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [device, previewUrl]);
-
-  const desktopScale =
-    dims.w > 0 ? Math.min(1, dims.w / DESKTOP_VIEWPORT_WIDTH) : 1;
-  const desktopIframeHeight =
-    dims.h > 0 && desktopScale > 0 ? dims.h / desktopScale : 0;
 
   if (!previewUrl) {
     return (
-      <div className="flex h-full flex-col items-center justify-center bg-slate-50 p-6 text-center text-slate-400 dark:bg-slate-900/40">
+      <div className="flex h-full w-full flex-col items-center justify-center bg-slate-50 p-6 text-center text-slate-400 dark:bg-slate-900/40">
         <div className="mb-3 text-5xl">🌐</div>
         <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
           배포 완료 후 여기에 앱이 실시간으로 뜹니다
@@ -80,7 +54,7 @@ export default function FoundryPreviewPane({
   }
 
   return (
-    <div className="flex h-full flex-col bg-white dark:bg-slate-950">
+    <div className="flex h-full w-full min-w-0 flex-col bg-white dark:bg-slate-950">
       {/* URL 바 + 디바이스 토글 */}
       <div className="flex items-center gap-2 border-b border-slate-200 px-3 py-2 text-xs dark:border-slate-800">
         <span className="inline-block h-2 w-2 flex-shrink-0 rounded-full bg-emerald-500" />
@@ -130,71 +104,39 @@ export default function FoundryPreviewPane({
         </a>
       </div>
 
-      {/* iframe — 디바이스 모드별 프레임 */}
+      {/* iframe — 레거시 LivePreview 패턴: 중앙 정렬 + 디바이스별 wrapper */}
       <div
         className={[
-          'flex-1 overflow-hidden',
+          'flex flex-1 items-center justify-center overflow-auto p-4',
           device === 'mobile'
-            ? 'flex flex-col items-center bg-gradient-to-b from-slate-200 to-slate-300 p-4 dark:from-slate-800 dark:to-slate-900'
-            : 'flex flex-col bg-slate-50 dark:bg-slate-900',
+            ? 'bg-gradient-to-b from-slate-200 to-slate-300 dark:from-slate-800 dark:to-slate-900'
+            : 'bg-slate-50 dark:bg-slate-900',
         ].join(' ')}
       >
         {device === 'mobile' ? (
-          <>
-            <div className="mb-2 flex items-center gap-2 rounded-full bg-slate-900/80 px-3 py-1 text-[10px] font-medium text-white shadow-sm backdrop-blur dark:bg-slate-950/80">
-              <span>📱</span>
-              <span>모바일 미리보기</span>
-              <span className="font-mono text-slate-300">390×844</span>
-            </div>
+          <div
+            className="relative overflow-hidden rounded-[32px] border-[6px] border-slate-800 bg-white shadow-2xl ring-1 ring-black/10 dark:border-slate-700"
+            style={{ width: '390px', height: '844px', maxWidth: '100%' }}
+          >
+            {/* 노치 */}
             <div
-              className="relative overflow-hidden rounded-[32px] border-[6px] border-slate-800 bg-white shadow-2xl ring-1 ring-black/10 dark:border-slate-700"
-              style={{ width: '390px', height: '844px', maxWidth: '100%' }}
-            >
-              {/* 노치 — 기기 프레임 느낌 강화 */}
-              <div
-                aria-hidden
-                className="pointer-events-none absolute left-1/2 top-0 z-10 h-5 w-28 -translate-x-1/2 rounded-b-2xl bg-slate-800 dark:bg-slate-700"
-              />
-              <iframe
-                src={previewUrl}
-                title={projectName ?? 'mobile preview'}
-                className="h-full w-full border-0"
-              />
-            </div>
-          </>
+              aria-hidden
+              className="pointer-events-none absolute left-1/2 top-0 z-10 h-5 w-28 -translate-x-1/2 rounded-b-2xl bg-slate-800 dark:bg-slate-700"
+            />
+            <iframe
+              src={previewUrl}
+              title={projectName ?? 'mobile preview'}
+              className="h-full w-full border-0"
+            />
+          </div>
         ) : (
-          <>
-            <div className="flex items-center justify-center gap-2 bg-slate-100 py-1 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-              <span>🖥</span>
-              <span>PC 미리보기</span>
-              <span className="font-mono text-slate-500">1280px viewport</span>
-              {desktopScale < 1 && (
-                <span className="font-mono text-slate-400">· {Math.round(desktopScale * 100)}%</span>
-              )}
-            </div>
-            {/* viewport simulator — iframe 실제 폭 1280 + scale 로 화면에 맞춤
-                → 앱은 자기를 PC (≥lg) 로 인식 → 2단 레이아웃 표시
-                iframe 은 absolute 로 띄워야 부모 flex 의 min-width 를 밀지 않음 */}
-            <div
-              ref={desktopWrapperRef}
-              className="relative flex-1 overflow-hidden bg-white"
-              style={{ minWidth: 0 }}
-            >
-              {dims.w > 0 && (
-                <iframe
-                  src={previewUrl}
-                  title={projectName ?? 'desktop preview'}
-                  className="absolute left-0 top-0 border-0"
-                  style={{
-                    width: `${DESKTOP_VIEWPORT_WIDTH}px`,
-                    height: `${desktopIframeHeight}px`,
-                    transform: `scale(${desktopScale})`,
-                    transformOrigin: 'top left',
-                  }}
-                />
-              )}
-            </div>
-          </>
+          <div className="h-full w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700">
+            <iframe
+              src={previewUrl}
+              title={projectName ?? 'desktop preview'}
+              className="h-full w-full border-0"
+            />
+          </div>
         )}
       </div>
     </div>
