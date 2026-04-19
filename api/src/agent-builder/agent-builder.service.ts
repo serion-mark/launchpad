@@ -521,25 +521,41 @@ export class AgentBuilderService {
       );
 
       // 대화 이력 저장 — 다음 세션에서 "그것도 고쳐줘" 같은 참조형 대화 유지
-      // 최근 20턴 + 30KB 제한 (비용 폭주 방지)
-      // 저장 시에도 sanitize — 중간 끊긴 상태(tool_use/result 짝 안 맞음) DB 에 남지 않게
+      // 전체 sanitize 먼저 (짝 검증) → cycle 단위로 앞에서부터 제거
+      //   cycle = "일반 user text + 그 이후 tool_use/result 사이클 전체"
+      //   이렇게 해야 truncate 결과도 항상 "일반 user 로 시작" 보장
       if (finalProjectId) {
         try {
-          const MAX_TURNS = 20;
-          const MAX_BYTES = 30_000;
-          let tail = this.sanitizeMessageHistory(messages.slice(-MAX_TURNS));
+          const MAX_CYCLES_BYTES = 30_000; // 30KB
+          const MAX_BACKOFF = 50; // 안전 루프 제한
+
+          const isPlainUser = (m: Anthropic.Messages.MessageParam): boolean => {
+            if (m.role !== 'user') return false;
+            if (typeof m.content === 'string') return true;
+            if (!Array.isArray(m.content)) return false;
+            return !m.content.some((b: any) => b?.type === 'tool_result');
+          };
+
+          let tail = this.sanitizeMessageHistory(messages);
           let serialized = JSON.stringify(tail);
-          while (serialized.length > MAX_BYTES && tail.length > 2) {
-            tail = tail.slice(2); // 가장 오래된 user+assistant 쌍 제거
-            tail = this.sanitizeMessageHistory(tail); // 쌍 제거 후 재검증
+          let loops = 0;
+          while (serialized.length > MAX_CYCLES_BYTES && tail.length > 1 && loops++ < MAX_BACKOFF) {
+            // 첫 cycle 끝 찾기 — index 1 부터 다음 plain user 까지
+            let nextCycle = 1;
+            while (nextCycle < tail.length && !isPlainUser(tail[nextCycle])) {
+              nextCycle++;
+            }
+            if (nextCycle >= tail.length) break; // 더 자를 cycle 없음
+            tail = tail.slice(nextCycle);
             serialized = JSON.stringify(tail);
           }
+
           await this.prisma.project.update({
             where: { id: finalProjectId },
             data: { agentMessages: tail as any },
           });
           this.logger.log(
-            `[agent-history] ${finalProjectId} → ${tail.length}턴 저장 (${serialized.length}B)`,
+            `[agent-history] ${finalProjectId} → ${tail.length}턴 저장 (${serialized.length}B, messages 원본 ${messages.length}턴)`,
           );
         } catch (err: any) {
           this.logger.warn(`[agent-history] 저장 실패 (무시): ${err?.message}`);
