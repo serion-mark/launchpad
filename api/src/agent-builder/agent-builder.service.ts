@@ -140,7 +140,22 @@ export class AgentBuilderService {
       }
     }
 
-    // 3) 최종 검증: 첫 메시지가 일반 user 가 아니면 버림
+    // 3) 끝부분이 user(tool_result) 로 끝나면 그 앞 pair(assistant+user) 통째로 제거
+    //    이유: 새 user_prompt 가 뒤에 붙을 때 user 2개 연속 → 일부 Anthropic SDK 버전에서 거부
+    //    깨끗한 종료 = assistant(text only) 또는 plain user
+    while (result.length > 0) {
+      const last = result[result.length - 1];
+      if (last.role === 'user' && hasToolResult(last)) {
+        result.pop(); // user(tool_result)
+        if (result.length > 0 && result[result.length - 1].role === 'assistant') {
+          result.pop(); // 짝 이루던 assistant(tool_use)
+        }
+        continue;
+      }
+      break;
+    }
+
+    // 4) 최종 검증: 첫 메시지가 일반 user 가 아니면 버림
     if (result.length === 0) return [];
     const first = result[0];
     if (first.role !== 'user' || hasToolResult(first)) return [];
@@ -528,7 +543,8 @@ export class AgentBuilderService {
       //   이렇게 해야 truncate 결과도 항상 "일반 user 로 시작" 보장
       if (finalProjectId) {
         try {
-          const MAX_CYCLES_BYTES = 30_000; // 30KB
+          // 100KB — Anthropic input 200K tok (~800KB) 감안 여유 충분, prompt cache 로 실비용 미미
+          const MAX_CYCLES_BYTES = 100_000;
           const MAX_BACKOFF = 50; // 안전 루프 제한
 
           const isPlainUser = (m: Anthropic.Messages.MessageParam): boolean => {
