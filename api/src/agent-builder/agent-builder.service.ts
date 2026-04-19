@@ -73,35 +73,78 @@ export class AgentBuilderService {
       if (!Array.isArray(msg.content)) return false;
       return msg.content.some((b: any) => b?.type === 'tool_result');
     };
+    const getToolUseIds = (msg: Anthropic.Messages.MessageParam): string[] => {
+      if (typeof msg.content === 'string') return [];
+      if (!Array.isArray(msg.content)) return [];
+      return msg.content
+        .filter((b: any) => b?.type === 'tool_use')
+        .map((b: any) => b.id);
+    };
+    const getToolResultIds = (msg: Anthropic.Messages.MessageParam): string[] => {
+      if (typeof msg.content === 'string') return [];
+      if (!Array.isArray(msg.content)) return [];
+      return msg.content
+        .filter((b: any) => b?.type === 'tool_result')
+        .map((b: any) => b.tool_use_id);
+    };
 
-    // 1) "일반 user 메시지"로 시작하는 첫 지점까지 앞부분 잘라냄
-    //    tool_result 포함 user 는 앞에 assistant(tool_use) 가 있어야 짝이 맞으므로 시작점이 될 수 없음
-    //    → assistant 또는 user(tool_result) 는 스킵
+    // 1) "일반 user 메시지"로 시작하는 첫 지점 찾기
+    //    tool_result 포함 user 는 앞 assistant(tool_use) 가 있어야 짝이 맞으므로 시작점 불가
     let start = 0;
     while (start < prior.length) {
       const m = prior[start];
       if (m?.role === 'user' && !hasToolResult(m)) break;
       start++;
     }
-    let trimmed = prior.slice(start);
+    const msgs = prior.slice(start);
 
-    // 2) 뒤에서부터 "깨끗한 종료 지점" 찾기
-    //    허용: assistant 가 tool_use 없이 텍스트로 끝난 지점
-    //    비허용: assistant(tool_use) / user(tool_result) 로 끝난 중간 상태
-    let end = trimmed.length;
-    while (end > 0) {
-      const last = trimmed[end - 1];
-      if (last.role === 'assistant' && !hasToolUse(last)) break;
-      if (last.role === 'user' && !hasToolResult(last)) break; // plain user 도 깨끗한 종료
-      end--;
+    // 2) 앞에서부터 훑으며 "짝이 맞는 지점까지만" 보존
+    //    - assistant(tool_use 포함) → 바로 다음 메시지가 user(tool_result) 여야 하며 모든 tool_use id 커버되어야
+    //    - user(tool_result) → result 마지막에 assistant(tool_use) 있어야 하고 매칭돼야
+    //    - 이 중 하나라도 깨지면 즉시 break (그 이후는 모두 버림)
+    //    Agent 의 assistant 는 거의 항상 [text + tool_use] 혼합 → 짝 맞춤 검증이 핵심
+    const result: Anthropic.Messages.MessageParam[] = [];
+    for (let i = 0; i < msgs.length; i++) {
+      const m = msgs[i];
+
+      if (m.role === 'assistant') {
+        if (hasToolUse(m)) {
+          // 다음 메시지가 짝 맞는 user(tool_result) 인지 확인
+          const next = msgs[i + 1];
+          if (!next || next.role !== 'user' || !hasToolResult(next)) break;
+          const useIds = getToolUseIds(m);
+          const resIds = getToolResultIds(next);
+          // 모든 tool_use 에 대해 tool_result 가 있어야
+          const allCovered = useIds.every((id) => resIds.includes(id));
+          if (!allCovered) break;
+          // 쌍 추가하고 i 한 번 더 증가
+          result.push(m);
+          result.push(next);
+          i++;
+          continue;
+        }
+        // tool_use 없는 assistant (text only) — 깨끗한 메시지
+        result.push(m);
+        continue;
+      }
+
+      if (m.role === 'user') {
+        if (hasToolResult(m)) {
+          // 위의 assistant(tool_use) 케이스에서 이미 pair 로 소비됐어야 함
+          // 여기까지 왔다는 건 앞 assistant 없는 고아 tool_result → break
+          break;
+        }
+        // 일반 user (text) — 깨끗한 메시지
+        result.push(m);
+        continue;
+      }
     }
-    trimmed = trimmed.slice(0, end);
 
-    // 3) 최종 검증: 비었거나 첫 메시지가 일반 user 가 아니면 버림
-    if (trimmed.length === 0) return [];
-    const first = trimmed[0];
+    // 3) 최종 검증: 첫 메시지가 일반 user 가 아니면 버림
+    if (result.length === 0) return [];
+    const first = result[0];
     if (first.role !== 'user' || hasToolResult(first)) return [];
-    return trimmed;
+    return result;
   }
 
   // Day 4.6: 단계별 진행률 추정 (사용자 체감용, 정확한 값 아님)
