@@ -63,14 +63,6 @@ export class AgentBuilderService {
   ): Anthropic.Messages.MessageParam[] {
     if (!Array.isArray(prior) || prior.length === 0) return [];
 
-    // 1) user 로 시작하는 첫 지점까지 앞부분 잘라냄
-    let start = 0;
-    while (start < prior.length && prior[start]?.role !== 'user') start++;
-    let trimmed = prior.slice(start);
-
-    // 2) 뒤에서부터 "깨끗한 종료 지점" 찾기
-    //    허용: assistant 가 tool_use 없이 텍스트/답변으로 끝난 지점
-    //    비허용: assistant(tool_use) 또는 user(tool_result) 로 끝난 상태 (다음 단계가 필요했던 중간 상태)
     const hasToolUse = (msg: Anthropic.Messages.MessageParam): boolean => {
       if (typeof msg.content === 'string') return false;
       if (!Array.isArray(msg.content)) return false;
@@ -82,20 +74,33 @@ export class AgentBuilderService {
       return msg.content.some((b: any) => b?.type === 'tool_result');
     };
 
+    // 1) "일반 user 메시지"로 시작하는 첫 지점까지 앞부분 잘라냄
+    //    tool_result 포함 user 는 앞에 assistant(tool_use) 가 있어야 짝이 맞으므로 시작점이 될 수 없음
+    //    → assistant 또는 user(tool_result) 는 스킵
+    let start = 0;
+    while (start < prior.length) {
+      const m = prior[start];
+      if (m?.role === 'user' && !hasToolResult(m)) break;
+      start++;
+    }
+    let trimmed = prior.slice(start);
+
+    // 2) 뒤에서부터 "깨끗한 종료 지점" 찾기
+    //    허용: assistant 가 tool_use 없이 텍스트로 끝난 지점
+    //    비허용: assistant(tool_use) / user(tool_result) 로 끝난 중간 상태
     let end = trimmed.length;
     while (end > 0) {
       const last = trimmed[end - 1];
-      if (last.role === 'assistant' && !hasToolUse(last)) break; // 깨끗한 종료
-      // user(tool_result) 또는 assistant(tool_use) 는 뒷 메시지 필요 → 잘라냄
-      if (last.role === 'user' && hasToolResult(last)) { end--; continue; }
-      if (last.role === 'assistant' && hasToolUse(last)) { end--; continue; }
-      if (last.role === 'user') break; // plain user 는 괜찮지만 사실 loop 내 위치 — 안전상 break
+      if (last.role === 'assistant' && !hasToolUse(last)) break;
+      if (last.role === 'user' && !hasToolResult(last)) break; // plain user 도 깨끗한 종료
       end--;
     }
     trimmed = trimmed.slice(0, end);
 
-    // 3) 여전히 user 로 시작하지 않으면 빈 배열 반환
-    if (trimmed.length === 0 || trimmed[0].role !== 'user') return [];
+    // 3) 최종 검증: 비었거나 첫 메시지가 일반 user 가 아니면 버림
+    if (trimmed.length === 0) return [];
+    const first = trimmed[0];
+    if (first.role !== 'user' || hasToolResult(first)) return [];
     return trimmed;
   }
 
