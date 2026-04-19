@@ -200,10 +200,27 @@ export class AgentBuilderService {
     // cache_control 1h TTL 적용 — 13K+ 토큰이므로 캐시 효과 큼 (V-0 검증)
     const systemPrompt = await this.promptLoader.getSystemPrompt();
 
-    // 3. 메시지 스택 초기화
-    const messages: Anthropic.Messages.MessageParam[] = [
-      { role: 'user', content: prompt },
-    ];
+    // 3. 메시지 스택 초기화 — 기존 프로젝트면 과거 대화 이력 로드
+    //    "그것도 고쳐줘" 같은 참조형 대화가 세션간 이어지도록
+    const messages: Anthropic.Messages.MessageParam[] = [];
+    if (editingProjectId && userId && userId !== 'anon') {
+      try {
+        const p = await this.prisma.project.findFirst({
+          where: { id: editingProjectId, userId: String(userId) },
+          select: { agentMessages: true },
+        });
+        if (p?.agentMessages && Array.isArray(p.agentMessages)) {
+          const prior = p.agentMessages as unknown as Anthropic.Messages.MessageParam[];
+          // 최근 20턴 (user+assistant pair 10쌍) 만 유지 — 비용/토큰 폭주 방지
+          const tail = prior.slice(-20);
+          messages.push(...tail);
+          this.logger.log(`[agent-history] ${editingProjectId} → 과거 ${tail.length}턴 로드`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`[agent-history] 로드 실패 (새 대화로 진행): ${err?.message}`);
+      }
+    }
+    messages.push({ role: 'user', content: prompt });
 
     let iter = 0;
     let done = false;
@@ -400,6 +417,30 @@ export class AgentBuilderService {
           `iter=${iter} total=$${totalCostUsd.toFixed(6)} durationMs=${Date.now() - start} ` +
           `isEdit=${!!editingProjectId} fileCount=${persistResult.ok ? persistResult.fileCount ?? 0 : 0}`,
       );
+
+      // 대화 이력 저장 — 다음 세션에서 "그것도 고쳐줘" 같은 참조형 대화 유지
+      // 최근 20턴 + 30KB 제한 (비용 폭주 방지)
+      if (finalProjectId) {
+        try {
+          const MAX_TURNS = 20;
+          const MAX_BYTES = 30_000;
+          let tail = messages.slice(-MAX_TURNS);
+          let serialized = JSON.stringify(tail);
+          while (serialized.length > MAX_BYTES && tail.length > 2) {
+            tail = tail.slice(2); // 가장 오래된 user+assistant 쌍 제거
+            serialized = JSON.stringify(tail);
+          }
+          await this.prisma.project.update({
+            where: { id: finalProjectId },
+            data: { agentMessages: tail as any },
+          });
+          this.logger.log(
+            `[agent-history] ${finalProjectId} → ${tail.length}턴 저장 (${serialized.length}B)`,
+          );
+        } catch (err: any) {
+          this.logger.warn(`[agent-history] 저장 실패 (무시): ${err?.message}`);
+        }
+      }
 
       onEvent({
         type: 'complete',

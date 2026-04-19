@@ -56,7 +56,11 @@ model Project {
   subdomain   String?  @unique
   userId      String
   user        User     @relation(fields: [userId], references: [id])
-  chatHistory Json?    // builder chat messages
+  chatHistory Json?    // builder chat messages (레거시 /builder)
+  // Agent Mode 대화 이력 — Anthropic Messages.MessageParam[] 최근 N턴
+  // "그것도 고쳐줘" 같은 참조형 대화가 세션간 끊어지지 않도록 유지
+  // run() 시작 시 로드 → iter마다 누적 → 종료 시 truncate 후 저장
+  agentMessages Json?
   generatedCode Json?  // generated file paths/code
   deployedUrl String?
   // ── 코드 생성 엔진 필드 (Sprint 1) ──
