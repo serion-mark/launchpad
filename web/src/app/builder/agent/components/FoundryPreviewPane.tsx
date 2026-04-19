@@ -3,10 +3,16 @@
 // 사이드 프리뷰 — 배포된 앱을 iframe 으로 옆에서 보면서 수정 요청
 // 배포 전: 포비 작업 중 플레이스홀더
 // 배포 후: iframe + URL 바 + 📱/🖥 토글
+//
+// PC 모드는 "viewport simulator" 패턴 — iframe 실제 width 를 1280px 로 고정해서
+// 앱이 Tailwind `lg:` (≥1024px) 를 발동하도록 강제 + transform: scale 로 프리뷰 영역에 축소 표시.
+// (그냥 w-full 로 두면 프리뷰 폭이 800px 정도라 앱이 자기를 "모바일" 로 인식해 모바일 레이아웃이 뜸)
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type DeviceMode = 'desktop' | 'mobile';
+
+const DESKTOP_VIEWPORT_WIDTH = 1280; // Tailwind `xl:` 발동 가능한 PC 기준 viewport
 
 interface Props {
   previewUrl: string | null;
@@ -22,6 +28,26 @@ export default function FoundryPreviewPane({
   lastActivity,
 }: Props) {
   const [device, setDevice] = useState<DeviceMode>('desktop');
+  const [desktopScale, setDesktopScale] = useState(1);
+  const desktopWrapperRef = useRef<HTMLDivElement>(null);
+
+  // PC 모드에서 컨테이너 실제 폭을 ResizeObserver 로 측정 → scale 계산
+  // 컨테이너가 1280 미만이면 축소(scale<1), 이상이면 1:1 (scale=1, 남는 공간은 흰 여백)
+  useEffect(() => {
+    if (device !== 'desktop') return;
+    const el = desktopWrapperRef.current;
+    if (!el) return;
+    const update = () => {
+      const w = el.clientWidth;
+      if (w > 0) {
+        setDesktopScale(Math.min(1, w / DESKTOP_VIEWPORT_WIDTH));
+      }
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [device, previewUrl]);
 
   if (!previewUrl) {
     return (
@@ -103,10 +129,10 @@ export default function FoundryPreviewPane({
       {/* iframe — 디바이스 모드별 프레임 */}
       <div
         className={[
-          'flex-1 overflow-auto',
+          'flex-1 overflow-hidden',
           device === 'mobile'
             ? 'flex flex-col items-center bg-gradient-to-b from-slate-200 to-slate-300 p-4 dark:from-slate-800 dark:to-slate-900'
-            : 'bg-white',
+            : 'flex flex-col bg-slate-50 dark:bg-slate-900',
         ].join(' ')}
       >
         {device === 'mobile' ? (
@@ -133,11 +159,34 @@ export default function FoundryPreviewPane({
             </div>
           </>
         ) : (
-          <iframe
-            src={previewUrl}
-            title={projectName ?? 'desktop preview'}
-            className="h-full w-full border-0"
-          />
+          <>
+            <div className="flex items-center justify-center gap-2 bg-slate-100 py-1 text-[10px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+              <span>🖥</span>
+              <span>PC 미리보기</span>
+              <span className="font-mono text-slate-500">1280px viewport</span>
+              {desktopScale < 1 && (
+                <span className="font-mono text-slate-400">· {Math.round(desktopScale * 100)}%</span>
+              )}
+            </div>
+            {/* viewport simulator — iframe 실제 폭 1280 + scale 로 화면에 맞춤
+                → 앱은 자기를 PC (≥lg) 로 인식 → 2단 레이아웃 표시 */}
+            <div
+              ref={desktopWrapperRef}
+              className="relative flex-1 overflow-hidden bg-white"
+            >
+              <iframe
+                src={previewUrl}
+                title={projectName ?? 'desktop preview'}
+                className="border-0"
+                style={{
+                  width: `${DESKTOP_VIEWPORT_WIDTH}px`,
+                  height: `${100 / (desktopScale || 1)}%`,
+                  transform: `scale(${desktopScale || 1})`,
+                  transformOrigin: 'top left',
+                }}
+              />
+            </div>
+          </>
         )}
       </div>
     </div>
