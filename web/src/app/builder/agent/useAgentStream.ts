@@ -87,6 +87,9 @@ export interface UseAgentStreamState {
   iteration: number;
   toolCount: number;
   submittingAnswer: boolean;
+  // 실제 도구 호출이 있었는지 — FoundryProgress 노출 조건
+  // (상의 모드에서 도구 안 쓰면 채팅 말풍선만, 빌드 단계 표 X)
+  hasToolCall: boolean;
   // 포비 진행 상태 (Day 4.6)
   currentStage: FoundryStageId | null;
   currentLabel: string;
@@ -114,6 +117,7 @@ export function useAgentStream() {
     iteration: 0,
     toolCount: 0,
     submittingAnswer: false,
+    hasToolCall: false,
     currentStage: null,
     currentLabel: '',
     completedStages: new Set(),
@@ -171,7 +175,8 @@ export function useAgentStream() {
           const input = ev.input as any;
           const summary = `${ev.name}  ${JSON.stringify(input).slice(0, 80)}`;
           pushDev({ ts: Date.now(), kind: 'tool', text: summary });
-          setState((s) => ({ ...s, toolCount: s.toolCount + 1 }));
+          // hasToolCall=true → FoundryProgress 단계 표 노출 조건 활성화
+          setState((s) => ({ ...s, toolCount: s.toolCount + 1, hasToolCall: true }));
           break;
         }
 
@@ -286,6 +291,7 @@ export function useAgentStream() {
         iteration: 0,
         toolCount: 0,
         submittingAnswer: false,
+        hasToolCall: false,
         currentStage: null,
         currentLabel: '',
         completedStages: new Set(),
@@ -403,6 +409,7 @@ export function useAgentStream() {
 
   // 기존 프로젝트 "이어서 작업" — /builder/agent?projectId=xxx 로 진입 시 호출
   // complete 상태로 초기화 해서 FoundryComplete 카드 + iframe 프리뷰 바로 뜨게
+  // 사장님 지시: 친절한 가이드 멘트로 사용자 방향 제시
   const resumeProject = useCallback(
     (data: {
       projectId: string;
@@ -410,11 +417,19 @@ export function useAgentStream() {
       subdomain?: string | null;
       previewUrl?: string | null;
     }) => {
+      const appName = data.projectName ?? '프로젝트';
       setState({
         entries: [
           {
-            kind: 'system',
-            text: `📝 "${data.projectName ?? '프로젝트'}" 수정 모드 시작 — 어떻게 바꿀지 자연어로 말씀해주세요`,
+            kind: 'assistant',
+            text:
+              `📝 **"${appName}" 수정 모드**\n\n` +
+              `여기서 자유롭게 상의하세요!\n` +
+              `• 💬 **기능 제안 받기** — "어떤 기능이 있으면 좋을까?"\n` +
+              `• ✨ **새 기능 추가** — "댓글 기능 추가해줘"\n` +
+              `• 🎨 **디자인 변경** — "헤더 색깔 부드럽게"\n` +
+              `• 🔧 **개선 상의** — "사용성 어떻게 개선할까?"\n\n` +
+              `대화 후 **"만들어줘"** 하시면 바로 반영됩니다 🚀`,
             ts: Date.now(),
           },
           ...(data.previewUrl
@@ -436,6 +451,7 @@ export function useAgentStream() {
         iteration: 0,
         toolCount: 0,
         submittingAnswer: false,
+        hasToolCall: false,
         currentStage: null,
         currentLabel: '',
         completedStages: new Set(),

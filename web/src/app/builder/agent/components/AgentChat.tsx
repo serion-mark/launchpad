@@ -11,15 +11,26 @@ import FoundryProgress from './FoundryProgress';
 import FoundryComplete from './FoundryComplete';
 import FoundryError from './FoundryError';
 
+export type SendMode = 'chat' | 'build';
+
 interface Props {
   state: UseAgentStreamState;
-  onStart: (prompt: string) => void;
+  onStart: (prompt: string, mode: SendMode) => void;
   onSubmitAnswer: (answer: string) => void;
+  // 수정 모드(기존 프로젝트)에 진입했는지 — 기본 mode 결정
+  isEditingMode?: boolean;
 }
 
-export default function AgentChat({ state, onStart, onSubmitAnswer }: Props) {
+export default function AgentChat({
+  state,
+  onStart,
+  onSubmitAnswer,
+  isEditingMode = false,
+}: Props) {
   const [input, setInput] = useState('');
   const [devOpen, setDevOpen] = useState(false);
+  // 🗨️ 상의(chat) / 🛠️ 만들기(build) — 수정 모드 기본값 = 상의 (보수적)
+  const [mode, setMode] = useState<SendMode>(isEditingMode ? 'chat' : 'build');
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
@@ -57,7 +68,7 @@ export default function AgentChat({ state, onStart, onSubmitAnswer }: Props) {
       state.status === 'complete' ||
       state.status === 'error'
     ) {
-      onStart(text);
+      onStart(text, mode);
     }
     setInput('');
   };
@@ -112,8 +123,8 @@ export default function AgentChat({ state, onStart, onSubmitAnswer }: Props) {
           );
         })}
 
-        {/* 작업 중 — Foundry 진행 표 (항상 최하단에 고정) */}
-        {isWorking && (
+        {/* 작업 중 — Foundry 진행 표 (도구 호출 있을 때만 — 상의 모드에서는 채팅만) */}
+        {isWorking && state.hasToolCall && (
           <FoundryProgress
             currentStage={state.currentStage}
             currentLabel={state.currentLabel}
@@ -121,6 +132,17 @@ export default function AgentChat({ state, onStart, onSubmitAnswer }: Props) {
             percent={state.percent}
             elapsedMs={elapsedMs}
           />
+        )}
+        {/* 작업 중인데 도구 호출 없음 = 상의 모드 — 타이핑 인디케이터만 */}
+        {isWorking && !state.hasToolCall && (
+          <div className="flex items-center gap-2 rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            <span className="flex gap-1">
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:150ms]" />
+              <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:300ms]" />
+            </span>
+            <span>💬 포비 생각 중...</span>
+          </div>
         )}
 
         {/* 답변 전송 직후 인디케이터 */}
@@ -171,8 +193,44 @@ export default function AgentChat({ state, onStart, onSubmitAnswer }: Props) {
         )}
       </div>
 
-      {/* 입력창 */}
+      {/* 입력창 — 모드 토글 + 입력 + 보내기 */}
       <div className="border-t border-slate-200 p-3 sm:p-4 dark:border-slate-800">
+        {/* 💬 상의 / 🛠️ 만들기 토글 (awaiting_answer 때는 숨김) */}
+        {state.status !== 'awaiting_answer' && (
+          <div className="mb-2 flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setMode('chat')}
+              className={[
+                'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition',
+                mode === 'chat'
+                  ? 'text-white'
+                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400',
+              ].join(' ')}
+              style={mode === 'chat' ? { backgroundColor: '#3182F6' } : undefined}
+            >
+              💬 <span>상의</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('build')}
+              className={[
+                'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition',
+                mode === 'build'
+                  ? 'text-white'
+                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400',
+              ].join(' ')}
+              style={mode === 'build' ? { backgroundColor: '#3182F6' } : undefined}
+            >
+              🛠️ <span>만들기</span>
+            </button>
+            <span className="ml-2 text-[10px] text-slate-400 dark:text-slate-500">
+              {mode === 'chat'
+                ? '자유롭게 상의 · 기능 추천 · 아이디어 토론'
+                : '파일 수정 / 기능 추가 실행'}
+            </span>
+          </div>
+        )}
         <div className="flex gap-2">
           <input
             ref={inputRef}
@@ -188,13 +246,11 @@ export default function AgentChat({ state, onStart, onSubmitAnswer }: Props) {
             placeholder={
               state.status === 'awaiting_answer'
                 ? '번호("1, 2"), "시작", 또는 자연어로 답변'
-                : state.status === 'complete'
-                  ? '추가 수정 또는 새 요청 (예: 헤더 색깔 부드럽게)'
-                  : state.status === 'error'
-                    ? '다시 시도할 요청을 입력하세요'
-                    : state.status === 'idle'
-                      ? '예: 예쁜 미용실 예약앱'
-                      : '응답 대기 중...'
+                : mode === 'chat' && (state.status === 'complete' || state.status === 'idle' || state.status === 'error')
+                  ? '질문 / 추천 요청 (예: 어떤 기능이 좋을까?)'
+                  : mode === 'build' && (state.status === 'complete' || state.status === 'idle' || state.status === 'error')
+                    ? '만들거나 수정할 내용 (예: 댓글 기능 추가)'
+                    : '응답 대기 중...'
             }
             disabled={disabled}
             style={{ fontSize: '16px' }}

@@ -37,14 +37,34 @@ function BuilderAgentContent() {
       .catch(() => {});
   }, [projectId, resumeProject]);
 
-  // 수정 모드 시작 시 prompt 를 래핑해서 Agent 에게 전달
-  const handleStart = (userText: string) => {
-    if (projectId && editingProject) {
-      const wrapped = `[기존 프로젝트 "${editingProject.name}" 수정 요청]\n` +
+  // 모드별 prompt 래핑 — 상의(chat) vs 만들기(build)
+  // 상의 모드: Agent 도구 호출 없이 자연어 답변만
+  // 만들기 모드: 기존 로직 (수정 모드면 projectId 포함)
+  const handleStart = (userText: string, mode: 'chat' | 'build' = 'build') => {
+    const isEdit = !!(projectId && editingProject);
+
+    if (mode === 'chat') {
+      // 💬 상의 모드 — 도구 사용 금지, 자연어 답변만
+      const chatContext = isEdit
+        ? `[상의 모드 — 기존 프로젝트 "${editingProject!.name}"]\n` +
+          (editingProject!.subdomain ? `- subdomain: ${editingProject!.subdomain}\n` : '') +
+          `- 사용자 질문: ${userText}\n\n` +
+          `※ 이건 상의/추천 요청입니다. 파일 생성/수정 도구(Write, Bash, deploy_to_subdomain 등)는 호출하지 마세요. 자연어로만 답변하세요. 사용자가 "만들어줘" 라고 하면 그때 실제 작업 시작.`
+        : `[상의 모드 — 새 아이디어 구체화]\n` +
+          `- 사용자 질문: ${userText}\n\n` +
+          `※ 이건 상의/추천 요청입니다. 파일 생성 도구는 호출하지 마세요. 자연어로만 답변/제안하세요. 사용자가 "만들어줘" 라고 하면 그때 실제 작업 시작.`;
+      start(chatContext);
+      return;
+    }
+
+    // 🛠️ 만들기 모드 — 기존 로직
+    if (isEdit) {
+      const wrapped =
+        `[만들기 모드 — 기존 프로젝트 "${editingProject!.name}" 수정]\n` +
         `- projectId: ${projectId}\n` +
-        (editingProject.subdomain ? `- subdomain: ${editingProject.subdomain}\n` : '') +
-        `- 사용자 요청: ${userText}\n` +
-        `\n이 앱은 이미 한 번 만들어진 상태입니다. 처음부터 만들지 말고, 요청된 부분만 수정/추가해주세요.`;
+        (editingProject!.subdomain ? `- subdomain: ${editingProject!.subdomain}\n` : '') +
+        `- 사용자 요청: ${userText}\n\n` +
+        `이 앱은 이미 배포된 상태입니다. 처음부터 만들지 말고, 요청된 부분만 수정/추가 후 deploy_to_subdomain 으로 재배포해주세요.`;
       start(wrapped);
     } else {
       start(userText);
@@ -140,7 +160,12 @@ function BuilderAgentContent() {
           채팅 영역은 고정폭 제거, 비율 기반으로 자연스럽게 확장 (사장님 피드백) */}
       <main className="flex flex-1 overflow-hidden">
         <div className="flex flex-1 flex-col lg:w-2/5 lg:flex-none lg:min-w-[440px] xl:w-[36%]">
-          <AgentChat state={state} onStart={handleStart} onSubmitAnswer={submitAnswer} />
+          <AgentChat
+            state={state}
+            onStart={handleStart}
+            onSubmitAnswer={submitAnswer}
+            isEditingMode={!!(projectId && editingProject)}
+          />
         </div>
         <div className="hidden flex-1 border-l border-slate-200 lg:flex dark:border-slate-800">
           <FoundryPreviewPane
