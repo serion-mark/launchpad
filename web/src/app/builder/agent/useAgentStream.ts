@@ -401,7 +401,57 @@ export function useAgentStream() {
     setState((s) => ({ ...s, status: 'idle' }));
   }, []);
 
+  // 기존 프로젝트 "이어서 작업" — /builder/agent?projectId=xxx 로 진입 시 호출
+  // complete 상태로 초기화 해서 FoundryComplete 카드 + iframe 프리뷰 바로 뜨게
+  const resumeProject = useCallback(
+    (data: {
+      projectId: string;
+      projectName?: string | null;
+      subdomain?: string | null;
+      previewUrl?: string | null;
+    }) => {
+      setState({
+        entries: [
+          {
+            kind: 'system',
+            text: `📝 "${data.projectName ?? '프로젝트'}" 수정 모드 시작 — 어떻게 바꿀지 자연어로 말씀해주세요`,
+            ts: Date.now(),
+          },
+          ...(data.previewUrl
+            ? [
+                {
+                  kind: 'system' as const,
+                  text: `🌐 현재 배포: ${data.previewUrl}`,
+                  ts: Date.now(),
+                },
+              ]
+            : []),
+        ],
+        status: 'complete',
+        sessionId: null,
+        pendingCard: null,
+        error: null,
+        costUsd: 0,
+        lastActivity: '✅ 이전 작업 이어서',
+        iteration: 0,
+        toolCount: 0,
+        submittingAnswer: false,
+        currentStage: null,
+        currentLabel: '',
+        completedStages: new Set(),
+        percent: 100,
+        projectId: data.projectId,
+        projectName: data.projectName ?? null,
+        subdomain: data.subdomain ?? null,
+        fileCount: null,
+        previewUrl: data.previewUrl ?? null,
+        devLogs: [],
+      });
+    },
+    [],
+  );
+
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  return { state, start, submitAnswer, cancel };
+  return { state, start, submitAnswer, cancel, resumeProject };
 }

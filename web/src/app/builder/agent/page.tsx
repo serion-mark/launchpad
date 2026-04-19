@@ -15,7 +15,7 @@ import FoundryPreviewPane from './components/FoundryPreviewPane';
 function BuilderAgentContent() {
   const params = useSearchParams();
   const projectId = params?.get('projectId') ?? null;
-  const { state, start, submitAnswer, cancel } = useAgentStream();
+  const { state, start, submitAnswer, cancel, resumeProject } = useAgentStream();
   const [editingProject, setEditingProject] = useState<{ name: string; subdomain?: string | null; template: string } | null>(null);
 
   useEffect(() => {
@@ -25,9 +25,17 @@ function BuilderAgentContent() {
         if (!res.ok) return;
         const p = await res.json();
         setEditingProject({ name: p.name, subdomain: p.subdomain, template: p.template });
+        // 이전 배포 URL + 프로젝트 메타를 useAgentStream 에 주입 —
+        // FoundryComplete 카드 + iframe 프리뷰 즉시 복원 (사용자 "새로 시작?" 혼란 제거)
+        resumeProject({
+          projectId: p.id,
+          projectName: p.name,
+          subdomain: p.subdomain,
+          previewUrl: p.deployedUrl,
+        });
       })
       .catch(() => {});
-  }, [projectId]);
+  }, [projectId, resumeProject]);
 
   // 수정 모드 시작 시 prompt 를 래핑해서 Agent 에게 전달
   const handleStart = (userText: string) => {
