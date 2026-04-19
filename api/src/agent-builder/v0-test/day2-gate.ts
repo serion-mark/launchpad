@@ -119,7 +119,9 @@ async function main() {
   const stubPersistence = {
     persist: async () => ({ ok: false as const, reason: 'test-stub' }),
   } as any;
-  const service = new AgentBuilderService(sandbox, promptLoader, sessionStore, parser, stubPersistence);
+  const stubSupabase = { provisionForProject: async () => ({ success: false, error: 'stub' }) } as any;
+  const stubDeploy = { deployTrial: async () => null } as any;
+  const service = new AgentBuilderService(sandbox, promptLoader, sessionStore, parser, stubPersistence, stubSupabase, stubDeploy);
 
   const results: { scenario: Scenario; pass: boolean; reasons: string[]; text: string; toolCalls: number }[] = [];
 

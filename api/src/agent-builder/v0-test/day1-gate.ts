@@ -21,7 +21,9 @@ async function main() {
   await promptLoader.load();
   const sessionStore = new SessionStoreService();
   const parser = new AnswerParserService();
-  const service = new AgentBuilderService(sandbox, promptLoader, sessionStore, parser, stubPersistence);
+  const stubSupabase = { provisionForProject: async () => ({ success: false, error: 'stub' }) } as any;
+  const stubDeploy = { deployTrial: async () => null } as any;
+  const service = new AgentBuilderService(sandbox, promptLoader, sessionStore, parser, stubPersistence, stubSupabase, stubDeploy);
 
   const events: AgentStreamEvent[] = [];
   const start = Date.now();

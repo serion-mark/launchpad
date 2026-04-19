@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
 import { SandboxService } from './sandbox.service';
 import { PromptLoaderService } from './prompt-loader.service';
@@ -6,6 +6,8 @@ import { SessionStoreService } from './session-store.service';
 import { AnswerParserService } from './answer-parser.service';
 import { ProjectPersistenceService } from './project-persistence.service';
 import { AgentToolExecutor, AGENT_TOOLS } from './agent-tools';
+import { SupabaseService } from '../supabase/supabase.service';
+import { DeployService } from '../project/deploy.service';
 import {
   AgentStreamEvent,
   AGENT_MAX_ITERATIONS,
@@ -31,6 +33,9 @@ export class AgentBuilderService {
     private readonly sessionStore: SessionStoreService,
     private readonly parser: AnswerParserService,
     private readonly persistence: ProjectPersistenceService,
+    private readonly supabase: SupabaseService,
+    @Inject(forwardRef(() => DeployService))
+    private readonly deploy: DeployService,
   ) {
     this.anthropic = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
@@ -45,7 +50,22 @@ export class AgentBuilderService {
     const { sessionId, cwd } = await this.sandbox.createSession(userId);
     onEvent({ type: 'start', sessionId, cwd });
 
-    const executor = new AgentToolExecutor(this.sandbox, cwd);
+    // 2. projects 껍데기 먼저 생성 (도구에서 projectId 필요)
+    //    실패해도 Agent loop 은 진행 (비로그인 사용자 등)
+    const startResult = await this.persistence.startProject(String(userId), prompt);
+    const projectId = startResult.ok ? startResult.projectId : undefined;
+    if (projectId) {
+      this.logger.log(`[agent-builder] project draft ${projectId} (name=${startResult.projectName})`);
+    }
+
+    const executor = new AgentToolExecutor(this.sandbox, cwd, {
+      supabase: this.supabase,
+      deploy: this.deploy,
+      persistence: this.persistence,
+      userId: String(userId),
+      projectId,
+      userPrompt: prompt,
+    });
 
     // 2. system prompt 로드 (agent-core + intent-patterns + vague-detection + selection-triggers)
     // cache_control 1h TTL 적용 — 13K+ 토큰이므로 캐시 효과 큼 (V-0 검증)
@@ -187,22 +207,29 @@ export class AgentBuilderService {
         }
       }
 
-      // 프로젝트 저장 — cwd 파일 수집 → projects INSERT → "내 프로젝트"에 노출
-      // 실패해도 Agent 완료는 성공 — complete 이벤트에 projectId 없이 emit
-      const persistResult = await this.persistence.persist({
-        userId: String(userId),
-        cwd,
-        userPrompt: prompt,
-      });
+      // 프로젝트 저장 — deploy_to_subdomain 도구가 이미 호출됐다면 finishProject 는 중복 실행되지만
+      // 같은 generatedCode 로 덮어쓰기이므로 무해. 도구를 안 쓴 경우 여기서만 저장됨.
+      const persistResult = projectId
+        ? await this.persistence.finishProject({
+            userId: String(userId),
+            cwd,
+            userPrompt: prompt,
+            projectId,
+          })
+        : await this.persistence.persist({
+            userId: String(userId),
+            cwd,
+            userPrompt: prompt,
+          });
 
       onEvent({
         type: 'complete',
         totalIterations: iter,
         totalCostUsd: Number(totalCostUsd.toFixed(6)),
         durationMs: Date.now() - start,
-        projectId: persistResult.ok ? persistResult.projectId : undefined,
-        projectName: persistResult.ok ? persistResult.projectName : undefined,
-        subdomain: persistResult.ok ? persistResult.subdomain : undefined,
+        projectId: projectId ?? (persistResult.ok ? persistResult.projectId : undefined),
+        projectName: persistResult.ok ? persistResult.projectName : startResult.projectName,
+        subdomain: persistResult.ok ? persistResult.subdomain : startResult.subdomain,
         fileCount: persistResult.ok ? persistResult.fileCount : undefined,
       });
     } catch (err: any) {

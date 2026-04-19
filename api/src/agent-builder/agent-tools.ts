@@ -5,6 +5,9 @@ import { promisify } from 'util';
 import fg from 'fast-glob';
 import { SandboxService } from './sandbox.service';
 import { AGENT_TOOL_TIMEOUT_MS } from './stream-event.types';
+import type { SupabaseService } from '../supabase/supabase.service';
+import type { ProjectPersistenceService } from './project-persistence.service';
+import type { DeployService } from '../project/deploy.service';
 
 const execAsync = promisify(exec);
 
@@ -70,6 +73,41 @@ export const AGENT_TOOLS = [
     },
   },
   {
+    name: 'provision_supabase',
+    description:
+      '답지에서 "Supabase 연결" 옵션을 고른 경우에만 호출. 새 Supabase 프로젝트를 자동 생성하고 SQL 스키마를 push한 뒤 .env.local 을 자동 작성한다. 사용자에게 "Supabase 붙일까요?" 같은 추가 질문은 금지 (답지에서 이미 받음).',
+    input_schema: {
+      type: 'object' as const,
+      properties: {
+        sqlSchema: {
+          type: 'string',
+          description: 'CREATE TABLE … 형태의 풀 SQL. RLS 정책 포함.',
+        },
+      },
+      required: ['sqlSchema'],
+    },
+  },
+  {
+    name: 'deploy_to_subdomain',
+    description:
+      '답지에서 "서브도메인 배포 (1일 무료)" 옵션을 고른 경우에만 호출. 현재 sandbox 에 쌓인 코드를 projects.generatedCode 로 저장하고 기존 deploy-trial 파이프라인으로 배포한다. 사용자에게 "배포할까요?" 는 이미 답지에 있으므로 추가 질문 금지.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'check_build',
+    description:
+      '현재 sandbox 프로젝트에서 `npm run build` 를 실행해 빌드 가능 여부를 검증. 실패 시 에러 메시지를 받아 바로 수정하라.',
+    input_schema: {
+      type: 'object' as const,
+      properties: {},
+      required: [],
+    },
+  },
+  {
     name: 'AskUser',
     description:
       '사용자에게 종합 카드로 한 번에 물어본다. 답지의 빈 칸이 여러 개일 때 사용 (꼬리 질문 금지, 원샷 1번만). 옵션마다 번호를 붙여 번호/클릭/자연어 3중 입력을 받는다. 작업 중에는 절대 사용하지 말고, 작업 시작 전에만 사용하라.',
@@ -130,10 +168,21 @@ export const AGENT_TOOLS = [
 
 export type ToolResult = { ok: boolean; output: string; durationMs: number };
 
+// 도구 실행 시 외부 서비스/컨텍스트 주입 — Day 4.5에서 Supabase + Deploy 연동용
+export interface AgentToolDeps {
+  supabase?: SupabaseService;
+  deploy?: DeployService;
+  persistence?: ProjectPersistenceService;
+  userId?: string;
+  projectId?: string;      // startProject 로 미리 생성된 id
+  userPrompt?: string;     // 사용자 첫 발화 (finishProject 에 전달)
+}
+
 export class AgentToolExecutor {
   constructor(
     private readonly sandbox: SandboxService,
     private readonly cwd: string,
+    private readonly deps: AgentToolDeps = {},
   ) {}
 
   async execute(name: string, input: any): Promise<ToolResult> {
@@ -155,6 +204,15 @@ export class AgentToolExecutor {
           break;
         case 'Grep':
           output = await this.grep(input.pattern, input.path);
+          break;
+        case 'provision_supabase':
+          output = await this.provisionSupabase(input);
+          break;
+        case 'deploy_to_subdomain':
+          output = await this.deployToSubdomain(input);
+          break;
+        case 'check_build':
+          output = await this.checkBuild();
           break;
         default:
           return { ok: false, output: `미지의 도구: ${name}`, durationMs: Date.now() - start };
@@ -236,6 +294,127 @@ export class AgentToolExecutor {
       // rg exit code 1 = no match → 에러 아님
       if (err?.code === 1) return '(매칭 없음)';
       throw err;
+    }
+  }
+
+  // ── Day 4.5 자동화 도구 ────────────────────────────────
+
+  // cwd 에서 Next.js 프로젝트 루트 찾기 (package.json 기준)
+  private async findProjectRoot(): Promise<string> {
+    const entries = await fs.readdir(this.cwd, { withFileTypes: true });
+    for (const e of entries) {
+      if (!e.isDirectory()) continue;
+      if (e.name === 'node_modules' || e.name === '.git') continue;
+      const pkg = path.join(this.cwd, e.name, 'package.json');
+      try {
+        await fs.access(pkg);
+        return path.join(this.cwd, e.name);
+      } catch {}
+    }
+    try {
+      await fs.access(path.join(this.cwd, 'package.json'));
+      return this.cwd;
+    } catch {}
+    return this.cwd;
+  }
+
+  // provision_supabase — 기존 SupabaseService 재사용
+  // 1) 새 Supabase 프로젝트 생성 + SQL push
+  // 2) 프로젝트 루트에 .env.local 자동 작성 (NEXT_PUBLIC_*)
+  private async provisionSupabase(input: any): Promise<string> {
+    if (!this.deps.supabase) {
+      throw new Error('Supabase 서비스 미주입 (AgentBuilderService 구성 확인)');
+    }
+    if (!this.deps.projectId) {
+      throw new Error('projectId 없음 (startProject 선행 필요)');
+    }
+    const sqlSchema = String(input?.sqlSchema ?? '').trim();
+    if (!sqlSchema) throw new Error('sqlSchema 필수');
+
+    const appName = `agent-${this.deps.projectId.slice(-8)}`;
+    const result = await this.deps.supabase.provisionForProject(
+      this.deps.projectId,
+      appName,
+      sqlSchema,
+    );
+    if (!result.success) {
+      throw new Error(result.error ?? 'Supabase 프로비저닝 실패');
+    }
+
+    // 프로젝트 루트에 .env.local 작성 (이미 있으면 append/overwrite)
+    const root = await this.findProjectRoot();
+    const envPath = path.join(root, '.env.local');
+    const envContent =
+      `NEXT_PUBLIC_SUPABASE_URL=${result.supabaseUrl}\n` +
+      `NEXT_PUBLIC_SUPABASE_ANON_KEY=${result.supabaseAnonKey}\n`;
+    await fs.writeFile(envPath, envContent, 'utf8');
+
+    return (
+      `✅ Supabase 자동 프로비저닝 완료\n` +
+      `- URL: ${result.supabaseUrl}\n` +
+      `- .env.local 자동 주입됨 (${path.relative(this.cwd, envPath)})\n` +
+      `- 스키마 ${sqlSchema.split(';').filter(Boolean).length}개 SQL 문 실행됨`
+    );
+  }
+
+  // deploy_to_subdomain — 현재 sandbox 파일을 projects.generatedCode 로 업데이트 +
+  // 기존 deployTrial 파이프라인 트리거 (빌드 큐 등록 → nginx 서브도메인 연결)
+  private async deployToSubdomain(_input: any): Promise<string> {
+    if (!this.deps.deploy || !this.deps.persistence) {
+      throw new Error('Deploy/Persistence 서비스 미주입');
+    }
+    if (!this.deps.projectId || !this.deps.userId) {
+      throw new Error('projectId/userId 없음 (startProject 선행 필요)');
+    }
+
+    // 1) cwd 파일 수집 → generatedCode 업데이트 + status='active'
+    const persistResult = await this.deps.persistence.finishProject({
+      userId: this.deps.userId,
+      cwd: this.cwd,
+      userPrompt: this.deps.userPrompt ?? '',
+      projectId: this.deps.projectId,
+    });
+    if (!persistResult.ok) {
+      throw new Error(`파일 저장 실패: ${persistResult.reason}`);
+    }
+
+    // 2) deployTrial 호출 (빌드 큐 등록, 즉시 응답)
+    const deployResult = await this.deps.deploy.deployTrial(
+      this.deps.projectId,
+      this.deps.userId,
+    );
+    if (!deployResult) {
+      throw new Error('배포 트리거 실패 (deployTrial null 반환)');
+    }
+
+    return (
+      `✅ 서브도메인 배포 트리거됨 (1일 무료 체험)\n` +
+      `- URL: ${deployResult.deployedUrl}\n` +
+      `- 만료: ${deployResult.trialExpiresAt.toISOString()}\n` +
+      `- 빌드는 백그라운드에서 진행됨 (2~3분 소요)\n` +
+      `- 사용자는 "내 프로젝트"에서 빌드 상태 확인 가능`
+    );
+  }
+
+  // check_build — cwd 프로젝트에서 npm run build 실행
+  private async checkBuild(): Promise<string> {
+    const root = await this.findProjectRoot();
+    const rel = path.relative(this.cwd, root);
+    const cwdFlag = rel ? ` --prefix ${rel}` : '';
+    try {
+      const { stdout, stderr } = await execAsync(
+        `npm run build${cwdFlag} 2>&1 | tail -60`,
+        {
+          cwd: this.cwd,
+          timeout: AGENT_TOOL_TIMEOUT_MS,
+          maxBuffer: 10 * 1024 * 1024,
+        },
+      );
+      const out = (stdout + stderr).slice(0, 10000);
+      return `✅ 빌드 성공\n${out}`;
+    } catch (err: any) {
+      const out = (err?.stdout ?? '') + (err?.stderr ?? '');
+      throw new Error(`빌드 실패\n${out.slice(0, 5000)}`);
     }
   }
 }

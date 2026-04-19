@@ -134,6 +134,74 @@ export class ProjectPersistenceService {
     return 'agent-app';
   }
 
+  // Agent 작업 시작 시점에 projects 껍데기 먼저 생성 (status='draft')
+  // 이유: 도구(provision_supabase / deploy_to_subdomain)가 projectId 필요
+  async startProject(userId: string, userPrompt: string): Promise<ProjectPersistenceResult> {
+    if (!userId || userId === 'anon') {
+      return { ok: false, reason: '비로그인 사용자 — 프로젝트 저장 생략' };
+    }
+    try {
+      const tempName = this.deriveName('', '', userPrompt);
+      const description = `Agent Mode로 생성 — "${userPrompt.slice(0, 80)}"`;
+      const project = await this.projectService.create(String(userId), {
+        name: tempName,
+        description,
+        template: 'agent-mode',
+      });
+      this.logger.log(`[startProject] ${project.id} "${tempName}" (draft)`);
+      return {
+        ok: true,
+        projectId: project.id,
+        projectName: tempName,
+        subdomain: project.subdomain ?? undefined,
+      };
+    } catch (err: any) {
+      this.logger.error(`[startProject] 실패: ${err?.message}`);
+      return { ok: false, reason: err?.message ?? String(err) };
+    }
+  }
+
+  // Agent 작업 종료 시 — cwd 파일 수집 → generatedCode 업데이트 → status='active'
+  // projectId는 startProject 결과를 받아 전달
+  async finishProject(input: ProjectPersistenceInput & { projectId?: string }): Promise<ProjectPersistenceResult> {
+    const { userId, cwd, userPrompt, projectId } = input;
+
+    if (!userId || userId === 'anon') {
+      return { ok: false, reason: '비로그인 사용자 — 프로젝트 저장 생략' };
+    }
+    if (!projectId) {
+      // 레거시 경로 — startProject 없이 바로 persist()를 쓰던 호출 그대로 처리
+      return this.persist({ userId, cwd, userPrompt });
+    }
+
+    try {
+      const projectRoot = this.findProjectRoot(cwd);
+      const files = this.collectFiles(projectRoot);
+      if (files.length === 0) {
+        return { ok: false, reason: '수집된 파일 없음 (빈 앱)' };
+      }
+
+      const name = this.deriveName(projectRoot, cwd, userPrompt);
+      await this.projectService.update(projectId, String(userId), {
+        name,
+        generatedCode: files as any,
+        status: 'active',
+      });
+
+      this.logger.log(`[finishProject] ${projectId} "${name}" (${files.length} files)`);
+      return {
+        ok: true,
+        projectId,
+        projectName: name,
+        fileCount: files.length,
+      };
+    } catch (err: any) {
+      this.logger.error(`[finishProject] 실패: ${err?.message}`, err?.stack);
+      return { ok: false, reason: err?.message ?? String(err) };
+    }
+  }
+
+  // 레거시 — startProject 없이 한 번에 create+update (호환성 유지)
   async persist(input: ProjectPersistenceInput): Promise<ProjectPersistenceResult> {
     const { userId, cwd, userPrompt } = input;
 

@@ -72,7 +72,9 @@ async function runScenario(scenarioId: string) {
   const stubPersistence = {
     persist: async () => ({ ok: false as const, reason: 'test-stub' }),
   } as any;
-  const service = new AgentBuilderService(sandbox, promptLoader, sessionStore, parser, stubPersistence);
+  const stubSupabase = { provisionForProject: async () => ({ success: false, error: 'stub' }) } as any;
+  const stubDeploy = { deployTrial: async () => null } as any;
+  const service = new AgentBuilderService(sandbox, promptLoader, sessionStore, parser, stubPersistence, stubSupabase, stubDeploy);
 
   const events: AgentStreamEvent[] = [];
   let sessionId = '';
