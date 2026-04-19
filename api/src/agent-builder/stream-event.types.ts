@@ -27,24 +27,41 @@ export interface CardRequest {
   allowFreeText: true;
 }
 
+// Day 4.6: 7단계 포비 정체성
+// 사용자 화면에 노출되는 high-level 이벤트. raw 도구 호출은 devLog 로만.
+export type FoundryStageId =
+  | 'intent' | 'setup' | 'design' | 'pages' | 'verify' | 'database' | 'deploy';
+
 export type AgentStreamEvent =
   | { type: 'start'; sessionId: string; cwd: string }
   | { type: 'thinking'; text: string }
+  // ── 내부 로그 (devLog 용) ────────────────────
   | { type: 'tool_call'; id: string; name: string; input: unknown }
   | { type: 'tool_result'; id: string; ok: boolean; output: string; durationMs: number }
   | { type: 'assistant_text'; text: string }
   | { type: 'iteration'; n: number; stopReason?: string }
-  | { type: 'card_request'; card: CardRequest }    // ⭐ Day 3: 종합 카드
+  // ── 포비 고수준 이벤트 (사용자 UI용) ──────────
+  | {
+      type: 'foundry_progress';
+      stage: FoundryStageId;
+      label: string;          // "🏠 홈 페이지 디자인 중"
+      emoji: string;           // 단계 이모지 (📋 📦 🎨 📄 🔍 🗄 🌐)
+      percent: number;         // 0~100 (단계 완료 기준 추정)
+      elapsedMs: number;
+    }
+  // ── 답지/완료 ─────────────────────────────
+  | { type: 'card_request'; card: CardRequest }
   | { type: 'card_answered'; pendingId: string; answerSummary: string }
   | {
       type: 'complete';
       totalIterations: number;
       totalCostUsd?: number;
       durationMs: number;
-      projectId?: string;       // "내 프로젝트"에 저장된 id
+      projectId?: string;
       projectName?: string;
-      subdomain?: string;       // 배포 시 사용할 서브도메인 (예: "meditacker-abc")
+      subdomain?: string;
       fileCount?: number;
+      previewUrl?: string;     // Day 4.6: 배포 도구가 호출됐다면 설정됨
     }
   | { type: 'error'; message: string; where?: string };
 

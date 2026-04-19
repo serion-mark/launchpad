@@ -27,13 +27,26 @@ export interface CardRequest {
   allowFreeText: true;
 }
 
+export type FoundryStageId =
+  | 'intent' | 'setup' | 'design' | 'pages' | 'verify' | 'database' | 'deploy';
+
 export type AgentEvent =
   | { type: 'start'; sessionId: string; cwd: string }
   | { type: 'thinking'; text: string }
+  // 내부 로그 (devLog 전용)
   | { type: 'tool_call'; id: string; name: string; input: unknown }
   | { type: 'tool_result'; id: string; ok: boolean; output: string; durationMs: number }
   | { type: 'assistant_text'; text: string }
   | { type: 'iteration'; n: number; stopReason?: string }
+  // 포비 고수준 (사용자 UI)
+  | {
+      type: 'foundry_progress';
+      stage: FoundryStageId;
+      label: string;
+      emoji: string;
+      percent: number;
+      elapsedMs: number;
+    }
   | { type: 'card_request'; card: CardRequest }
   | { type: 'card_answered'; pendingId: string; answerSummary: string }
   | {
@@ -45,13 +58,20 @@ export type AgentEvent =
       projectName?: string;
       subdomain?: string;
       fileCount?: number;
+      previewUrl?: string;
     }
   | { type: 'error'; message: string; where?: string };
+
+// 개발자 모드 전용 raw 로그 (채팅창에는 안 보임)
+export interface DevLog {
+  ts: number;
+  kind: 'tool' | 'text' | 'iter';
+  text: string;
+}
 
 export type ChatEntry =
   | { kind: 'user'; text: string; ts: number }
   | { kind: 'assistant'; text: string; ts: number }
-  | { kind: 'tool'; name: string; input: unknown; output?: string; ok?: boolean; durationMs?: number; ts: number }
   | { kind: 'card'; card: CardRequest; answered?: string; ts: number }
   | { kind: 'system'; text: string; ts: number };
 
@@ -62,16 +82,24 @@ export interface UseAgentStreamState {
   pendingCard: CardRequest | null;
   error: string | null;
   costUsd: number;
-  // 실시간 활동 표시용 — 사용자가 진행 상황을 체감할 수 있도록
-  lastActivity: string;        // 최신 도구/텍스트의 짧은 요약
-  iteration: number;           // 현재 iter 번호
-  toolCount: number;           // 누적 도구 호출 수
-  submittingAnswer: boolean;   // 답변 POST 중 (answer → 서버 도달 전)
+  // 실시간 활동 표시용
+  lastActivity: string;
+  iteration: number;
+  toolCount: number;
+  submittingAnswer: boolean;
+  // 포비 진행 상태 (Day 4.6)
+  currentStage: FoundryStageId | null;
+  currentLabel: string;
+  completedStages: Set<FoundryStageId>;
+  percent: number;
   // 완료 후 "내 프로젝트" 연결 정보
   projectId: string | null;
   projectName: string | null;
   subdomain: string | null;
   fileCount: number | null;
+  previewUrl: string | null;
+  // 개발자 로그 (raw 도구 호출, 채팅에 안 보임)
+  devLogs: DevLog[];
 }
 
 export function useAgentStream() {
@@ -86,15 +114,25 @@ export function useAgentStream() {
     iteration: 0,
     toolCount: 0,
     submittingAnswer: false,
+    currentStage: null,
+    currentLabel: '',
+    completedStages: new Set(),
+    percent: 0,
     projectId: null,
     projectName: null,
     subdomain: null,
     fileCount: null,
+    previewUrl: null,
+    devLogs: [],
   });
   const abortRef = useRef<AbortController | null>(null);
 
   const append = useCallback((entry: ChatEntry) => {
     setState((s) => ({ ...s, entries: [...s.entries, entry] }));
+  }, []);
+
+  const pushDev = useCallback((log: DevLog) => {
+    setState((s) => ({ ...s, devLogs: [...s.devLogs, log] }));
   }, []);
 
   const handleEvent = useCallback(
@@ -105,75 +143,77 @@ export function useAgentStream() {
             ...s,
             sessionId: ev.sessionId,
             status: 'streaming',
-            lastActivity: '🚀 세션 시작 — Agent 준비 중...',
+            lastActivity: '✨ 포비 준비 중...',
           }));
-          append({ kind: 'system', text: `세션 시작 (${ev.sessionId.slice(0, 8)})`, ts: Date.now() });
           break;
+
         case 'iteration':
+          pushDev({ ts: Date.now(), kind: 'iter', text: `iter ${ev.n} (${ev.stopReason ?? 'tool_use'})` });
+          break;
+
+        case 'assistant_text': {
+          // Agent 의 자유 텍스트는 채팅창에 표시 (카톡처럼)
+          const preview = ev.text.replace(/\s+/g, ' ').slice(0, 60);
           setState((s) => ({
             ...s,
-            iteration: ev.n,
-            lastActivity: `🧠 Agent 생각 중... (iter ${ev.n})`,
+            lastActivity: `💬 ${preview}${ev.text.length > 60 ? '...' : ''}`,
           }));
-          break;
-        case 'assistant_text': {
-          const preview = ev.text.replace(/\s+/g, ' ').slice(0, 60);
-          setState((s) => ({ ...s, lastActivity: `💬 ${preview}${ev.text.length > 60 ? '...' : ''}` }));
-          append({ kind: 'assistant', text: ev.text, ts: Date.now() });
+          // 너무 짧은 메시지(한 줄 tool bridge)는 스킵
+          if (ev.text.trim().length > 10) {
+            append({ kind: 'assistant', text: ev.text, ts: Date.now() });
+          }
+          pushDev({ ts: Date.now(), kind: 'text', text: ev.text.slice(0, 200) });
           break;
         }
+
         case 'tool_call': {
+          // 사용자에게는 안 보임 — devLog 로만
           const input = ev.input as any;
-          let summary = ev.name;
-          if (ev.name === 'Bash') summary = `💻 실행: ${String(input?.command ?? '').slice(0, 50)}`;
-          else if (ev.name === 'Write') summary = `📝 작성: ${input?.path ?? ''}`;
-          else if (ev.name === 'Read') summary = `📖 읽기: ${input?.path ?? ''}`;
-          else if (ev.name === 'Glob') summary = `🔍 탐색: ${input?.pattern ?? ''}`;
-          else if (ev.name === 'Grep') summary = `🔎 검색: "${input?.pattern ?? ''}"`;
-          else if (ev.name === 'AskUser') summary = `❓ 질문 카드 준비`;
-          setState((s) => ({
-            ...s,
-            lastActivity: summary,
-            toolCount: s.toolCount + 1,
-          }));
-          append({
-            kind: 'tool',
-            name: ev.name,
-            input: ev.input,
+          const summary = `${ev.name}  ${JSON.stringify(input).slice(0, 80)}`;
+          pushDev({ ts: Date.now(), kind: 'tool', text: summary });
+          setState((s) => ({ ...s, toolCount: s.toolCount + 1 }));
+          break;
+        }
+
+        case 'tool_result':
+          // devLog only
+          pushDev({
             ts: Date.now(),
+            kind: 'tool',
+            text: `→ ${ev.ok ? 'ok' : 'fail'} ${ev.durationMs}ms ${ev.output.slice(0, 80).replace(/\n/g, ' ')}`,
           });
           break;
-        }
-        case 'tool_result':
+
+        case 'foundry_progress':
+          // 포비 고수준 이벤트 — 사용자 UI의 FoundryProgress 로 렌더링
           setState((s) => {
-            const reversed = [...s.entries].reverse();
-            const lastToolIdx = reversed.findIndex((e) => e.kind === 'tool' && e.output === undefined);
-            if (lastToolIdx === -1) return s;
-            const realIdx = s.entries.length - 1 - lastToolIdx;
-            const updated = [...s.entries];
-            updated[realIdx] = {
-              ...updated[realIdx],
-              output: ev.output,
-              ok: ev.ok,
-              durationMs: ev.durationMs,
-            } as ChatEntry;
+            const completed = new Set(s.completedStages);
+            // 다른 단계로 넘어갔으면 이전 current 단계를 completed 로 마킹
+            if (s.currentStage && s.currentStage !== ev.stage) {
+              completed.add(s.currentStage);
+            }
             return {
               ...s,
-              entries: updated,
-              lastActivity: ev.ok ? '✅ 완료 — 다음 단계 준비 중' : '⚠️ 오류 — 수정 시도 중',
+              currentStage: ev.stage,
+              currentLabel: ev.label,
+              completedStages: completed,
+              percent: ev.percent,
+              lastActivity: `${ev.emoji} ${ev.label}`,
             };
           });
           break;
+
         case 'card_request':
           setState((s) => ({
             ...s,
             pendingCard: ev.card,
             status: 'awaiting_answer',
-            lastActivity: '👉 답변을 기다리는 중',
+            lastActivity: '👉 답지 기다리는 중',
             submittingAnswer: false,
           }));
           append({ kind: 'card', card: ev.card, ts: Date.now() });
           break;
+
         case 'card_answered':
           setState((s) => {
             const updated = s.entries.map((e) =>
@@ -187,47 +227,47 @@ export function useAgentStream() {
               entries: updated,
               status: 'streaming',
               submittingAnswer: false,
-              lastActivity: '🧠 답변 반영 — 작업 재개',
+              lastActivity: '📋 답지 반영 — 작업 재개',
             };
           });
           break;
+
         case 'complete':
-          setState((s) => ({
-            ...s,
-            status: 'complete',
-            costUsd: ev.totalCostUsd ?? s.costUsd,
-            lastActivity: '🎉 작업 완료',
-            projectId: ev.projectId ?? null,
-            projectName: ev.projectName ?? null,
-            subdomain: ev.subdomain ?? null,
-            fileCount: ev.fileCount ?? null,
-          }));
-          // 비용 달러 UI 노출 X — 향후 크레딧 단위로 전환 예정
-          append({
-            kind: 'system',
-            text: `완료 — ${ev.totalIterations} steps · ${(ev.durationMs / 1000).toFixed(1)}s`,
-            ts: Date.now(),
+          setState((s) => {
+            // 현재 단계도 completed 로
+            const completed = new Set(s.completedStages);
+            if (s.currentStage) completed.add(s.currentStage);
+            return {
+              ...s,
+              status: 'complete',
+              costUsd: ev.totalCostUsd ?? s.costUsd,
+              lastActivity: '✅ 작업 완료',
+              currentStage: null,
+              currentLabel: '',
+              completedStages: completed,
+              percent: 100,
+              projectId: ev.projectId ?? null,
+              projectName: ev.projectName ?? null,
+              subdomain: ev.subdomain ?? null,
+              fileCount: ev.fileCount ?? null,
+              previewUrl: ev.previewUrl ?? null,
+            };
           });
-          if (ev.projectId) {
-            append({
-              kind: 'system',
-              text: `📁 "${ev.projectName ?? '프로젝트'}" 내 프로젝트에 저장됨 (${ev.fileCount ?? 0}개 파일)`,
-              ts: Date.now(),
-            });
-          }
           break;
+
         case 'error':
+          // 사용자에게는 포비 말투로 간단히, raw 는 devLog
           setState((s) => ({
             ...s,
             status: 'error',
             error: ev.message,
-            lastActivity: `❌ ${ev.message}`,
+            lastActivity: '⚠️ 잠깐 다시 시도할게요',
           }));
-          append({ kind: 'system', text: `❌ ${ev.message}`, ts: Date.now() });
+          pushDev({ ts: Date.now(), kind: 'tool', text: `error: ${ev.message}` });
           break;
       }
     },
-    [append],
+    [append, pushDev],
   );
 
   // 수동 Fetch + ReadableStream 으로 SSE 수신 (POST + JWT 헤더 필요)
@@ -242,14 +282,20 @@ export function useAgentStream() {
         pendingCard: null,
         error: null,
         costUsd: 0,
-        lastActivity: '🚀 Agent 연결 중...',
+        lastActivity: '🚀 포비 연결 중...',
         iteration: 0,
         toolCount: 0,
         submittingAnswer: false,
+        currentStage: null,
+        currentLabel: '',
+        completedStages: new Set(),
+        percent: 0,
         projectId: null,
         projectName: null,
         subdomain: null,
         fileCount: null,
+        previewUrl: null,
+        devLogs: [],
       });
 
       const controller = new AbortController();

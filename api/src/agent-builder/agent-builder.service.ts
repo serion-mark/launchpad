@@ -8,6 +8,7 @@ import { ProjectPersistenceService } from './project-persistence.service';
 import { AgentToolExecutor, AGENT_TOOLS } from './agent-tools';
 import { SupabaseService } from '../supabase/supabase.service';
 import { DeployService } from '../project/deploy.service';
+import { EventTranslatorService, STAGES } from './event-translator.service';
 import {
   AgentStreamEvent,
   AGENT_MAX_ITERATIONS,
@@ -36,10 +37,25 @@ export class AgentBuilderService {
     private readonly supabase: SupabaseService,
     @Inject(forwardRef(() => DeployService))
     private readonly deploy: DeployService,
+    private readonly translator: EventTranslatorService,
   ) {
     this.anthropic = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
     });
+  }
+
+  // Day 4.6: 단계별 진행률 추정 (사용자 체감용, 정확한 값 아님)
+  private calcProgress(stage: string): number {
+    const map: Record<string, number> = {
+      intent: 10,
+      setup: 25,
+      design: 40,
+      pages: 60,
+      verify: 80,
+      database: 90,
+      deploy: 95,
+    };
+    return map[stage] ?? 50;
   }
 
   async run(input: AgentBuilderInput): Promise<void> {
@@ -130,6 +146,19 @@ export class AgentBuilderService {
               name: tu.name,
               input: tu.input,
             });
+
+            // Day 4.6: raw 도구 호출을 포비 어휘로 번역 → 사용자에게 high-level 이벤트
+            const translated = this.translator.translate(tu.name, tu.input);
+            if (translated) {
+              onEvent({
+                type: 'foundry_progress',
+                stage: translated.stage,
+                label: translated.label,
+                emoji: translated.emoji,
+                percent: this.calcProgress(translated.stage),
+                elapsedMs: Date.now() - start,
+              });
+            }
 
             // AskUser는 SSE로 카드 방출 후 사용자 답변 대기 (pause/resume)
             if (tu.name === 'AskUser') {

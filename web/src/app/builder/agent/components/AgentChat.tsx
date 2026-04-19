@@ -1,13 +1,15 @@
 'use client';
 
-// Agent Mode 채팅창 — 채팅 entry 렌더링 + 3중 입력 (번호/키워드/자연어)
-// 반응형: 모바일 세로 / PC 동일 구조
-// 폰트 16px 이상 (iOS 자동 줌 방지)
+// 포비 Agent Mode 채팅창 — 클로드 냄새 0
+// raw 도구 호출은 FoundryProgress 로 통합 표시 (사용자 친화)
+// 개발자 모드 토글로 raw 로그 확인 가능
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChatEntry, UseAgentStreamState } from '../useAgentStream';
 import AnswerSheetCard from './AnswerSheetCard';
-import ToolCallBlock from './ToolCallBlock';
+import FoundryProgress from './FoundryProgress';
+import FoundryComplete from './FoundryComplete';
+import FoundryError from './FoundryError';
 
 interface Props {
   state: UseAgentStreamState;
@@ -17,14 +19,32 @@ interface Props {
 
 export default function AgentChat({ state, onStart, onSubmitAnswer }: Props) {
   const [input, setInput] = useState('');
+  const [devOpen, setDevOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const startTsRef = useRef<number | null>(null);
+
+  // 작업 중 경과 시간 tick
+  useEffect(() => {
+    if (state.status !== 'streaming' && state.status !== 'awaiting_answer') {
+      startTsRef.current = null;
+      return;
+    }
+    if (startTsRef.current === null) startTsRef.current = Date.now();
+    const id = setInterval(() => {
+      setElapsedMs(Date.now() - (startTsRef.current ?? Date.now()));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [state.status]);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [state.entries.length]);
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: 'smooth',
+    });
+  }, [state.entries.length, state.currentLabel, state.status]);
 
-  // 입력창 비활성: 백엔드 작업 진행 중 / 답변 전송 중일 때만
-  // complete / error 상태에서는 활성화 (새 요청 / 재시도 가능하도록)
   const disabled = state.status === 'streaming' || state.submittingAnswer;
 
   const handleSubmit = () => {
@@ -42,6 +62,19 @@ export default function AgentChat({ state, onStart, onSubmitAnswer }: Props) {
     setInput('');
   };
 
+  const handleEditClick = () => {
+    inputRef.current?.focus();
+  };
+
+  const isWorking = state.status === 'streaming';
+  const lastAssistantInsight = useMemo(() => {
+    // 완료 시 마지막 assistant 메시지를 인사이트로
+    for (let i = state.entries.length - 1; i >= 0; i--) {
+      if (state.entries[i].kind === 'assistant') return (state.entries[i] as any).text;
+    }
+    return undefined;
+  }, [state.entries]);
+
   return (
     <div className="flex h-full flex-col">
       {/* 메시지 영역 */}
@@ -50,9 +83,9 @@ export default function AgentChat({ state, onStart, onSubmitAnswer }: Props) {
         className="flex-1 space-y-3 overflow-y-auto p-3 sm:p-4"
         data-testid="agent-chat-scroll"
       >
-        {state.entries.length === 0 && (
+        {state.entries.length === 0 && state.status === 'idle' && (
           <div className="flex h-full flex-col items-center justify-center text-center text-slate-500 dark:text-slate-400">
-            <div className="mb-2 text-4xl">💬</div>
+            <div className="mb-2 text-4xl">✨</div>
             <p className="text-sm sm:text-base">
               만들고 싶은 걸 한 마디로 말씀해주세요.
             </p>
@@ -79,58 +112,62 @@ export default function AgentChat({ state, onStart, onSubmitAnswer }: Props) {
           );
         })}
 
-        {/* 작업 중 타이핑 인디케이터 — Agent가 생각/도구 실행 중일 때 */}
-        {state.status === 'streaming' && (
-          <div
-            className="flex items-center gap-2 rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-3 text-sm text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-            aria-label="Agent 작업 중"
-          >
-            <span className="flex gap-1">
-              <span className="h-2 w-2 animate-bounce rounded-full bg-blue-500 [animation-delay:0ms]" />
-              <span className="h-2 w-2 animate-bounce rounded-full bg-blue-500 [animation-delay:150ms]" />
-              <span className="h-2 w-2 animate-bounce rounded-full bg-blue-500 [animation-delay:300ms]" />
-            </span>
-            <span className="flex-1 truncate">
-              {state.lastActivity || '🧠 Agent가 생각 중...'}
-            </span>
-          </div>
+        {/* 작업 중 — Foundry 진행 표 (항상 최하단에 고정) */}
+        {isWorking && (
+          <FoundryProgress
+            currentStage={state.currentStage}
+            currentLabel={state.currentLabel}
+            completed={state.completedStages}
+            percent={state.percent}
+            elapsedMs={elapsedMs}
+          />
         )}
 
-        {/* 답변 전송 직후 인디케이터 — 카드 답변 보내고 서버 처리 대기 */}
+        {/* 답변 전송 직후 인디케이터 */}
         {state.submittingAnswer && (
-          <div className="flex items-center gap-2 rounded-2xl rounded-tl-sm bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:bg-blue-950/30 dark:text-blue-300">
-            <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-            <span>📤 답변 전달 중 — Agent가 이어서 작업할 거예요</span>
+          <div
+            className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-700 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300"
+            style={{ borderColor: '#3182F633' }}
+          >
+            <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: '#3182F6 transparent #3182F6 #3182F6' }} />
+            <span>📤 답지 전달 중 — 포비가 이어서 작업할 거예요</span>
           </div>
         )}
 
-        {/* 완료 시 — 내 프로젝트 이동 / 서브도메인 배포 버튼 */}
+        {/* 에러 — 포비 톤 */}
+        {state.status === 'error' && (
+          <FoundryError message={state.error ?? undefined} />
+        )}
+
+        {/* 완료 — Foundry 완료 카드 */}
         {state.status === 'complete' && state.projectId && (
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-950/30">
-            <p className="mb-3 text-sm font-semibold text-emerald-900 dark:text-emerald-100">
-              🎉 완성! 다음 중 원하시는 걸 선택해주세요
-            </p>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <a
-                href={`/builder?projectId=${state.projectId}`}
-                className="flex min-h-12 items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-white px-3 py-2 text-sm font-semibold text-emerald-800 transition hover:border-emerald-500 hover:bg-emerald-100 dark:border-emerald-700 dark:bg-slate-900 dark:text-emerald-300"
-              >
-                📁 내 프로젝트에서 열기
-              </a>
-              <a
-                href="/dashboard"
-                className="flex min-h-12 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-400 hover:text-blue-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
-              >
-                🌐 서브도메인 배포 (1일 무료)
-              </a>
+          <FoundryComplete
+            projectName={state.projectName ?? undefined}
+            projectId={state.projectId}
+            previewUrl={state.previewUrl ?? undefined}
+            insight={lastAssistantInsight}
+            onEditClick={handleEditClick}
+          />
+        )}
+
+        {/* 개발자 모드 — 기본 닫힘 */}
+        {state.devLogs.length > 0 && (
+          <details
+            open={devOpen}
+            onToggle={(e) => setDevOpen((e.target as HTMLDetailsElement).open)}
+            className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-2 text-xs dark:border-slate-800 dark:bg-slate-900/50"
+          >
+            <summary className="cursor-pointer select-none text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+              ▶ 작업 로그 (개발자 모드, {state.devLogs.length}건)
+            </summary>
+            <div className="mt-2 max-h-60 space-y-1 overflow-auto font-mono text-[11px] leading-tight text-slate-500 dark:text-slate-400">
+              {state.devLogs.slice(-100).map((log, i) => (
+                <div key={i} className="truncate">
+                  <span className="opacity-50">[{log.kind}]</span> {log.text}
+                </div>
+              ))}
             </div>
-            {state.subdomain && (
-              <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-400">
-                예상 URL:{' '}
-                <span className="font-mono">https://{state.subdomain}.foundry.ai.kr</span>
-              </p>
-            )}
-          </div>
+          </details>
         )}
       </div>
 
@@ -138,6 +175,7 @@ export default function AgentChat({ state, onStart, onSubmitAnswer }: Props) {
       <div className="border-t border-slate-200 p-3 sm:p-4 dark:border-slate-800">
         <div className="flex gap-2">
           <input
+            ref={inputRef}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -151,7 +189,7 @@ export default function AgentChat({ state, onStart, onSubmitAnswer }: Props) {
               state.status === 'awaiting_answer'
                 ? '번호("1, 2"), "시작", 또는 자연어로 답변'
                 : state.status === 'complete'
-                  ? '새 요청을 입력하세요 (예: 쇼핑몰 만들어줘)'
+                  ? '추가 수정 또는 새 요청 (예: 헤더 색깔 부드럽게)'
                   : state.status === 'error'
                     ? '다시 시도할 요청을 입력하세요'
                     : state.status === 'idle'
@@ -166,7 +204,8 @@ export default function AgentChat({ state, onStart, onSubmitAnswer }: Props) {
             type="button"
             onClick={handleSubmit}
             disabled={disabled || !input.trim()}
-            className="rounded-lg bg-blue-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40 sm:text-base"
+            className="rounded-lg px-4 py-3 text-sm font-bold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 sm:text-base"
+            style={{ backgroundColor: '#3182F6' }}
           >
             보내기
           </button>
@@ -174,17 +213,17 @@ export default function AgentChat({ state, onStart, onSubmitAnswer }: Props) {
         <div className="mt-2 flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
           <span className="flex-1 truncate">
             {state.status === 'idle' && '아이디어 한 마디부터 시작해요'}
-            {state.status === 'streaming' && (state.lastActivity || '⏳ Agent가 작업 중...')}
+            {state.status === 'streaming' && (state.lastActivity || '✨ 포비가 작업 중...')}
             {state.status === 'awaiting_answer' &&
               (state.submittingAnswer
-                ? '📤 답변 전송 중...'
-                : '👆 종합 카드 답변을 기다리고 있어요 — 번호/자연어/"시작" 중 편한 걸로')}
-            {state.status === 'complete' && '✅ 완료 — 새 요청도 입력 가능해요'}
-            {state.status === 'error' && `❌ ${state.error}`}
+                ? '📤 답지 전송 중...'
+                : '👆 답지 확인을 기다리고 있어요')}
+            {state.status === 'complete' && '✅ 완료 — 추가 수정도 가능해요'}
+            {state.status === 'error' && '⚠️ 잠깐 다시 시도할게요'}
           </span>
           {(state.status === 'streaming' || state.status === 'awaiting_answer') && (
-            <span className="shrink-0 font-mono text-[10px] text-slate-400">
-              iter {state.iteration} · tools {state.toolCount}
+            <span className="shrink-0 text-[10px] opacity-60">
+              {state.iteration > 0 ? `step ${state.iteration}` : ''}
             </span>
           )}
         </div>
@@ -206,7 +245,10 @@ function ChatEntryRow({
     case 'user':
       return (
         <div className="flex justify-end">
-          <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-blue-600 px-4 py-2 text-sm text-white sm:text-base">
+          <div
+            className="max-w-[85%] rounded-2xl rounded-tr-sm px-4 py-2 text-sm text-white sm:text-base"
+            style={{ backgroundColor: '#3182F6' }}
+          >
             {entry.text}
           </div>
         </div>
@@ -219,23 +261,13 @@ function ChatEntryRow({
           </div>
         </div>
       );
-    case 'tool':
-      return (
-        <ToolCallBlock
-          name={entry.name}
-          input={entry.input}
-          output={entry.output}
-          ok={entry.ok}
-          durationMs={entry.durationMs}
-        />
-      );
     case 'card':
       return (
         <div className="space-y-2">
           <AnswerSheetCard card={entry.card} onSubmit={onCardSubmit} disabled={cardDisabled} />
           {entry.answered && (
             <div className="rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-              ✓ 답변 완료: {entry.answered}
+              ✓ 답지 완료: {entry.answered}
             </div>
           )}
         </div>

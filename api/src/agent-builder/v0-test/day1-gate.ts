@@ -23,7 +23,8 @@ async function main() {
   const parser = new AnswerParserService();
   const stubSupabase = { provisionForProject: async () => ({ success: false, error: 'stub' }) } as any;
   const stubDeploy = { deployTrial: async () => null } as any;
-  const service = new AgentBuilderService(sandbox, promptLoader, sessionStore, parser, stubPersistence, stubSupabase, stubDeploy);
+  const stubTranslator = { translate: () => null, sanitizeOutput: (s: string) => s } as any;
+  const service = new AgentBuilderService(sandbox, promptLoader, sessionStore, parser, stubPersistence, stubSupabase, stubDeploy, stubTranslator);
 
   const events: AgentStreamEvent[] = [];
   const start = Date.now();

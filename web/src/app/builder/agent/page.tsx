@@ -23,7 +23,7 @@ export default function BuilderAgentPage() {
             ← 기존 빌더
           </Link>
           <h1 className="text-base font-bold text-slate-900 sm:text-lg dark:text-slate-100">
-            🤖 Agent Mode
+            🌗 포비
           </h1>
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
             BETA
@@ -32,15 +32,21 @@ export default function BuilderAgentPage() {
         <div className="flex items-center gap-2 text-xs">
           {/* 실시간 상태 뱃지 */}
           {state.status === 'streaming' && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
+              style={{ backgroundColor: '#3182F61A' }}
+            >
               <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
+                <span
+                  className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75"
+                  style={{ backgroundColor: '#3182F6' }}
+                />
+                <span
+                  className="relative inline-flex h-2 w-2 rounded-full"
+                  style={{ backgroundColor: '#3182F6' }}
+                />
               </span>
-              <span className="hidden sm:inline">작업 중</span>
-              <span className="font-mono text-[10px] opacity-70">
-                iter {state.iteration}
-              </span>
+              <span className="hidden sm:inline">포비 작업 중</span>
             </span>
           )}
           {state.status === 'awaiting_answer' && !state.submittingAnswer && (

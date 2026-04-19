@@ -6,6 +6,7 @@ import { PromptLoaderService } from './prompt-loader.service';
 import { SessionStoreService } from './session-store.service';
 import { AnswerParserService } from './answer-parser.service';
 import { ProjectPersistenceService } from './project-persistence.service';
+import { EventTranslatorService } from './event-translator.service';
 import { ProjectModule } from '../project/project.module';
 import { SupabaseModule } from '../supabase/supabase.module';
 
@@ -21,6 +22,7 @@ import { SupabaseModule } from '../supabase/supabase.module';
     SessionStoreService,
     AnswerParserService,
     ProjectPersistenceService,
+    EventTranslatorService,
   ],
   exports: [AgentBuilderService],
 })
