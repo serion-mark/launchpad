@@ -287,7 +287,35 @@ export class AgentBuilderService {
       });
     } finally {
       this.sessionStore.cancelSession(sessionId, 'run 종료');
-      // Day 1은 정리하지 않음 — 검증 편의. Day 5 이후 정리 크론 추가.
+
+      // 쓰레기 draft 자동 정리 — 상의 모드로 파일 한 개도 안 만들고 끝난 경우
+      // startProject 로 만든 projects 레코드가 draft + generatedCode 없음 → 삭제
+      // 이름도 프롬프트 앞부분 그대로라 "내 프로젝트" 에 노출되면 지저분
+      if (projectId) {
+        try {
+          const p = await this.prisma.project
+            .findUnique({
+              where: { id: projectId },
+              select: { status: true, generatedCode: true, name: true },
+            })
+            .catch(() => null);
+          if (p && p.status === 'draft') {
+            const files = (p.generatedCode as any) ?? null;
+            const isEmpty =
+              !files ||
+              (Array.isArray(files) && files.length === 0) ||
+              (typeof files === 'object' && Object.keys(files).length === 0);
+            if (isEmpty) {
+              await this.prisma.project.delete({ where: { id: projectId } }).catch(() => {});
+              this.logger.log(`[cleanup-draft] ${projectId} 자동 삭제 (빈 draft: "${p.name}")`);
+            }
+          }
+        } catch {
+          // 정리 실패는 무시 — 메인 흐름 영향 없음
+        }
+      }
+
+      // Day 1은 sandbox cwd 정리하지 않음 — 검증 편의. Day 5 이후 정리 크론 추가.
       // await this.sandbox.cleanup(cwd);
     }
   }

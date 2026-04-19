@@ -146,7 +146,9 @@ export default function DashboardPage() {
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight">내 프로젝트</h1>
-            <p className="mt-1.5 text-sm text-[var(--text-secondary)]">{projects.length}개의 프로젝트</p>
+            <p className="mt-1.5 text-sm text-[var(--text-secondary)]">
+              {projects.filter(p => !(p.template === 'agent-mode' && p.status === 'draft')).length}개의 프로젝트
+            </p>
           </div>
           <a
             href="/"
@@ -228,8 +230,12 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* 프로젝트 카드 */}
-            {projects.map(project => {
+            {/* 프로젝트 카드 — agent-mode draft 는 숨김 (쓰레기 프로젝트 노출 방지)
+                상의 모드로 파일 안 만들고 끝나면 draft 가 쌓임.
+                백엔드에서 auto-cleanup 도 하지만 타이밍 문제로 잔여 가능 → 프론트에서도 필터 */}
+            {projects
+              .filter((p) => !(p.template === 'agent-mode' && p.status === 'draft'))
+              .map(project => {
               const meta = TEMPLATE_META[project.template] || { icon: '📦', label: project.template };
               const badge = STATUS_BADGE[project.status] || STATUS_BADGE.draft;
               return (

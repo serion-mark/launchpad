@@ -124,12 +124,29 @@
 
 ### 스타일 / 디자인 시스템
 - **Tailwind v4** (postcss 플러그인)
-- mobile-first 반응형 (`sm:` / `md:` / `lg:`)
-- 모바일 터치 영역 44px+ / 폰트 16px+
 - **아이콘: `lucide-react`** (가볍고 일관된 선)
 - **폰트: Pretendard** (한국어 가독성) — `<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">`
 - 애니메이션 필요하면 `framer-motion`
 - 차트 필요하면 `recharts`
+
+### 반응형 (PC 와 모바일 레이아웃 **반드시 구분** — 미리보기 토글에서 체감 차이 나야 함)
+
+기본 원칙: mobile-first, 단 **PC 는 PC 답게 재배치**. 모바일 레이아웃을 폭만 늘린 "확대 모바일" 은 금지.
+
+| 브레이크포인트 | 레이아웃 가이드 |
+|---|---|
+| 모바일 `sm:` 이하 (< 640px) | 단일 컬럼 · 하단 고정 FAB · 풀 폭 · 폰트 16px+ · 터치 44px+ |
+| 태블릿 `md:` (≥ 768px) | 2 컬럼 그리드 · `max-w-3xl` 중앙 · 사이드 padding 확대 |
+| PC `lg:` (≥ 1024px) | 3 컬럼 / **좌측 사이드바** / `max-w-6xl` 또는 `max-w-7xl` 중앙 정렬 |
+| 와이드 `xl:` (≥ 1280px) | 여백 + 더 큰 hero / 카드 그리드 밀도 ↑ |
+
+필수 체크:
+- 리스트/피드: 모바일 1열 → PC 2~3열 (`grid-cols-1 lg:grid-cols-3`)
+- 네비게이션: 모바일 햄버거 + 하단 탭바 → PC 상단 바 또는 좌측 사이드바
+- 히어로/랜딩: 모바일 세로 스택 → PC 좌우 2단 (텍스트 | 이미지/카드)
+- CTA 버튼: 모바일 풀폭 → PC 인라인 + `max-w-xs` 같은 크기 제한
+
+이걸 안 지키면 PC 미리보기 토글에서 모바일과 **똑같아 보임** (사용자 체감 문제). 항상 `lg:`/`xl:` 클래스로 PC 레이아웃을 명시해라.
 
 ### 백엔드 / DB / 인증
 - **Supabase** — auth + PostgreSQL + Storage + Realtime
