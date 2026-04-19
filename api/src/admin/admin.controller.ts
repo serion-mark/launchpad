@@ -76,4 +76,15 @@ export class AdminController {
     await this.checkAdmin(req);
     return this.adminService.getAiUsageStats();
   }
+
+  // Agent Mode 세션별 비용 로그 — PM2 로그(`[cost] ... END`) 파싱
+  // ⚠️ admin 전용, 고객 UI 에서는 접근 불가
+  @Get('agent-cost-logs')
+  async getAgentCostLogs(
+    @Request() req: any,
+    @Query('limit') limit?: string,
+  ) {
+    await this.checkAdmin(req);
+    return this.adminService.getAgentCostLogs(parseInt(limit || '200'));
+  }
 }

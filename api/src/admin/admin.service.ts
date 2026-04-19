@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import * as fs from 'fs/promises';
 import { PrismaService } from '../prisma.service';
 
 @Injectable()
@@ -223,5 +224,108 @@ export class AdminService {
     });
 
     return { byTaskType, byModelTier, totalRequests: aiTransactions.length };
+  }
+
+  // ── Agent Mode 세션 비용 로그 (PM2 out.log 파싱) ────────────────────────
+  // agent-builder.service.ts 의 `[cost] ... END` 라인을 파싱해 세션별로 집계
+  // 원본 라인 예:
+  //   [cost] session=12345678 END projectId=cmo5xxx name="localpick" iter=12
+  //     total=$1.234 durationMs=120000 isEdit=true fileCount=27
+  async getAgentCostLogs(limit = 200): Promise<{
+    total: number;
+    entries: Array<{
+      ts: string;
+      sessionId: string;
+      projectId: string | null;
+      name: string;
+      iter: number;
+      totalUsd: number;
+      durationMs: number;
+      isEdit: boolean;
+      fileCount: number;
+    }>;
+    summary: {
+      totalSessions: number;
+      totalUsd: number;
+      createSessions: { count: number; totalUsd: number };
+      editSessions: { count: number; totalUsd: number };
+      avgUsdPerSession: number;
+    };
+  }> {
+    const logger = new Logger(AdminService.name);
+    const logPath = process.env.AGENT_LOG_PATH || '/root/.pm2/logs/launchpad-api-out.log';
+
+    let text = '';
+    try {
+      text = await fs.readFile(logPath, 'utf8');
+    } catch (err: any) {
+      logger.warn(`[agent-cost-logs] 로그 파일 읽기 실패: ${err?.message}`);
+      return {
+        total: 0,
+        entries: [],
+        summary: {
+          totalSessions: 0,
+          totalUsd: 0,
+          createSessions: { count: 0, totalUsd: 0 },
+          editSessions: { count: 0, totalUsd: 0 },
+          avgUsdPerSession: 0,
+        },
+      };
+    }
+
+    // PM2 로그 포맷: "...MM/DD/YYYY, HH:MM:SS AM/PM LOG [AgentBuilderService] [cost] session=... END ..."
+    // ANSI 컬러 코드 제거 + 라인별 파싱
+    const noAnsi = text.replace(/\x1b\[[0-9;]*m/g, '');
+    const lines = noAnsi.split('\n').filter((l) => l.includes('[cost]') && l.includes('END'));
+
+    const tsRe = /(\d{1,2}\/\d{1,2}\/\d{4}),\s*(\d{1,2}:\d{2}:\d{2}\s*(?:AM|PM))/;
+    const re =
+      /\[cost\] session=(\S+) END projectId=(\S+) name="([^"]*)" iter=(\d+) total=\$([0-9.]+) durationMs=(\d+) isEdit=(true|false) fileCount=(\d+)/;
+
+    const entries: Awaited<ReturnType<AdminService['getAgentCostLogs']>>['entries'] = [];
+    for (const line of lines) {
+      const m = line.match(re);
+      if (!m) continue;
+      const ts = line.match(tsRe);
+      entries.push({
+        ts: ts ? `${ts[1]} ${ts[2]}` : '',
+        sessionId: m[1],
+        projectId: m[2] === 'none' ? null : m[2],
+        name: m[3],
+        iter: parseInt(m[4], 10),
+        totalUsd: parseFloat(m[5]),
+        durationMs: parseInt(m[6], 10),
+        isEdit: m[7] === 'true',
+        fileCount: parseInt(m[8], 10),
+      });
+    }
+
+    // 최근순 정렬 + limit
+    entries.reverse();
+    const recent = entries.slice(0, limit);
+
+    // 전체 기간 요약(limit 무관, 전체 로그 기준)
+    const totalSessions = entries.length;
+    const totalUsd = entries.reduce((sum, e) => sum + e.totalUsd, 0);
+    const created = entries.filter((e) => !e.isEdit);
+    const edited = entries.filter((e) => e.isEdit);
+
+    return {
+      total: entries.length,
+      entries: recent,
+      summary: {
+        totalSessions,
+        totalUsd: Number(totalUsd.toFixed(6)),
+        createSessions: {
+          count: created.length,
+          totalUsd: Number(created.reduce((s, e) => s + e.totalUsd, 0).toFixed(6)),
+        },
+        editSessions: {
+          count: edited.length,
+          totalUsd: Number(edited.reduce((s, e) => s + e.totalUsd, 0).toFixed(6)),
+        },
+        avgUsdPerSession: totalSessions > 0 ? Number((totalUsd / totalSessions).toFixed(6)) : 0,
+      },
+    };
   }
 }
