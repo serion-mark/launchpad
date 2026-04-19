@@ -66,6 +66,65 @@ export class AgentBuilderService {
     return map[stage] ?? 50;
   }
 
+  /**
+   * 사용자 소유 모든 프로젝트에 대해 Supabase auto-confirm 활성화 (기존 앱 긴급 복구용)
+   * - 기본값(Email Confirmation ON) 로 만들어진 앱들 가입 후 로그인 불가 문제 해결
+   * - 각 프로젝트의 Supabase 프로젝트에 mailer_autoconfirm=true + 기존 미confirm 사용자 일괄 confirm
+   */
+  async fixAutoConfirmAll(userId: string): Promise<{
+    total: number;
+    successCount: number;
+    failedCount: number;
+    results: Array<{
+      projectId: string;
+      name: string;
+      subdomain: string | null;
+      ok: boolean;
+      error?: string;
+    }>;
+  }> {
+    const projects = await this.prisma.project.findMany({
+      where: {
+        userId,
+        supabaseProjectRef: { not: null },
+        supabaseStatus: 'active',
+      },
+      select: {
+        id: true,
+        name: true,
+        subdomain: true,
+        supabaseProjectRef: true,
+      },
+    });
+
+    const results: Array<{
+      projectId: string;
+      name: string;
+      subdomain: string | null;
+      ok: boolean;
+      error?: string;
+    }> = [];
+
+    for (const p of projects) {
+      if (!p.supabaseProjectRef) continue;
+      const r = await this.supabase.setAutoConfirm(p.supabaseProjectRef);
+      results.push({
+        projectId: p.id,
+        name: p.name,
+        subdomain: p.subdomain,
+        ok: r.success,
+        error: r.error,
+      });
+    }
+
+    const successCount = results.filter((r) => r.ok).length;
+    const failedCount = results.length - successCount;
+    this.logger.log(
+      `[fixAutoConfirmAll] userId=${userId} ${successCount}/${results.length} 성공`,
+    );
+    return { total: results.length, successCount, failedCount, results };
+  }
+
   async run(input: AgentBuilderInput): Promise<void> {
     const { userId, prompt, projectId: editingProjectId, onEvent } = input;
     const start = Date.now();

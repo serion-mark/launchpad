@@ -84,6 +84,20 @@ export class AgentBuilderController {
       });
   }
 
+  // 긴급 복구: 사용자 소유 모든 프로젝트의 Supabase auto-confirm 일괄 활성화
+  // 기존(Email Confirmation=ON 으로 생성된) 앱에서 "Email not confirmed" 에러 해결용
+  @Post('agent-build/fix-autoconfirm')
+  async fixAutoconfirm(@Req() req: any) {
+    if (process.env.AGENT_MODE_ENABLED !== 'true') {
+      throw new HttpException('Agent Mode 비활성화됨', HttpStatus.FORBIDDEN);
+    }
+    const userId = String(req.user?.userId ?? '');
+    if (!userId || userId === 'anon') {
+      throw new HttpException('로그인 필요', HttpStatus.UNAUTHORIZED);
+    }
+    return this.agentBuilder.fixAutoConfirmAll(userId);
+  }
+
   // 종합 카드 답변 수신 — SSE 스트림은 그대로 열려 있고, 이 엔드포인트는 별도 HTTP POST
   // 사용자가 "1, 2, 1" / "시작" / "자연어" 중 하나를 보내면 Agent loop이 재개됨
   @Post('agent-build/:sessionId/answer')
