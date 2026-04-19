@@ -4,13 +4,17 @@
 // 배포 전: 포비 작업 중 플레이스홀더
 // 배포 후: iframe + URL 바 + 📱/🖥 토글
 //
-// 레이아웃은 레거시 /builder 의 LivePreview 패턴을 그대로 이식 —
-// PC: 컨테이너 가운데 정렬 + max-w 로 폭 제한 + iframe w-full h-full 로 꽉 채움
-// Mobile: 고정 폭 기기 프레임 (390×844) + 노치
+// PC 모드: viewport simulator
+//   iframe 실제 width = 1280 고정 → 앱이 자기를 PC 로 인식 (lg: 브레이크포인트 발동)
+//   transform: scale(containerWidth / 1280) → 프리뷰 영역에 꽉 채움 (빈 공간 0)
+//   iframe 은 absolute positioning → 부모 flex 계산을 밀지 않음
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type DeviceMode = 'desktop' | 'mobile';
+
+// PC 앱이 `lg:` (>=1024px) 반응형을 발동할 수 있는 기준 viewport
+const DESKTOP_VIEWPORT_WIDTH = 1280;
 
 interface Props {
   previewUrl: string | null;
@@ -26,6 +30,26 @@ export default function FoundryPreviewPane({
   lastActivity,
 }: Props) {
   const [device, setDevice] = useState<DeviceMode>('desktop');
+  const [dims, setDims] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  const desktopWrapperRef = useRef<HTMLDivElement>(null);
+
+  // PC 모드: 프리뷰 컨테이너 실제 크기 측정 → iframe scale 계산
+  useEffect(() => {
+    if (device !== 'desktop') return;
+    const el = desktopWrapperRef.current;
+    if (!el) return;
+    const update = () => {
+      setDims({ w: el.clientWidth, h: el.clientHeight });
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [device, previewUrl]);
+
+  // scale 제한 없음 — 좁은 화면은 축소, 넓은 화면은 확대해 꽉 채움
+  const desktopScale = dims.w > 0 ? dims.w / DESKTOP_VIEWPORT_WIDTH : 1;
+  const desktopIframeHeight = dims.h > 0 && desktopScale > 0 ? dims.h / desktopScale : 0;
 
   if (!previewUrl) {
     return (
@@ -104,16 +128,9 @@ export default function FoundryPreviewPane({
         </a>
       </div>
 
-      {/* iframe — 레거시 LivePreview 패턴: 중앙 정렬 + 디바이스별 wrapper */}
-      <div
-        className={[
-          'flex flex-1 items-center justify-center overflow-auto p-4',
-          device === 'mobile'
-            ? 'bg-gradient-to-b from-slate-200 to-slate-300 dark:from-slate-800 dark:to-slate-900'
-            : 'bg-slate-50 dark:bg-slate-900',
-        ].join(' ')}
-      >
-        {device === 'mobile' ? (
+      {/* iframe — 디바이스 모드별 */}
+      {device === 'mobile' ? (
+        <div className="flex flex-1 items-center justify-center overflow-auto bg-gradient-to-b from-slate-200 to-slate-300 p-4 dark:from-slate-800 dark:to-slate-900">
           <div
             className="relative overflow-hidden rounded-[32px] border-[6px] border-slate-800 bg-white shadow-2xl ring-1 ring-black/10 dark:border-slate-700"
             style={{ width: '390px', height: '844px', maxWidth: '100%' }}
@@ -129,16 +146,29 @@ export default function FoundryPreviewPane({
               className="h-full w-full border-0"
             />
           </div>
-        ) : (
-          <div className="h-full w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700">
+        </div>
+      ) : (
+        // PC: iframe width 1280 고정 + scale 로 컨테이너에 꽉 채움
+        <div
+          ref={desktopWrapperRef}
+          className="relative flex-1 overflow-hidden bg-white"
+          style={{ minWidth: 0 }}
+        >
+          {dims.w > 0 && (
             <iframe
               src={previewUrl}
               title={projectName ?? 'desktop preview'}
-              className="h-full w-full border-0"
+              className="absolute left-0 top-0 border-0"
+              style={{
+                width: `${DESKTOP_VIEWPORT_WIDTH}px`,
+                height: `${desktopIframeHeight}px`,
+                transform: `scale(${desktopScale})`,
+                transformOrigin: 'top left',
+              }}
             />
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
