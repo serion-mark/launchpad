@@ -306,7 +306,9 @@ export class AgentBuilderService {
         });
         if (p?.agentMessages && Array.isArray(p.agentMessages)) {
           const prior = p.agentMessages as unknown as Anthropic.Messages.MessageParam[];
-          const sanitized = this.sanitizeMessageHistory(prior.slice(-20));
+          // 저장 쪽에서 이미 sanitize + cycle 단위 truncate 된 상태라 slice 없이 그대로 사용
+          // slice(-N) 걸면 맨 앞 user_prompt 잘려서 sanitize 가 0턴 반환하는 버그 재발
+          const sanitized = this.sanitizeMessageHistory(prior);
           if (sanitized.length > 0) {
             messages.push(...sanitized);
             this.logger.log(
@@ -314,7 +316,7 @@ export class AgentBuilderService {
             );
           } else {
             this.logger.log(
-              `[agent-history] ${editingProjectId} → 과거 이력 sanitize 결과 0턴 (새 대화 시작)`,
+              `[agent-history] ${editingProjectId} → 과거 이력 sanitize 결과 0턴 (새 대화 시작, 원본 ${prior.length}턴)`,
             );
           }
         }
