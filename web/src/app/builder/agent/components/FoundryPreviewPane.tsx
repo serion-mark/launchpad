@@ -58,35 +58,35 @@ export default function FoundryPreviewPane({
           {previewUrl}
         </span>
 
-        {/* 📱 / 🖥 토글 */}
+        {/* 📱 / 🖥 토글 — 현재 모드가 즉시 보이도록 라벨 포함 */}
         <div className="flex items-center gap-0.5 rounded-md border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-700 dark:bg-slate-800">
           <button
             type="button"
             onClick={() => setDevice('mobile')}
             aria-label="모바일 보기"
             className={[
-              'flex h-6 w-7 items-center justify-center rounded text-[11px] transition',
+              'flex h-7 items-center justify-center gap-1 rounded px-2 text-[11px] font-medium transition',
               device === 'mobile'
-                ? 'text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400',
+                ? 'text-white shadow'
+                : 'text-slate-500 hover:bg-white hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700',
             ].join(' ')}
             style={device === 'mobile' ? { backgroundColor: '#3182F6' } : undefined}
           >
-            📱
+            📱 <span className="hidden sm:inline">모바일</span>
           </button>
           <button
             type="button"
             onClick={() => setDevice('desktop')}
             aria-label="PC 보기"
             className={[
-              'flex h-6 w-7 items-center justify-center rounded text-[11px] transition',
+              'flex h-7 items-center justify-center gap-1 rounded px-2 text-[11px] font-medium transition',
               device === 'desktop'
-                ? 'text-white shadow-sm'
-                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400',
+                ? 'text-white shadow'
+                : 'text-slate-500 hover:bg-white hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-700',
             ].join(' ')}
             style={device === 'desktop' ? { backgroundColor: '#3182F6' } : undefined}
           >
-            🖥
+            🖥 <span className="hidden sm:inline">PC</span>
           </button>
         </div>
 
@@ -105,21 +105,33 @@ export default function FoundryPreviewPane({
         className={[
           'flex-1 overflow-auto',
           device === 'mobile'
-            ? 'flex items-start justify-center bg-slate-100 p-4 dark:bg-slate-900'
+            ? 'flex flex-col items-center bg-gradient-to-b from-slate-200 to-slate-300 p-4 dark:from-slate-800 dark:to-slate-900'
             : 'bg-white',
         ].join(' ')}
       >
         {device === 'mobile' ? (
-          <div
-            className="overflow-hidden rounded-[24px] border-4 border-slate-800 bg-white shadow-xl"
-            style={{ width: '390px', height: '844px', maxWidth: '100%' }}
-          >
-            <iframe
-              src={previewUrl}
-              title={projectName ?? 'mobile preview'}
-              className="h-full w-full border-0"
-            />
-          </div>
+          <>
+            <div className="mb-2 flex items-center gap-2 rounded-full bg-slate-900/80 px-3 py-1 text-[10px] font-medium text-white shadow-sm backdrop-blur dark:bg-slate-950/80">
+              <span>📱</span>
+              <span>모바일 미리보기</span>
+              <span className="font-mono text-slate-300">390×844</span>
+            </div>
+            <div
+              className="relative overflow-hidden rounded-[32px] border-[6px] border-slate-800 bg-white shadow-2xl ring-1 ring-black/10 dark:border-slate-700"
+              style={{ width: '390px', height: '844px', maxWidth: '100%' }}
+            >
+              {/* 노치 — 기기 프레임 느낌 강화 */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute left-1/2 top-0 z-10 h-5 w-28 -translate-x-1/2 rounded-b-2xl bg-slate-800 dark:bg-slate-700"
+              />
+              <iframe
+                src={previewUrl}
+                title={projectName ?? 'mobile preview'}
+                className="h-full w-full border-0"
+              />
+            </div>
+          </>
         ) : (
           <iframe
             src={previewUrl}

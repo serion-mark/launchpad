@@ -1,5 +1,7 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import Anthropic from '@anthropic-ai/sdk';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 import { SandboxService } from './sandbox.service';
 import { PromptLoaderService } from './prompt-loader.service';
 import { SessionStoreService } from './session-store.service';
@@ -22,6 +24,8 @@ const MODEL = 'claude-sonnet-4-6';
 export type AgentBuilderInput = {
   userId: string | number;
   prompt: string;
+  // 수정 모드: 기존 프로젝트 id — 있으면 sandbox 에 generatedCode 복원 + 새 draft 생성 스킵
+  projectId?: string;
   onEvent: (event: AgentStreamEvent) => void;
 };
 
@@ -63,19 +67,63 @@ export class AgentBuilderService {
   }
 
   async run(input: AgentBuilderInput): Promise<void> {
-    const { userId, prompt, onEvent } = input;
+    const { userId, prompt, projectId: editingProjectId, onEvent } = input;
     const start = Date.now();
 
     // 1. 샌드박스 세션 생성
     const { sessionId, cwd } = await this.sandbox.createSession(userId);
     onEvent({ type: 'start', sessionId, cwd });
 
-    // 2. projects 껍데기 먼저 생성 (도구에서 projectId 필요)
+    // 1-bis. 수정 모드: 기존 프로젝트의 generatedCode 를 sandbox 로 복원
+    //        Agent 가 Read 도구로 기존 코드를 읽고 정확하게 진단/수정 할 수 있도록
+    //        (사장님 실증 A: "샌드박스 외부라 코드 못 읽음" 해소)
+    let restoredProjectName: string | undefined;
+    if (editingProjectId && userId && userId !== 'anon') {
+      try {
+        const existing = await this.prisma.project.findFirst({
+          where: { id: editingProjectId, userId: String(userId) },
+          select: { id: true, name: true, generatedCode: true, subdomain: true },
+        });
+        if (!existing) {
+          this.logger.warn(`[restore] project ${editingProjectId} 없음 또는 소유권 없음 — 신규 모드로 진행`);
+        } else if (!existing.generatedCode) {
+          this.logger.warn(`[restore] ${editingProjectId} generatedCode 비어있음 — 신규 모드로 진행`);
+        } else {
+          const files = existing.generatedCode as unknown as Array<{ path: string; content: string }>;
+          const safeName = (existing.name || 'app').replace(/[^a-zA-Z0-9_\-가-힣]/g, '_').slice(0, 40) || 'app';
+          const projectDir = path.join(cwd, safeName);
+          await fs.mkdir(projectDir, { recursive: true });
+          for (const file of files) {
+            if (!file?.path || typeof file.content !== 'string') continue;
+            const fullPath = path.join(projectDir, file.path);
+            await fs.mkdir(path.dirname(fullPath), { recursive: true });
+            await fs.writeFile(fullPath, file.content, 'utf8');
+          }
+          restoredProjectName = existing.name;
+          this.logger.log(`[restore] ${editingProjectId} "${existing.name}" → ${files.length} files 복원 (${projectDir})`);
+        }
+      } catch (err: any) {
+        this.logger.error(`[restore] 실패: ${err?.message} — 신규 모드로 계속 진행`, err?.stack);
+      }
+    }
+
+    // 2. projects 껍데기 — 수정 모드면 기존 projectId 재사용, 신규면 새 draft 생성
     //    실패해도 Agent loop 은 진행 (비로그인 사용자 등)
-    const startResult = await this.persistence.startProject(String(userId), prompt);
-    const projectId = startResult.ok ? startResult.projectId : undefined;
-    if (projectId) {
-      this.logger.log(`[agent-builder] project draft ${projectId} (name=${startResult.projectName})`);
+    let projectId: string | undefined;
+    let projectName: string | undefined;
+    let subdomain: string | undefined;
+    if (editingProjectId && restoredProjectName !== undefined) {
+      projectId = editingProjectId;
+      projectName = restoredProjectName;
+      this.logger.log(`[agent-builder] 수정 모드 — 기존 project ${projectId} 재사용`);
+    } else {
+      const startResult = await this.persistence.startProject(String(userId), prompt);
+      projectId = startResult.ok ? startResult.projectId : undefined;
+      projectName = startResult.ok ? startResult.projectName : undefined;
+      subdomain = startResult.ok ? startResult.subdomain : undefined;
+      if (projectId) {
+        this.logger.log(`[agent-builder] project draft ${projectId} (name=${projectName})`);
+      }
     }
 
     const executor = new AgentToolExecutor(this.sandbox, cwd, {
@@ -273,8 +321,8 @@ export class AgentBuilderService {
         totalCostUsd: Number(totalCostUsd.toFixed(6)),
         durationMs: Date.now() - start,
         projectId: finalProjectId,
-        projectName: persistResult.ok ? persistResult.projectName : startResult.projectName,
-        subdomain: persistResult.ok ? persistResult.subdomain : startResult.subdomain,
+        projectName: persistResult.ok ? persistResult.projectName : projectName,
+        subdomain: persistResult.ok ? persistResult.subdomain : subdomain,
         fileCount: persistResult.ok ? persistResult.fileCount : undefined,
         previewUrl,
       });

@@ -6,20 +6,37 @@
 
 import Link from 'next/link';
 import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { authFetch } from '@/lib/api';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { authFetch, getUser } from '@/lib/api';
 import { useAgentStream } from './useAgentStream';
 import AgentChat from './components/AgentChat';
 import FoundryPreviewPane from './components/FoundryPreviewPane';
 
 function BuilderAgentContent() {
+  const router = useRouter();
+  const pathname = usePathname();
   const params = useSearchParams();
   const projectId = params?.get('projectId') ?? null;
   const { state, start, submitAnswer, cancel, resumeProject } = useAgentStream();
   const [editingProject, setEditingProject] = useState<{ name: string; subdomain?: string | null; template: string } | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  // 비로그인 가드 — 토큰 없으면 /login 으로 리다이렉트 (redirect 쿼리 포함)
+  // 포비는 프로젝트 저장/배포에 userId 가 필요해서 비로그인 사용 불가
+  useEffect(() => {
+    const user = getUser();
+    if (!user) {
+      const redirect = projectId
+        ? `${pathname}?projectId=${encodeURIComponent(projectId)}`
+        : pathname;
+      router.replace(`/login?redirect=${encodeURIComponent(redirect ?? '/builder/agent')}`);
+      return;
+    }
+    setAuthChecked(true);
+  }, [router, pathname, projectId]);
 
   useEffect(() => {
-    if (!projectId) return;
+    if (!projectId || !authChecked) return;
     authFetch(`/projects/${projectId}`, { method: 'GET' })
       .then(async (res) => {
         if (!res.ok) return;
@@ -35,7 +52,7 @@ function BuilderAgentContent() {
         });
       })
       .catch(() => {});
-  }, [projectId, resumeProject]);
+  }, [projectId, authChecked, resumeProject]);
 
   // 모드별 prompt 래핑 — 상의(chat) vs 만들기(build)
   // 상의 모드: Agent 도구 호출 없이 자연어 답변만
@@ -60,7 +77,9 @@ function BuilderAgentContent() {
           `- 모호하면 → 선택지 제시하며 질문.\n` +
           `- 명백한 제작 요청이면 → "이대로 만들까요?" 한 번 확인 후 답지 카드 또는 작업 시작.\n` +
           `- 맥락은 네(Agent)가 판단.`;
-      start(chatContext);
+      // LLM 엔 context 포함 prompt, UI 버블엔 사용자 순수 발화만
+      // 수정 모드면 projectId 도 전달 → 백엔드가 sandbox 에 기존 generatedCode 복원
+      start(chatContext, userText, isEdit ? (projectId ?? undefined) : undefined);
       return;
     }
 
@@ -72,11 +91,20 @@ function BuilderAgentContent() {
         (editingProject!.subdomain ? `- subdomain: ${editingProject!.subdomain}\n` : '') +
         `- 사용자 요청: ${userText}\n\n` +
         `이 앱은 이미 배포된 상태입니다. 처음부터 만들지 말고, 요청된 부분만 수정/추가 후 deploy_to_subdomain 으로 재배포해주세요.`;
-      start(wrapped);
+      start(wrapped, userText, projectId ?? undefined);
     } else {
       start(userText);
     }
   };
+
+  // 비로그인 사용자: 리다이렉트 진행 중 빈 화면 대신 간단한 로딩 표시
+  if (!authChecked) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-white text-sm text-slate-500 dark:bg-slate-950 dark:text-slate-400">
+        로그인 확인 중...
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen flex-col bg-white dark:bg-slate-950">

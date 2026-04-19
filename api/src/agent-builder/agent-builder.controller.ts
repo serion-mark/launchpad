@@ -32,7 +32,7 @@ export class AgentBuilderController {
   agentBuild(
     @Req() req: any,
     @Res() res: Response,
-    @Body() body: { prompt: string },
+    @Body() body: { prompt: string; projectId?: string },
   ) {
     if (process.env.AGENT_MODE_ENABLED !== 'true') {
       throw new HttpException(
@@ -43,6 +43,10 @@ export class AgentBuilderController {
     if (!body?.prompt || typeof body.prompt !== 'string') {
       throw new HttpException('prompt 필수 (string)', HttpStatus.BAD_REQUEST);
     }
+    const editingProjectId =
+      typeof body.projectId === 'string' && body.projectId.trim().length > 0
+        ? body.projectId.trim()
+        : undefined;
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -67,7 +71,7 @@ export class AgentBuilderController {
     });
 
     this.agentBuilder
-      .run({ userId, prompt: body.prompt, onEvent: write })
+      .run({ userId, prompt: body.prompt, projectId: editingProjectId, onEvent: write })
       .catch((err) => {
         write({
           type: 'error',

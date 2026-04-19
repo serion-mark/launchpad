@@ -276,12 +276,15 @@ export function useAgentStream() {
   );
 
   // 수동 Fetch + ReadableStream 으로 SSE 수신 (POST + JWT 헤더 필요)
+  // prompt = LLM 전송용 (context/메타 포함 가능), displayText = UI 채팅 버블 표시용 (순수 사용자 발화)
+  // displayText 생략 시 prompt 그대로 표시 (기존 호환)
+  // projectId = 수정 모드일 때 전달 → 백엔드가 sandbox 에 기존 generatedCode 를 복원
   const start = useCallback(
-    async (prompt: string) => {
+    async (prompt: string, displayText?: string, projectId?: string) => {
       if (state.status === 'streaming' || state.status === 'awaiting_answer') return;
 
       setState({
-        entries: [{ kind: 'user', text: prompt, ts: Date.now() }],
+        entries: [{ kind: 'user', text: displayText ?? prompt, ts: Date.now() }],
         status: 'streaming',
         sessionId: null,
         pendingCard: null,
@@ -316,7 +319,7 @@ export function useAgentStream() {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ prompt }),
+          body: JSON.stringify({ prompt, ...(projectId ? { projectId } : {}) }),
           signal: controller.signal,
         });
       } catch (err: any) {

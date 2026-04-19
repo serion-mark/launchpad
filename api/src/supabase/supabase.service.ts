@@ -93,6 +93,34 @@ export class SupabaseService {
     return project;
   }
 
+  /**
+   * createProject + 이름 중복 자동 회복
+   * Supabase Management API 에서 같은 이름으로 실패하면 suffix(timestamp) 붙여 최대 N회 재시도.
+   * "already exists" 이외의 에러는 즉시 throw (네트워크/권한 문제는 재시도 의미 없음)
+   */
+  async createProjectWithRetry(name: string, maxAttempts = 3): Promise<SupabaseProject> {
+    let lastErr: Error | undefined;
+    let currentName = name;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        return await this.createProject(currentName);
+      } catch (err: any) {
+        lastErr = err;
+        const msg = String(err?.message ?? '');
+        const isNameConflict = /already\s*exists|duplicate|conflict|\bexists\b/i.test(msg);
+        if (!isNameConflict) {
+          throw err;
+        }
+        const suffix = Date.now().toString(36).slice(-4);
+        currentName = `${name}-${suffix}`;
+        this.logger.warn(
+          `[createProjectWithRetry] 이름 충돌(${attempt + 1}/${maxAttempts}) — 재시도: "${currentName}"`,
+        );
+      }
+    }
+    throw lastErr ?? new Error('createProjectWithRetry: 알 수 없는 실패');
+  }
+
   /** 2. 프로젝트가 ACTIVE_HEALTHY 될 때까지 대기 */
   async waitForReady(ref: string, maxWaitMs = 180000): Promise<boolean> {
     const interval = 5000; // 5초 간격
@@ -223,10 +251,42 @@ export class SupabaseService {
     supabaseUrl?: string;
     supabaseAnonKey?: string;
     error?: string;
+    reused?: boolean;
   }> {
     if (!this.enabled) {
       this.logger.warn('Supabase 프로비저닝 건너뜀 (미설정)');
       return { success: false, error: 'Supabase 미설정' };
+    }
+
+    // Idempotency — 이미 active 상태면 기존 값 재사용
+    // (Agent 재시도 / 수정 모드 재진입 시 중복 프로비저닝 방지)
+    try {
+      const existing = await this.prisma.project.findUnique({
+        where: { id: projectId },
+        select: {
+          supabaseStatus: true,
+          supabaseUrl: true,
+          supabaseAnonKey: true,
+          supabaseProjectRef: true,
+        },
+      });
+      if (
+        existing?.supabaseStatus === 'active' &&
+        existing.supabaseUrl &&
+        existing.supabaseAnonKey
+      ) {
+        this.logger.log(
+          `[provision] ${projectId} 이미 active — 기존 Supabase 재사용 (${existing.supabaseUrl})`,
+        );
+        return {
+          success: true,
+          supabaseUrl: existing.supabaseUrl,
+          supabaseAnonKey: existing.supabaseAnonKey,
+          reused: true,
+        };
+      }
+    } catch (err: any) {
+      this.logger.warn(`[provision] idempotency 조회 실패 (계속 진행): ${err?.message}`);
     }
 
     try {
@@ -236,8 +296,8 @@ export class SupabaseService {
         data: { supabaseStatus: 'creating' },
       });
 
-      // 1. 프로젝트 생성
-      const project = await this.createProject(appName);
+      // 1. 프로젝트 생성 (이름 중복 시 suffix 붙여 최대 3회 재시도)
+      const project = await this.createProjectWithRetry(appName, 3);
       const ref = project.ref || project.id;
       const dbPass = (project as any)._dbPass;
 
