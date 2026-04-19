@@ -192,10 +192,9 @@ function BuilderAgentContent() {
       )}
 
       {/* 메인 영역 — PC 2열 (채팅 | 프리뷰), 모바일은 채팅만
-          채팅 고정 360px (레거시 /builder 의 380px 패턴 참고) →
-          프리뷰가 1024px 이상 확보되어 앱이 PC 반응형 레이아웃으로 렌더됨 */}
+          채팅 영역은 고정폭 제거, 비율 기반으로 자연스럽게 확장 (사장님 피드백) */}
       <main className="flex flex-1 overflow-hidden">
-        <div className="flex flex-1 flex-col lg:w-[360px] lg:min-w-[360px] lg:flex-none">
+        <div className="flex flex-1 flex-col lg:w-2/5 lg:flex-none lg:min-w-[440px] xl:w-[36%]">
           <AgentChat
             state={state}
             onStart={handleStart}
