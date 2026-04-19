@@ -57,7 +57,7 @@ export default function FoundryComplete({
       <div className="mt-4 flex gap-2">
         {projectId && (
           <Link
-            href={`/builder?projectId=${projectId}`}
+            href={`/builder/agent?projectId=${projectId}`}
             className="flex flex-1 items-center justify-center rounded-xl py-3 text-sm font-medium text-white transition hover:brightness-110"
             style={{ backgroundColor: '#3182F6' }}
           >

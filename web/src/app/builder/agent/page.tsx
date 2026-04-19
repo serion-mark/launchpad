@@ -2,14 +2,45 @@
 
 // /builder/agent — Agent Mode 메인 페이지
 // 기존 /builder와 격리된 신규 라우트
-// 반응형: 모바일 한 화면 / PC 좌우 2열 (채팅 + 진행 요약)
+// ?projectId=xxx 쿼리 파라미터가 있으면 "수정 모드"로 진입 (기존 프로젝트 이어서 작업)
 
 import Link from 'next/link';
+import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { authFetch } from '@/lib/api';
 import { useAgentStream } from './useAgentStream';
 import AgentChat from './components/AgentChat';
 
-export default function BuilderAgentPage() {
+function BuilderAgentContent() {
+  const params = useSearchParams();
+  const projectId = params?.get('projectId') ?? null;
   const { state, start, submitAnswer, cancel } = useAgentStream();
+  const [editingProject, setEditingProject] = useState<{ name: string; subdomain?: string | null; template: string } | null>(null);
+
+  useEffect(() => {
+    if (!projectId) return;
+    authFetch(`/projects/${projectId}`, { method: 'GET' })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const p = await res.json();
+        setEditingProject({ name: p.name, subdomain: p.subdomain, template: p.template });
+      })
+      .catch(() => {});
+  }, [projectId]);
+
+  // 수정 모드 시작 시 prompt 를 래핑해서 Agent 에게 전달
+  const handleStart = (userText: string) => {
+    if (projectId && editingProject) {
+      const wrapped = `[기존 프로젝트 "${editingProject.name}" 수정 요청]\n` +
+        `- projectId: ${projectId}\n` +
+        (editingProject.subdomain ? `- subdomain: ${editingProject.subdomain}\n` : '') +
+        `- 사용자 요청: ${userText}\n` +
+        `\n이 앱은 이미 한 번 만들어진 상태입니다. 처음부터 만들지 말고, 요청된 부분만 수정/추가해주세요.`;
+      start(wrapped);
+    } else {
+      start(userText);
+    }
+  };
 
   return (
     <div className="flex h-screen flex-col bg-white dark:bg-slate-950">
@@ -17,10 +48,10 @@ export default function BuilderAgentPage() {
       <header className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
         <div className="flex items-center gap-3">
           <Link
-            href="/builder"
+            href="/dashboard"
             className="text-xs text-slate-500 hover:text-blue-600 dark:text-slate-400"
           >
-            ← 기존 빌더
+            ← 내 프로젝트
           </Link>
           <h1 className="text-base font-bold text-slate-900 sm:text-lg dark:text-slate-100">
             🌗 포비
@@ -28,12 +59,16 @@ export default function BuilderAgentPage() {
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
             BETA
           </span>
+          {editingProject && (
+            <span className="hidden rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 sm:inline dark:bg-blue-950/40 dark:text-blue-300">
+              📝 {editingProject.name} 수정 중
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2 text-xs">
-          {/* 실시간 상태 뱃지 */}
           {state.status === 'streaming' && (
             <span
-              className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-300"
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium text-blue-700 dark:text-blue-300"
               style={{ backgroundColor: '#3182F61A' }}
             >
               <span className="relative flex h-2 w-2">
@@ -82,10 +117,28 @@ export default function BuilderAgentPage() {
         </div>
       </header>
 
+      {/* 수정 모드 안내 배너 */}
+      {editingProject && state.status === 'idle' && (
+        <div className="border-b border-blue-100 bg-blue-50 px-4 py-2.5 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+          <span className="font-medium">📝 &quot;{editingProject.name}&quot; 수정 모드</span>
+          <span className="ml-2 text-xs opacity-80">
+            어떻게 바꾸고 싶은지 자연어로 말씀해주세요 (예: &quot;헤더 색깔 부드럽게&quot;, &quot;로그인 버튼 추가&quot;)
+          </span>
+        </div>
+      )}
+
       {/* 메인 영역 */}
       <main className="flex-1 overflow-hidden">
-        <AgentChat state={state} onStart={start} onSubmitAnswer={submitAnswer} />
+        <AgentChat state={state} onStart={handleStart} onSubmitAnswer={submitAnswer} />
       </main>
     </div>
+  );
+}
+
+export default function BuilderAgentPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center">로딩...</div>}>
+      <BuilderAgentContent />
+    </Suspense>
   );
 }
