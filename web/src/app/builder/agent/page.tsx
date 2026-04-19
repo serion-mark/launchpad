@@ -128,9 +128,10 @@ function BuilderAgentContent() {
         </div>
       )}
 
-      {/* 메인 영역 — PC 2열 (채팅 | 프리뷰), 모바일은 채팅만 */}
+      {/* 메인 영역 — PC 2열 (채팅 | 프리뷰), 모바일은 채팅만
+          채팅 영역은 고정폭 제거, 비율 기반으로 자연스럽게 확장 (사장님 피드백) */}
       <main className="flex flex-1 overflow-hidden">
-        <div className="flex flex-1 flex-col lg:max-w-xl xl:max-w-2xl">
+        <div className="flex flex-1 flex-col lg:w-2/5 lg:flex-none lg:min-w-[440px] xl:w-[36%]">
           <AgentChat state={state} onStart={handleStart} onSubmitAnswer={submitAnswer} />
         </div>
         <div className="hidden flex-1 border-l border-slate-200 lg:flex dark:border-slate-800">

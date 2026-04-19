@@ -9,6 +9,7 @@ import type { SupabaseService } from '../supabase/supabase.service';
 import type { ProjectPersistenceService } from './project-persistence.service';
 import type { DeployService } from '../project/deploy.service';
 import type { AgentDeployService } from './agent-deploy.service';
+import type { PrismaService } from '../prisma.service';
 
 const execAsync = promisify(exec);
 
@@ -175,6 +176,7 @@ export interface AgentToolDeps {
   deploy?: DeployService;        // 레거시 (static export). 현재 deploy_to_subdomain 은 agentDeploy 사용
   agentDeploy?: AgentDeployService; // SSR 파이프라인 (Plan v3 § Day 4.5 원 설계)
   persistence?: ProjectPersistenceService;
+  prisma?: PrismaService;        // Supabase service_role key 조회용 (테스트 계정 생성)
   userId?: string;
   projectId?: string;      // startProject 로 미리 생성된 id
   userPrompt?: string;     // 사용자 첫 발화 (finishProject 에 전달)
@@ -352,30 +354,36 @@ export class AgentToolExecutor {
       `NEXT_PUBLIC_SUPABASE_ANON_KEY=${result.supabaseAnonKey}\n`;
     await fs.writeFile(envPath, envContent, 'utf8');
 
-    // 테스트 계정 자동 생성 — service_role key 는 DB 에 저장돼 있음
-    // (provisionForProject 가 projects.supabaseServiceKey 에 저장)
+    // 테스트 계정 자동 생성 — prisma 직접 조회 (service_role key 는 DB 저장됨)
     let testAccountLine = '';
-    try {
-      const projectRef = result.supabaseUrl?.match(/https:\/\/([^.]+)/)?.[1];
-      if (projectRef) {
-        const prismaProject = await (this.deps.supabase as any).prisma?.project?.findUnique?.({
-          where: { id: this.deps.projectId },
-        });
-        const serviceKey = prismaProject?.supabaseServiceKey;
-        const subdomain = prismaProject?.subdomain ?? 'app';
-        if (serviceKey) {
-          const email = `test@${subdomain}.foundry.kr`;
-          const password = 'test1234';
-          const r = await this.deps.supabase.createTestUser(projectRef, serviceKey, email, password);
-          if (r.success) {
-            testAccountLine =
-              `- 🧪 테스트 계정 자동 생성: ${email} / ${password}\n` +
-              `  → 사용자가 로그인 UI에서 바로 기능 점검 가능\n`;
+    if (this.deps.prisma) {
+      try {
+        const projectRef = result.supabaseUrl?.match(/https:\/\/([^.]+)/)?.[1];
+        if (projectRef) {
+          const p = await this.deps.prisma.project.findUnique({
+            where: { id: this.deps.projectId },
+            select: { supabaseServiceKey: true, subdomain: true },
+          });
+          const serviceKey = p?.supabaseServiceKey;
+          const subdomain = p?.subdomain ?? 'app';
+          if (serviceKey) {
+            const email = `test@${subdomain}.foundry.kr`;
+            const password = 'test1234';
+            const r = await this.deps.supabase.createTestUser(projectRef, serviceKey, email, password);
+            if (r.success) {
+              testAccountLine =
+                `- 🧪 테스트 계정 자동 생성: ${email} / ${password}\n` +
+                `  → 로그인 UI 에서 바로 기능 점검 가능\n`;
+            } else {
+              testAccountLine = `- ⚠️ 테스트 계정 생성 실패: ${r.error}\n`;
+            }
+          } else {
+            testAccountLine = `- ⚠️ service_role key 미저장 — 테스트 계정 생성 불가\n`;
           }
         }
+      } catch (err: any) {
+        testAccountLine = `- ⚠️ 테스트 계정 생성 중 예외: ${err?.message}\n`;
       }
-    } catch {
-      // 실패해도 프로비저닝 자체는 성공 — 테스트 계정은 보조 기능
     }
 
     return (

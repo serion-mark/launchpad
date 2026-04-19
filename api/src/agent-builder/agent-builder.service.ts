@@ -5,6 +5,7 @@ import { PromptLoaderService } from './prompt-loader.service';
 import { SessionStoreService } from './session-store.service';
 import { AnswerParserService } from './answer-parser.service';
 import { ProjectPersistenceService } from './project-persistence.service';
+import { PrismaService } from '../prisma.service';
 import { AgentToolExecutor, AGENT_TOOLS } from './agent-tools';
 import { SupabaseService } from '../supabase/supabase.service';
 import { DeployService } from '../project/deploy.service';
@@ -40,6 +41,7 @@ export class AgentBuilderService {
     private readonly deploy: DeployService,
     private readonly translator: EventTranslatorService,
     private readonly agentDeploy: AgentDeployService,
+    private readonly prisma: PrismaService,
   ) {
     this.anthropic = new Anthropic({
       apiKey: process.env.ANTHROPIC_API_KEY,
@@ -81,6 +83,7 @@ export class AgentBuilderService {
       deploy: this.deploy,
       agentDeploy: this.agentDeploy,
       persistence: this.persistence,
+      prisma: this.prisma,
       userId: String(userId),
       projectId,
       userPrompt: prompt,
@@ -254,15 +257,26 @@ export class AgentBuilderService {
             userPrompt: prompt,
           });
 
+      // iframe 프리뷰 에 띄울 deployedUrl 조회 — deploy_to_subdomain 도구가 호출됐다면 set 됨
+      let previewUrl: string | undefined;
+      const finalProjectId = projectId ?? (persistResult.ok ? persistResult.projectId : undefined);
+      if (finalProjectId) {
+        const p = await this.prisma.project
+          .findUnique({ where: { id: finalProjectId }, select: { deployedUrl: true } })
+          .catch(() => null);
+        previewUrl = p?.deployedUrl ?? undefined;
+      }
+
       onEvent({
         type: 'complete',
         totalIterations: iter,
         totalCostUsd: Number(totalCostUsd.toFixed(6)),
         durationMs: Date.now() - start,
-        projectId: projectId ?? (persistResult.ok ? persistResult.projectId : undefined),
+        projectId: finalProjectId,
         projectName: persistResult.ok ? persistResult.projectName : startResult.projectName,
         subdomain: persistResult.ok ? persistResult.subdomain : startResult.subdomain,
         fileCount: persistResult.ok ? persistResult.fileCount : undefined,
+        previewUrl,
       });
     } catch (err: any) {
       this.logger.error(`[agent-builder] 실패: ${err?.message}`, err?.stack);
