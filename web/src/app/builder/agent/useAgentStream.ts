@@ -310,9 +310,25 @@ export function useAgentStream() {
       //   - 기본(없음)은 기존 수제 루프(/agent-build)
       //   - AGENT_SDK_ENABLED=true 가 서버에 설정된 경우에만 /agent-build-sdk 응답
       //   - answer 엔드포인트는 SessionStoreService 공유이므로 그대로 /agent-build/:sid/answer 사용
-      const useSdk =
-        typeof window !== 'undefined' &&
-        new URLSearchParams(window.location.search).get('sdk') === '1';
+      //
+      // 발견 #1 (2026-04-20): "내 프로젝트 → 편집" 이동 시 URL 쿼리 유실 →
+      //   수정 모드가 수제 루프로 빠짐. 한 번 ?sdk=1 진입 시 localStorage 에 저장하여
+      //   브라우저 세션 전역에서 SDK 모드 유지. 해제는 ?sdk=0 명시.
+      let useSdk = false;
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const q = params.get('sdk');
+        if (q === '1') {
+          try { localStorage.setItem('foundry_sdk_mode', '1'); } catch {}
+        } else if (q === '0') {
+          try { localStorage.removeItem('foundry_sdk_mode'); } catch {}
+        }
+        try {
+          useSdk = localStorage.getItem('foundry_sdk_mode') === '1';
+        } catch {
+          useSdk = q === '1';
+        }
+      }
       const buildPath = useSdk ? 'agent-build-sdk' : 'agent-build';
 
       const token = getToken();
