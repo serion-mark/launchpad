@@ -91,12 +91,33 @@ export class AgentBuilderSdkService {
     // 1. 샌드박스 세션 (기존 SandboxService 재사용)
     const { sessionId, cwd } = await this.sandbox.createSession(userId);
 
+    // Day 6 hotfix — projectId 확정 (신규는 startProject, 수정은 input 그대로)
+    //   이게 없으면 MCP tool ctx.projectId=undefined → provision_supabase /
+    //   deploy_to_subdomain 도구들이 "projectId 없음" 으로 실패 → Agent 가
+    //   수동 가이드로 fallback. 기존 agent-builder.service.ts 의 패턴 이식.
+    let projectId: string | undefined = editingProjectId;
+    let projectName = '';
+    let subdomain: string | undefined;
+    if (!editingProjectId && hasUser) {
+      const startResult = await this.persistence.startProject(
+        String(userId),
+        prompt,
+      );
+      if (startResult.ok) {
+        projectId = startResult.projectId;
+        projectName = startResult.projectName;
+        subdomain = startResult.subdomain;
+        this.logger.log(
+          `[agent-sdk] project draft ${projectId} (name=${projectName})`,
+        );
+      }
+    }
+
     // 1-bis. 수정 모드: 기존 프로젝트의 generatedCode 를 sandbox 로 복원
     //   + 이전 SDK 세션 UUID (resume 후보) 조회
     //   + memoryService 로 프로젝트/사용자 컨텍스트 조립
     let resumeSessionId: string | undefined;
     let memoryContext = '';
-    let projectName = '';
     if (editingProjectId && hasUser) {
       try {
         const existing = await this.prisma.project.findFirst({
@@ -170,7 +191,9 @@ export class AgentBuilderSdkService {
       },
       {
         userId: String(userId),
-        projectId: input.projectId,
+        projectId,   // Day 6 hotfix: startProject 로 확정된 projectId 전달
+                     //   → MCP tool handler 가 provision_supabase / deploy_to_subdomain
+                     //     호출 시 AgentToolExecutor.deps.projectId 채워짐
         userPrompt: prompt,
         cwd,
         sandboxSessionId: sessionId,
@@ -242,34 +265,93 @@ export class AgentBuilderSdkService {
         for (const ev of evs) {
           // Day 1 은 start 를 sandbox sessionId 로 이미 방출했으므로 SDK 의 start 는 스킵
           if (ev.type === 'start') continue;
+          // Day 6 hotfix: complete 이벤트는 service 가 persist 후 풀 페이로드로 방출
+          if (ev.type === 'complete') continue;
           onEvent(ev);
         }
       }
 
-      // ── Day 4: 메모리 저장 + SDK 세션 UUID 기록 (세션 종료 후 fire-and-forget) ──
-      // editingProjectId 있을 때만 (신규 프로젝트는 Day 5 이후 persistence 이후에 연결)
-      if (editingProjectId && hasUser) {
-        // (a) SDK session_id 저장 — 다음 세션에서 resume 으로 이어받기
+      // ── Day 6 hotfix: 세션 종료 직후 persistence — sandbox → DB 저장 ──
+      //   deploy_to_subdomain 도구가 이미 호출됐다면 generatedCode 중복 저장이지만
+      //   같은 내용이므로 무해. 도구 안 쓴 경우 여기서만 DB 반영.
+      let persistedFileCount: number | undefined;
+      if (projectId && hasUser) {
+        try {
+          const persistResult = editingProjectId
+            ? await this.persistence.finishProject({
+                userId: String(userId),
+                cwd,
+                userPrompt: prompt,
+                projectId,
+              })
+            : await this.persistence.persist({
+                userId: String(userId),
+                cwd,
+                userPrompt: prompt,
+              });
+          if (persistResult.ok) {
+            persistedFileCount = persistResult.fileCount;
+            // 신규 persist() 가 새 projectId 만들어낸 경우 갱신
+            if (!editingProjectId && persistResult.projectId && persistResult.projectId !== projectId) {
+              projectId = persistResult.projectId;
+            }
+            if (persistResult.projectName) projectName = persistResult.projectName;
+            if (persistResult.subdomain) subdomain = persistResult.subdomain;
+            this.logger.log(
+              `[persist] ${projectId} files=${persistResult.fileCount} name="${projectName}"`,
+            );
+          } else {
+            this.logger.warn(`[persist] 실패: ${persistResult.reason ?? 'unknown'}`);
+          }
+        } catch (err: any) {
+          this.logger.warn(`[persist] 예외: ${err?.message}`);
+        }
+      }
+
+      // ── Day 4: 메모리 + SDK session UUID 저장 (projectId 확보된 이후 실행) ──
+      //   신규/수정 모두 projectId 있으면 기록 (V2 는 editing 만 했지만 Z안은 양쪽)
+      if (projectId && hasUser) {
         if (sdkSessionIdRef.value) {
           const newSid = sdkSessionIdRef.value;
           this.prisma.project
-            .update({ where: { id: editingProjectId }, data: { agentSessionId: newSid } })
-            .then(() => this.logger.log(`[memory] ${editingProjectId} agentSessionId=${newSid.slice(0, 8)} 저장`))
+            .update({ where: { id: projectId }, data: { agentSessionId: newSid } })
+            .then(() => this.logger.log(`[memory] ${projectId} agentSessionId=${newSid.slice(0, 8)} 저장`))
             .catch((err: any) =>
               this.logger.warn(`[memory] agentSessionId 저장 실패: ${err?.message}`),
             );
         }
 
-        // (b) 대화 요약 (Haiku) + 선호 감지 — fire-and-forget (응답 지연 없음)
-        //     summarizeAndSave 는 role/content 문자열 쌍 기대 → 단순 wrapper
         const summarySeed = [
           { role: 'user', content: prompt },
           { role: 'assistant', content: '(SDK 세션 완료 — 상세는 resume 복원)' },
         ];
-        this.memory.summarizeAndSave(editingProjectId, summarySeed).catch(() => {});
-        this.memory.detectPreferences(editingProjectId, String(userId), prompt).catch(() => {});
-        // recordModification 은 버전 정보 필요 → Day 5 persist 쪽에서 호출이 적절 (여기선 스킵)
+        this.memory.summarizeAndSave(projectId, summarySeed).catch(() => {});
+        this.memory.detectPreferences(projectId, String(userId), prompt).catch(() => {});
       }
+
+      // ── Day 6 hotfix: complete 이벤트 풀 페이로드 방출 ──
+      //   deployedUrl 조회 (deploy_to_subdomain 도구가 세션 중 호출됐다면 set 됨)
+      let previewUrl: string | undefined;
+      if (projectId) {
+        try {
+          const p = await this.prisma.project
+            .findUnique({ where: { id: projectId }, select: { deployedUrl: true } })
+            .catch(() => null);
+          previewUrl = p?.deployedUrl ?? undefined;
+        } catch {
+          /* 무시 */
+        }
+      }
+      onEvent({
+        type: 'complete',
+        totalIterations: iterRef.value,
+        durationMs: Date.now() - start,
+        projectId,
+        projectName: projectName || undefined,
+        subdomain,
+        fileCount: persistedFileCount,
+        previewUrl,
+      });
 
       // 세션 전체 [cost] END — admin.service.ts:getAgentCostLogs 파싱 포맷 100% 호환
       // 기존 필드(email/name/isEdit/fileCount) 유지 + SDK 전용 필드(via/cache_*) 끝에 추가
@@ -293,12 +375,12 @@ export class AgentBuilderSdkService {
         `[cost] session=${sessionIdRef.value.slice(0, 8)} END ` +
           `userId=${userId ?? 'anon'} ` +
           `email="${ownerEmail}" ` +
-          `projectId=${editingProjectId ?? 'none'} ` +
+          `projectId=${projectId ?? 'none'} ` +
           `name="${projectName}" ` +
           `iter=${iterRef.value} total=$${totalCostRef.value.toFixed(6)} ` +
           `durationMs=${Date.now() - start} ` +
           `isEdit=${!!editingProjectId} ` +
-          `fileCount=0 ` +                                    // SDK 경로는 아직 persist 미포함 (Day 2 tool 쪽에서만 저장)
+          `fileCount=${persistedFileCount ?? 0} ` +
           `via=SDK ` +
           `cache_read=${cacheRead} cache_create=${cacheCreate} hit_ratio=${hitRatio.toFixed(1)}%`,
       );
@@ -312,6 +394,37 @@ export class AgentBuilderSdkService {
     } finally {
       // AskUser 대기 중인 pending 을 정리 (세션 종료 시 Promise leak 방지)
       this.sessionStore.cancelSession(sessionId, 'runWithSDK 종료');
+
+      // Day 6 hotfix: 쓰레기 draft 자동 정리 (기존 agent-builder.service.ts 와 동일 로직)
+      //   상의 모드로 파일 한 개도 안 만들고 끝난 경우 startProject 로 만든 draft 삭제
+      //   → 사용자 "내 프로젝트" 에 빈 draft 노출 방지
+      if (projectId && !editingProjectId) {
+        try {
+          const p = await this.prisma.project
+            .findUnique({
+              where: { id: projectId },
+              select: { status: true, generatedCode: true, name: true },
+            })
+            .catch(() => null);
+          if (p && p.status === 'draft') {
+            const files = (p.generatedCode as any) ?? null;
+            const isEmpty =
+              !files ||
+              (Array.isArray(files) && files.length === 0) ||
+              (typeof files === 'object' && Object.keys(files).length === 0);
+            if (isEmpty) {
+              await this.prisma.project
+                .delete({ where: { id: projectId } })
+                .catch(() => {});
+              this.logger.log(
+                `[cleanup-draft] ${projectId} 자동 삭제 (빈 draft: "${p.name}")`,
+              );
+            }
+          }
+        } catch {
+          /* 정리 실패는 무시 — 메인 흐름 영향 없음 */
+        }
+      }
     }
   }
 }
