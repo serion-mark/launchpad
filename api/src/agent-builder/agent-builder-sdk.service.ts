@@ -1,5 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { query } from '@anthropic-ai/claude-agent-sdk';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 import { SandboxService } from './sandbox.service';
 import { PromptLoaderService } from './prompt-loader.service';
 import { ProjectPersistenceService } from './project-persistence.service';
@@ -7,6 +9,7 @@ import { AgentDeployService } from './agent-deploy.service';
 import { SessionStoreService } from './session-store.service';
 import { AnswerParserService } from './answer-parser.service';
 import { SupabaseService } from '../supabase/supabase.service';
+import { MemoryService } from '../ai/memory.service';
 import { PrismaService } from '../prisma.service';
 import {
   AgentStreamEvent,
@@ -43,24 +46,78 @@ export class AgentBuilderSdkService {
     private readonly supabase: SupabaseService,
     private readonly sessionStore: SessionStoreService,
     private readonly answerParser: AnswerParserService,
+    @Inject(forwardRef(() => MemoryService))
+    private readonly memory: MemoryService,
     private readonly prisma: PrismaService,
   ) {}
 
   async runWithSDK(input: AgentSdkInput): Promise<void> {
     const { userId, prompt, onEvent } = input;
     const start = Date.now();
+    const editingProjectId = input.projectId;
+    const hasUser = !!userId && userId !== 'anon';
 
     // 1. 샌드박스 세션 (기존 SandboxService 재사용)
     const { sessionId, cwd } = await this.sandbox.createSession(userId);
 
+    // 1-bis. 수정 모드: 기존 프로젝트의 generatedCode 를 sandbox 로 복원
+    //   + 이전 SDK 세션 UUID (resume 후보) 조회
+    //   + memoryService 로 프로젝트/사용자 컨텍스트 조립
+    let resumeSessionId: string | undefined;
+    let memoryContext = '';
+    if (editingProjectId && hasUser) {
+      try {
+        const existing = await this.prisma.project.findFirst({
+          where: { id: editingProjectId, userId: String(userId) },
+          select: { id: true, name: true, generatedCode: true, agentSessionId: true },
+        });
+        if (existing) {
+          if (existing.agentSessionId) {
+            resumeSessionId = existing.agentSessionId;
+            this.logger.log(`[restore] ${editingProjectId} → SDK resume=${resumeSessionId.slice(0, 8)}`);
+          }
+          if (existing.generatedCode) {
+            const files = existing.generatedCode as unknown as Array<{ path: string; content: string }>;
+            const safeName = (existing.name || 'app').replace(/[^a-zA-Z0-9_\-가-힣]/g, '_').slice(0, 40) || 'app';
+            const projectDir = path.join(cwd, safeName);
+            await fs.mkdir(projectDir, { recursive: true });
+            for (const file of files) {
+              if (!file?.path || typeof file.content !== 'string') continue;
+              const full = path.join(projectDir, file.path);
+              await fs.mkdir(path.dirname(full), { recursive: true });
+              await fs.writeFile(full, file.content, 'utf8');
+            }
+            this.logger.log(`[restore] ${editingProjectId} → ${files.length} files 복원 (${projectDir})`);
+          }
+        }
+      } catch (err: any) {
+        this.logger.warn(`[restore] 실패 (무시): ${err?.message}`);
+      }
+
+      // memoryService: 프로젝트 요약 + 선호 + 수정 이력 → systemPrompt append 에 주입
+      try {
+        memoryContext = await this.memory.buildContextPrompt(editingProjectId, String(userId));
+        if (memoryContext) {
+          this.logger.log(`[memory] ${editingProjectId} context=${memoryContext.length}chars 주입`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`[memory] buildContextPrompt 실패 (무시): ${err?.message}`);
+      }
+    }
+
     // 2. 파운더리 고유 system prompt (agent-core + intent + vague + selection)
     //    SDK 기본 Claude Code preset 뒤에 append 하여 두 가지 모두 활용
+    //    + memoryContext (수정 모드에서만 보강)
     const foundrySystemPrompt = await this.promptLoader.getSystemPrompt();
+    const systemAppend = memoryContext
+      ? `${foundrySystemPrompt}\n\n${memoryContext}`
+      : foundrySystemPrompt;
 
     // 3. adapter 컨텍스트
     const sessionIdRef = { value: sessionId };
     const iterRef = { value: 0 };
     const totalCostRef = { value: 0 };
+    const sdkSessionIdRef: { value: string | null } = { value: null };  // SDK 실제 UUID
 
     // SDK 의 system.init 가 실제 UUID 를 주기 전까지 sandbox sessionId 로 대체
     onEvent({ type: 'start', sessionId, cwd });
@@ -102,10 +159,13 @@ export class AgentBuilderSdkService {
           // SDK 타입 정의 (sdk.d.ts:L1417) 공식 명시:
           //   Must be set to 'true' when using permissionMode: 'bypassPermissions'
           allowDangerouslySkipPermissions: true,
+          // 수정 모드: 이전 SDK 세션 UUID 로 이어받기 (대화 이력 자동 복원)
+          //   → V2 5번 디버깅한 agentMessages sanitize/cycle-truncate 전체 대체
+          ...(resumeSessionId ? { resume: resumeSessionId } : {}),
           systemPrompt: {
             type: 'preset',
             preset: 'claude_code',
-            append: foundrySystemPrompt,
+            append: systemAppend,
             // cwd/git/date/memory 를 system → first user 로 이동 → 크로스 세션 캐시 공유
             excludeDynamicSections: true,
           },
@@ -114,6 +174,15 @@ export class AgentBuilderSdkService {
       });
 
       for await (const sdkMsg of q) {
+        // SDK 실제 UUID 를 system.init 에서 캡처 → agentSessionId 저장에 사용
+        if (
+          (sdkMsg as any).type === 'system' &&
+          (sdkMsg as any).subtype === 'init' &&
+          typeof (sdkMsg as any).session_id === 'string'
+        ) {
+          sdkSessionIdRef.value = (sdkMsg as any).session_id;
+        }
+
         const evs = adaptSDKMessage(sdkMsg, {
           start,
           sessionIdRef,
@@ -126,6 +195,31 @@ export class AgentBuilderSdkService {
           if (ev.type === 'start') continue;
           onEvent(ev);
         }
+      }
+
+      // ── Day 4: 메모리 저장 + SDK 세션 UUID 기록 (세션 종료 후 fire-and-forget) ──
+      // editingProjectId 있을 때만 (신규 프로젝트는 Day 5 이후 persistence 이후에 연결)
+      if (editingProjectId && hasUser) {
+        // (a) SDK session_id 저장 — 다음 세션에서 resume 으로 이어받기
+        if (sdkSessionIdRef.value) {
+          const newSid = sdkSessionIdRef.value;
+          this.prisma.project
+            .update({ where: { id: editingProjectId }, data: { agentSessionId: newSid } })
+            .then(() => this.logger.log(`[memory] ${editingProjectId} agentSessionId=${newSid.slice(0, 8)} 저장`))
+            .catch((err: any) =>
+              this.logger.warn(`[memory] agentSessionId 저장 실패: ${err?.message}`),
+            );
+        }
+
+        // (b) 대화 요약 (Haiku) + 선호 감지 — fire-and-forget (응답 지연 없음)
+        //     summarizeAndSave 는 role/content 문자열 쌍 기대 → 단순 wrapper
+        const summarySeed = [
+          { role: 'user', content: prompt },
+          { role: 'assistant', content: '(SDK 세션 완료 — 상세는 resume 복원)' },
+        ];
+        this.memory.summarizeAndSave(editingProjectId, summarySeed).catch(() => {});
+        this.memory.detectPreferences(editingProjectId, String(userId), prompt).catch(() => {});
+        // recordModification 은 버전 정보 필요 → Day 5 persist 쪽에서 호출이 적절 (여기선 스킵)
       }
 
       // 세션 전체 [cost] 요약 (admin 파싱 호환)
