@@ -13,6 +13,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import type { Response } from 'express';
 import { AgentBuilderService } from './agent-builder.service';
+import { AgentBuilderSdkService } from './agent-builder-sdk.service';
 import { SessionStoreService } from './session-store.service';
 import type { AgentStreamEvent } from './stream-event.types';
 
@@ -25,6 +26,7 @@ export class AgentBuilderController {
 
   constructor(
     private readonly agentBuilder: AgentBuilderService,
+    private readonly agentBuilderSdk: AgentBuilderSdkService,
     private readonly sessionStore: SessionStoreService,
   ) {}
 
@@ -77,6 +79,65 @@ export class AgentBuilderController {
           type: 'error',
           message: err?.message ?? String(err),
           where: 'controller',
+        });
+      })
+      .finally(() => {
+        if (!closed) res.end();
+      });
+  }
+
+  // ── Day 1 Z안: Claude Agent SDK 기반 신규 라우트 ────────────────
+  // feature flag: AGENT_SDK_ENABLED=true 일 때만 호출 가능
+  // 기존 /agent-build 와 병행 동작 (간섭 X). Day 6~7 에서 기본 경로 전환 예정.
+  @Post('agent-build-sdk')
+  agentBuildSdk(
+    @Req() req: any,
+    @Res() res: Response,
+    @Body() body: { prompt: string; projectId?: string },
+  ) {
+    if (process.env.AGENT_SDK_ENABLED !== 'true') {
+      throw new HttpException(
+        'Agent SDK 비활성화됨 (AGENT_SDK_ENABLED=true 필요)',
+        HttpStatus.FORBIDDEN,
+      );
+    }
+    if (!body?.prompt || typeof body.prompt !== 'string') {
+      throw new HttpException('prompt 필수 (string)', HttpStatus.BAD_REQUEST);
+    }
+    const editingProjectId =
+      typeof body.projectId === 'string' && body.projectId.trim().length > 0
+        ? body.projectId.trim()
+        : undefined;
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+
+    const userId = req.user?.userId ?? 'anon';
+    let closed = false;
+
+    const write = (event: AgentStreamEvent) => {
+      if (closed) return;
+      try {
+        res.write(`data: ${JSON.stringify(event)}\n\n`);
+      } catch (err: any) {
+        this.logger.warn(`[agent-build-sdk] SSE write 실패: ${err?.message}`);
+      }
+    };
+
+    req.on('close', () => {
+      closed = true;
+    });
+
+    this.agentBuilderSdk
+      .runWithSDK({ userId, prompt: body.prompt, projectId: editingProjectId, onEvent: write })
+      .catch((err) => {
+        write({
+          type: 'error',
+          message: err?.message ?? String(err),
+          where: 'controller-sdk',
         });
       })
       .finally(() => {

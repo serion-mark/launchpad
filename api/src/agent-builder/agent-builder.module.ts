@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { AgentBuilderController } from './agent-builder.controller';
 import { AgentBuilderService } from './agent-builder.service';
+import { AgentBuilderSdkService } from './agent-builder-sdk.service';
 import { SandboxService } from './sandbox.service';
 import { PromptLoaderService } from './prompt-loader.service';
 import { SessionStoreService } from './session-store.service';
@@ -19,6 +20,7 @@ import { PrismaService } from '../prisma.service';
   controllers: [AgentBuilderController],
   providers: [
     AgentBuilderService,
+    AgentBuilderSdkService,
     SandboxService,
     PromptLoaderService,
     SessionStoreService,
@@ -28,6 +30,6 @@ import { PrismaService } from '../prisma.service';
     AgentDeployService,
     PrismaService,
   ],
-  exports: [AgentBuilderService],
+  exports: [AgentBuilderService, AgentBuilderSdkService],
 })
 export class AgentBuilderModule {}
