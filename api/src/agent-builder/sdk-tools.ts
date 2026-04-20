@@ -6,6 +6,9 @@ import type { SupabaseService } from '../supabase/supabase.service';
 import type { AgentDeployService } from './agent-deploy.service';
 import type { ProjectPersistenceService } from './project-persistence.service';
 import type { PrismaService } from '../prisma.service';
+import type { SessionStoreService } from './session-store.service';
+import type { AnswerParserService } from './answer-parser.service';
+import type { AgentStreamEvent, CardRequest } from './stream-event.types';
 
 // Day 2 — 파운더리 커스텀 도구 3개를 SDK tool() 빌더로 포팅
 //
@@ -25,6 +28,8 @@ export type FoundryToolContext = {
   projectId?: string;
   userPrompt: string;
   cwd: string;
+  sandboxSessionId: string;                     // SessionStore 대기/재개용 (SDK session_id 와 다름)
+  onEvent: (event: AgentStreamEvent) => void;  // card_request / card_answered SSE 방출
 };
 
 export type FoundryToolDeps = {
@@ -33,6 +38,8 @@ export type FoundryToolDeps = {
   agentDeploy: AgentDeployService;
   persistence: ProjectPersistenceService;
   prisma: PrismaService;
+  sessionStore: SessionStoreService;
+  answerParser: AnswerParserService;
 };
 
 /**
@@ -97,10 +104,95 @@ export function createFoundryMcpServer(
     },
   );
 
+  // AskUser — 답지 카드 (파운더리 독자 UX)
+  //   선택지 A: 기존 SessionStore + AnswerParser 재활용. handler 안에서
+  //   (1) card_request SSE 방출 → (2) 사용자가 POST /answer 전송 →
+  //   (3) SessionStore 의 Promise resolve → (4) parser.summarize 결과를 tool_result 로 반환.
+  //   → Agent 는 자동 재개 (SDK tool handler 가 끝날 때까지 await).
+  const askUser = tool(
+    'AskUser',
+    '사용자에게 종합 카드로 한 번에 물어본다. 답지의 빈 칸이 여러 개일 때 사용 (꼬리 질문 금지, 원샷 1번만). 옵션마다 번호를 붙여 번호/클릭/자연어 3중 입력을 받는다. 작업 중에는 절대 사용하지 말고, 작업 시작 전에만 사용하라.',
+    {
+      title: z.string().describe('카드 상단 한 줄 인사'),
+      questions: z
+        .array(
+          z.object({
+            id: z.string(),
+            question: z.string(),
+            emoji: z.string().optional(),
+            options: z.array(
+              z.object({
+                num: z.number(),
+                label: z.string(),
+                value: z.string(),
+                needsInput: z.boolean().optional(),
+              }),
+            ),
+          }),
+        )
+        .describe('최대 2~3개의 질문. 각 질문은 2~4개 옵션 + "기타" 포함.'),
+      assumed: z
+        .record(z.string(), z.string())
+        .optional()
+        .describe('AI 가 미리 추정한 답지 칸'),
+      inputHint: z.string().describe('사용자 안내 (예: "1, 2, 1 같이 번호로")'),
+      quickStartLabel: z.string().describe('"그대로 시작" 버튼 라벨'),
+    },
+    async (args, extra) => {
+      // Anthropic SDK tool_use 는 id 를 handler 에 직접 노출하지 않음.
+      // extra.toolUseId (or extra._meta) 로 접근 가능 — 방어적으로 fallback.
+      const extraAny = extra as any;
+      const pendingId: string =
+        extraAny?.toolUseId ??
+        extraAny?.tool_use_id ??
+        `ask-${ctx.sandboxSessionId.slice(0, 8)}-${Date.now()}`;
+
+      const card: CardRequest = {
+        pendingId,
+        title: args.title,
+        questions: args.questions as CardRequest['questions'],
+        assumed: args.assumed,
+        inputHint: args.inputHint,
+        quickStart: { label: args.quickStartLabel, value: 'DEFAULT_ALL' },
+        allowFreeText: true,
+      };
+
+      ctx.onEvent({ type: 'card_request', card });
+
+      try {
+        const userRaw = await deps.sessionStore.waitForAnswer(
+          ctx.sandboxSessionId,
+          pendingId,
+          card,
+        );
+        const parsed = deps.answerParser.parse(userRaw, card);
+        const summary = deps.answerParser.summarize(parsed);
+        ctx.onEvent({
+          type: 'card_answered',
+          pendingId,
+          answerSummary: parsed.message,
+        });
+        return {
+          content: [{ type: 'text' as const, text: summary }],
+        };
+      } catch (err: any) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `[AskUser 실패] ${err?.message ?? String(err)}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
+
   return createSdkMcpServer({
     name: 'foundry',
     version: '1.0.0',
-    tools: [provisionSupabase, deployToSubdomain, checkBuild],
+    tools: [provisionSupabase, deployToSubdomain, checkBuild, askUser],
   });
 }
 
@@ -112,4 +204,5 @@ export const FOUNDRY_MCP_TOOL_NAMES = [
   'mcp__foundry__provision_supabase',
   'mcp__foundry__deploy_to_subdomain',
   'mcp__foundry__check_build',
+  'mcp__foundry__AskUser',
 ];

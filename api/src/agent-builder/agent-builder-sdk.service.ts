@@ -4,6 +4,8 @@ import { SandboxService } from './sandbox.service';
 import { PromptLoaderService } from './prompt-loader.service';
 import { ProjectPersistenceService } from './project-persistence.service';
 import { AgentDeployService } from './agent-deploy.service';
+import { SessionStoreService } from './session-store.service';
+import { AnswerParserService } from './answer-parser.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { PrismaService } from '../prisma.service';
 import {
@@ -39,6 +41,8 @@ export class AgentBuilderSdkService {
     private readonly persistence: ProjectPersistenceService,
     private readonly agentDeploy: AgentDeployService,
     private readonly supabase: SupabaseService,
+    private readonly sessionStore: SessionStoreService,
+    private readonly answerParser: AnswerParserService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -61,7 +65,7 @@ export class AgentBuilderSdkService {
     // SDK 의 system.init 가 실제 UUID 를 주기 전까지 sandbox sessionId 로 대체
     onEvent({ type: 'start', sessionId, cwd });
 
-    // 파운더리 커스텀 도구 3개를 MCP SDK server 로 묶음 (세션별 context)
+    // 파운더리 커스텀 도구 4개를 MCP SDK server 로 묶음 (세션별 context)
     const foundryMcp = createFoundryMcpServer(
       {
         sandbox: this.sandbox,
@@ -69,12 +73,16 @@ export class AgentBuilderSdkService {
         agentDeploy: this.agentDeploy,
         persistence: this.persistence,
         prisma: this.prisma,
+        sessionStore: this.sessionStore,
+        answerParser: this.answerParser,
       },
       {
         userId: String(userId),
         projectId: input.projectId,
         userPrompt: prompt,
         cwd,
+        sandboxSessionId: sessionId,
+        onEvent,
       },
     );
 
@@ -136,6 +144,9 @@ export class AgentBuilderSdkService {
         message: err?.message ?? String(err),
         where: 'runWithSDK',
       });
+    } finally {
+      // AskUser 대기 중인 pending 을 정리 (세션 종료 시 Promise leak 방지)
+      this.sessionStore.cancelSession(sessionId, 'runWithSDK 종료');
     }
   }
 }
