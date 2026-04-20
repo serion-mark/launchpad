@@ -1,7 +1,38 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import * as fs from 'fs/promises';
+import * as fsSync from 'fs';
 import * as path from 'path';
+
+// Claude Code native binary 자동 감지
+// Anthropic SDK 내부 감지가 Ubuntu(glibc) 서버를 musl 로 오판하는 버그 회피
+// 2026-04-20 파운더리 서버 실측: SDK 가 linux-x64-musl 선택 → binary 없음
+//                                  실제로는 linux-x64/claude (236MB, glibc) 에 존재
+// require.resolve 로 각 optional deps 의 package.json 찾아 첫 번째 존재 binary 사용
+function resolveClaudeBinary(log: (msg: string) => void): string | undefined {
+  const candidates = [
+    '@anthropic-ai/claude-agent-sdk-linux-x64/package.json',
+    '@anthropic-ai/claude-agent-sdk-linux-arm64/package.json',
+    '@anthropic-ai/claude-agent-sdk-linux-x64-musl/package.json',
+    '@anthropic-ai/claude-agent-sdk-linux-arm64-musl/package.json',
+    '@anthropic-ai/claude-agent-sdk-darwin-arm64/package.json',
+    '@anthropic-ai/claude-agent-sdk-darwin-x64/package.json',
+  ];
+  for (const pkg of candidates) {
+    try {
+      const pkgJsonPath = require.resolve(pkg);
+      const binPath = path.join(path.dirname(pkgJsonPath), 'claude');
+      if (fsSync.existsSync(binPath)) {
+        log(`[sdk] claude binary 자동 감지: ${binPath}`);
+        return binPath;
+      }
+    } catch {
+      /* 이 플랫폼 아님 — 다음 후보 */
+    }
+  }
+  log('[sdk] claude binary 후보 전부 탐색 실패 — SDK 내부 감지에 맡김');
+  return undefined;
+}
 import { SandboxService } from './sandbox.service';
 import { PromptLoaderService } from './prompt-loader.service';
 import { ProjectPersistenceService } from './project-persistence.service';
@@ -147,6 +178,8 @@ export class AgentBuilderSdkService {
       },
     );
 
+    const claudeBinaryPath = resolveClaudeBinary((msg) => this.logger.log(msg));
+
     try {
       const q = query({
         prompt,
@@ -154,6 +187,7 @@ export class AgentBuilderSdkService {
           model: MODEL,
           cwd,
           maxTurns: AGENT_MAX_ITERATIONS,
+          ...(claudeBinaryPath ? { pathToClaudeCodeExecutable: claudeBinaryPath } : {}),
           allowedTools: [
             'Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep',
             ...FOUNDRY_MCP_TOOL_NAMES,
