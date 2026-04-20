@@ -306,10 +306,19 @@ export function useAgentStream() {
       const controller = new AbortController();
       abortRef.current = controller;
 
+      // Day 6: URL 에 ?sdk=1 이 있으면 Claude Agent SDK 엔진으로 옵트인
+      //   - 기본(없음)은 기존 수제 루프(/agent-build)
+      //   - AGENT_SDK_ENABLED=true 가 서버에 설정된 경우에만 /agent-build-sdk 응답
+      //   - answer 엔드포인트는 SessionStoreService 공유이므로 그대로 /agent-build/:sid/answer 사용
+      const useSdk =
+        typeof window !== 'undefined' &&
+        new URLSearchParams(window.location.search).get('sdk') === '1';
+      const buildPath = useSdk ? 'agent-build-sdk' : 'agent-build';
+
       const token = getToken();
       let res: Response;
       try {
-        res = await fetch(`${API_BASE}/ai/agent-build`, {
+        res = await fetch(`${API_BASE}/ai/${buildPath}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

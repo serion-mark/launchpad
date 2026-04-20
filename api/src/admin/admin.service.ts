@@ -245,6 +245,11 @@ export class AdminService {
       durationMs: number;
       isEdit: boolean;
       fileCount: number;
+      // Day 5: SDK 경로 전용 (수제 루프는 null)
+      via?: 'SDK' | null;
+      cacheRead?: number | null;
+      cacheCreate?: number | null;
+      hitRatio?: number | null;
     }>;
     summary: {
       totalSessions: number;
@@ -297,10 +302,15 @@ export class AdminService {
     const reOld =
       /\[cost\] session=(\S+) END projectId=(\S+) name="([^"]*)" iter=(\d+) total=\$([0-9.]+) durationMs=(\d+) isEdit=(true|false) fileCount=(\d+)/;
 
+    // Day 5: SDK 경로 전용 선택적 캐시 필드 — 한 라인에서 추가 추출
+    const reCache =
+      /via=SDK\s+cache_read=(\d+)\s+cache_create=(\d+)\s+hit_ratio=([\d.]+)%/;
+
     const entries: Awaited<ReturnType<AdminService['getAgentCostLogs']>>['entries'] = [];
     for (const line of lines) {
       const mNew = line.match(reNew);
       const ts = line.match(tsRe);
+      const mCache = line.match(reCache);
       if (mNew) {
         entries.push({
           ts: ts ? `${ts[1]} ${ts[2]}` : '',
@@ -314,6 +324,10 @@ export class AdminService {
           durationMs: parseInt(mNew[8], 10),
           isEdit: mNew[9] === 'true',
           fileCount: parseInt(mNew[10], 10),
+          via: mCache ? 'SDK' : null,
+          cacheRead: mCache ? parseInt(mCache[1], 10) : null,
+          cacheCreate: mCache ? parseInt(mCache[2], 10) : null,
+          hitRatio: mCache ? parseFloat(mCache[3]) : null,
         });
         continue;
       }
@@ -331,6 +345,10 @@ export class AdminService {
           durationMs: parseInt(mOld[6], 10),
           isEdit: mOld[7] === 'true',
           fileCount: parseInt(mOld[8], 10),
+          via: null,
+          cacheRead: null,
+          cacheCreate: null,
+          hitRatio: null,
         });
       }
     }
