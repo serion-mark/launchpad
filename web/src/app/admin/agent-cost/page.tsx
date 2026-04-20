@@ -19,6 +19,11 @@ type CostEntry = {
   durationMs: number;
   isEdit: boolean;
   fileCount: number;
+  // Day 5: Claude Agent SDK 경로 전용 (수제 루프 로그는 null)
+  via?: 'SDK' | null;
+  cacheRead?: number | null;
+  cacheCreate?: number | null;
+  hitRatio?: number | null;
 };
 
 type UserAgg = {
@@ -172,11 +177,13 @@ export default function AdminAgentCostPage() {
                 <th style={th}>시각</th>
                 <th style={th}>사용자</th>
                 <th style={th}>유형</th>
+                <th style={th}>엔진</th>
                 <th style={th}>이름</th>
                 <th style={thNum}>iter</th>
                 <th style={thNum}>파일</th>
                 <th style={thNum}>소요</th>
                 <th style={thNum}>비용 ($)</th>
+                <th style={thNum}>cache hit</th>
                 <th style={th}>projectId</th>
               </tr>
             </thead>
@@ -198,17 +205,29 @@ export default function AdminAgentCostPage() {
                       {e.isEdit ? '✏️ 수정' : '🏗 만들기'}
                     </span>
                   </td>
+                  <td style={td}>
+                    {e.via === 'SDK' ? (
+                      <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 700, color: '#3182f6', background: '#3182f61a' }}>
+                        🚀 SDK
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 10, color: 'var(--adm-text-muted)' }}>수제</span>
+                    )}
+                  </td>
                   <td style={td}>{e.name || <span style={{ color: 'var(--adm-text-muted)' }}>(빈 draft)</span>}</td>
                   <td style={tdNum}>{e.iter}</td>
                   <td style={tdNum}>{e.fileCount}</td>
                   <td style={tdNum}>{fmtDuration(e.durationMs)}</td>
                   <td style={{ ...tdNum, color: '#eab308', fontWeight: 600 }}>${e.totalUsd.toFixed(4)}</td>
+                  <td style={{ ...tdNum, color: e.hitRatio != null && e.hitRatio >= 50 ? '#22c55e' : 'var(--adm-text-muted)', fontWeight: 600 }}>
+                    {e.hitRatio != null ? `${e.hitRatio.toFixed(1)}%` : '—'}
+                  </td>
                   <td style={{ ...td, fontFamily: 'monospace', fontSize: 10, color: 'var(--adm-text-muted)' }}>{e.projectId ? e.projectId.slice(-12) : '—'}</td>
                 </tr>
               ))}
               {data.entries.length === 0 && (
                 <tr>
-                  <td colSpan={9} style={{ padding: 40, textAlign: 'center', color: 'var(--adm-text-muted)' }}>
+                  <td colSpan={11} style={{ padding: 40, textAlign: 'center', color: 'var(--adm-text-muted)' }}>
                     로그에 아직 Agent 세션이 없습니다. (배포 이후 새 Agent 세션 종료부터 기록됨)
                   </td>
                 </tr>

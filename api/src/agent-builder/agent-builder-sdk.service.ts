@@ -65,6 +65,7 @@ export class AgentBuilderSdkService {
     //   + memoryService 로 프로젝트/사용자 컨텍스트 조립
     let resumeSessionId: string | undefined;
     let memoryContext = '';
+    let projectName = '';
     if (editingProjectId && hasUser) {
       try {
         const existing = await this.prisma.project.findFirst({
@@ -72,6 +73,7 @@ export class AgentBuilderSdkService {
           select: { id: true, name: true, generatedCode: true, agentSessionId: true },
         });
         if (existing) {
+          projectName = existing.name ?? '';
           if (existing.agentSessionId) {
             resumeSessionId = existing.agentSessionId;
             this.logger.log(`[restore] ${editingProjectId} → SDK resume=${resumeSessionId.slice(0, 8)}`);
@@ -118,6 +120,8 @@ export class AgentBuilderSdkService {
     const iterRef = { value: 0 };
     const totalCostRef = { value: 0 };
     const sdkSessionIdRef: { value: string | null } = { value: null };  // SDK 실제 UUID
+    const cacheReadRef = { value: 0 };   // Day 5: 세션 전체 누적 cache_read
+    const cacheCreateRef = { value: 0 }; // Day 5: 세션 전체 누적 cache_creation
 
     // SDK 의 system.init 가 실제 UUID 를 주기 전까지 sandbox sessionId 로 대체
     onEvent({ type: 'start', sessionId, cwd });
@@ -188,6 +192,8 @@ export class AgentBuilderSdkService {
           sessionIdRef,
           iterRef,
           totalCostRef,
+          cacheReadRef,
+          cacheCreateRef,
           onCostLog: (line) => this.logger.log(line),
         });
         for (const ev of evs) {
@@ -222,14 +228,36 @@ export class AgentBuilderSdkService {
         // recordModification 은 버전 정보 필요 → Day 5 persist 쪽에서 호출이 적절 (여기선 스킵)
       }
 
-      // 세션 전체 [cost] 요약 (admin 파싱 호환)
+      // 세션 전체 [cost] END — admin.service.ts:getAgentCostLogs 파싱 포맷 100% 호환
+      // 기존 필드(email/name/isEdit/fileCount) 유지 + SDK 전용 필드(via/cache_*) 끝에 추가
+      let ownerEmail = '';
+      if (hasUser) {
+        try {
+          const u = await this.prisma.user
+            .findUnique({ where: { id: String(userId) }, select: { email: true } })
+            .catch(() => null);
+          ownerEmail = u?.email ?? '';
+        } catch {
+          /* 무시 */
+        }
+      }
+      const cacheRead = cacheReadRef.value;
+      const cacheCreate = cacheCreateRef.value;
+      const cacheTotal = cacheRead + cacheCreate;
+      // hit ratio = read / (read + create)  (create 도 input 으로 집계되지만 결제됨)
+      const hitRatio = cacheTotal > 0 ? (cacheRead / cacheTotal) * 100 : 0;
       this.logger.log(
         `[cost] session=${sessionIdRef.value.slice(0, 8)} END ` +
           `userId=${userId ?? 'anon'} ` +
-          `projectId=${input.projectId ?? 'none'} ` +
+          `email="${ownerEmail}" ` +
+          `projectId=${editingProjectId ?? 'none'} ` +
+          `name="${projectName}" ` +
           `iter=${iterRef.value} total=$${totalCostRef.value.toFixed(6)} ` +
           `durationMs=${Date.now() - start} ` +
-          `via=SDK`,
+          `isEdit=${!!editingProjectId} ` +
+          `fileCount=0 ` +                                    // SDK 경로는 아직 persist 미포함 (Day 2 tool 쪽에서만 저장)
+          `via=SDK ` +
+          `cache_read=${cacheRead} cache_create=${cacheCreate} hit_ratio=${hitRatio.toFixed(1)}%`,
       );
     } catch (err: any) {
       this.logger.error(`[agent-sdk] 실패: ${err?.message}`, err?.stack);

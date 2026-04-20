@@ -17,6 +17,8 @@ export type AdapterContext = {
   sessionIdRef: { value: string };    // adaptSDKMessage 가 세팅
   iterRef: { value: number };         // assistant 메시지마다 ++
   totalCostRef: { value: number };    // result 단계에서 확정 (SDK 가 누적 반환)
+  cacheReadRef?: { value: number };   // Day 5: 세션 전체 cache_read_input_tokens 누적
+  cacheCreateRef?: { value: number }; // Day 5: 세션 전체 cache_creation_input_tokens 누적
   onCostLog?: (line: string) => void; // [cost] 서버 로그 기록 (optional)
 };
 
@@ -103,9 +105,13 @@ export function adaptSDKMessage(
       ctx.totalCostRef.value = res.total_cost_usd;
     }
 
-    // [cost] 로그 — admin.service.ts:getAgentCostLogs 파싱 포맷 유지
+    // Day 5: SDK result 에는 세션 전체 usage 가 들어 있으므로 그 값을 최종값으로 설정
+    const u = res.usage ?? {};
+    if (ctx.cacheReadRef) ctx.cacheReadRef.value = u.cache_read_input_tokens ?? 0;
+    if (ctx.cacheCreateRef) ctx.cacheCreateRef.value = u.cache_creation_input_tokens ?? 0;
+
+    // [cost] 로그 — iter 중간 관찰용 (END 는 service 가 별도 방출)
     if (ctx.onCostLog) {
-      const u = res.usage ?? {};
       ctx.onCostLog(
         `[cost] session=${ctx.sessionIdRef.value.slice(0, 8)} ` +
           `SDK_RESULT iter=${res.num_turns ?? ctx.iterRef.value} ` +
