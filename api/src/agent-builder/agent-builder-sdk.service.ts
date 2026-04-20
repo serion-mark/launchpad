@@ -2,11 +2,16 @@ import { Injectable, Logger } from '@nestjs/common';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import { SandboxService } from './sandbox.service';
 import { PromptLoaderService } from './prompt-loader.service';
+import { ProjectPersistenceService } from './project-persistence.service';
+import { AgentDeployService } from './agent-deploy.service';
+import { SupabaseService } from '../supabase/supabase.service';
+import { PrismaService } from '../prisma.service';
 import {
   AgentStreamEvent,
   AGENT_MAX_ITERATIONS,
 } from './stream-event.types';
 import { adaptSDKMessage } from './sdk-message-adapter';
+import { createFoundryMcpServer, FOUNDRY_MCP_TOOL_NAMES } from './sdk-tools';
 
 // Day 1 범위: 최소 SDK Agent 루프 POC
 //   - query() 호출 + async iterator → SSE 이벤트 변환
@@ -31,6 +36,10 @@ export class AgentBuilderSdkService {
   constructor(
     private readonly sandbox: SandboxService,
     private readonly promptLoader: PromptLoaderService,
+    private readonly persistence: ProjectPersistenceService,
+    private readonly agentDeploy: AgentDeployService,
+    private readonly supabase: SupabaseService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async runWithSDK(input: AgentSdkInput): Promise<void> {
@@ -52,6 +61,23 @@ export class AgentBuilderSdkService {
     // SDK 의 system.init 가 실제 UUID 를 주기 전까지 sandbox sessionId 로 대체
     onEvent({ type: 'start', sessionId, cwd });
 
+    // 파운더리 커스텀 도구 3개를 MCP SDK server 로 묶음 (세션별 context)
+    const foundryMcp = createFoundryMcpServer(
+      {
+        sandbox: this.sandbox,
+        supabase: this.supabase,
+        agentDeploy: this.agentDeploy,
+        persistence: this.persistence,
+        prisma: this.prisma,
+      },
+      {
+        userId: String(userId),
+        projectId: input.projectId,
+        userPrompt: prompt,
+        cwd,
+      },
+    );
+
     try {
       const q = query({
         prompt,
@@ -59,7 +85,11 @@ export class AgentBuilderSdkService {
           model: MODEL,
           cwd,
           maxTurns: AGENT_MAX_ITERATIONS,
-          allowedTools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'],
+          allowedTools: [
+            'Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep',
+            ...FOUNDRY_MCP_TOOL_NAMES,
+          ],
+          mcpServers: { foundry: foundryMcp },
           permissionMode: 'bypassPermissions',
           // SDK 타입 정의 (sdk.d.ts:L1417) 공식 명시:
           //   Must be set to 'true' when using permissionMode: 'bypassPermissions'
