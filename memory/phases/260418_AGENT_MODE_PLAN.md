@@ -1273,6 +1273,204 @@ const handleChatSubmit = (text: string) => {
 
 ---
 
+### ⭐ Day 4.5 + 4.6: Supabase 자동 + Foundry AI 브랜딩 (4/19 긴급 추가)
+
+**배경**: 사장님 첫 테스트(메디트래커) 결과 2가지 누락 발견
+1. 코드만 생성되고 Supabase 연결 X, 배포 X → "코드 zip" 수준
+2. UI에 "Bash", "Write", `ls /workspace/`, `AGENTS.md` 같은 클로드 냄새
+
+**원칙 추가**:
+- 작업 완료 = 빌드 + Supabase 연결 + 배포 + 작동 URL 전달 (전부 자동)
+- Agent가 "Supabase 붙일까요?" 같은 추가 질문 금지 (꼬리 질문 룰 위반)
+- 사용자에게는 **Foundry AI 자체 브랜딩**으로 보여야 함 (클로드 흔적 0)
+
+#### Day 4.5: Supabase 자동 + 배포 자동 (3시간)
+
+**Step F1**: agent-tools.ts에 도구 3개 추가
+```typescript
+ProvisionSupabase: {
+  name: 'provision_supabase',
+  description: '새 Supabase 프로젝트 자동 생성 + SQL 스키마 push + .env 주입',
+  input_schema: { 
+    projectName: string, 
+    sqlSchema: string,  // CREATE TABLE 등
+  }
+}
+
+DeployToSubdomain: {
+  name: 'deploy_to_subdomain',
+  description: '/tmp 앱을 /var/www/apps로 복사 + PM2 등록 + nginx 서브도메인 등록',
+  input_schema: { 
+    appSlug: string,  // meditacker-abc123
+  },
+  output: { previewUrl: string }
+}
+
+CheckBuild: {
+  name: 'check_build',
+  description: 'npm run build 실행 + 결과 반환',
+  input_schema: {}
+}
+```
+
+**Step F2**: 기존 파운더리 코드 재활용
+- `api/src/ai/ai.service.ts` Step 2.5 (Supabase 자동 프로비저닝) → 도구 함수로 추출
+- `api/src/projects/` 서브도메인 등록 로직 → 도구 함수로 추출
+- `prompts/fixed-templates/supabase-client.ts` → Agent가 자동 복사
+
+**Step F3**: agent-core.md 보강
+```markdown
+## 작업 완료 정의 (전부 자동)
+다음 5개 모두 완료해야 끝:
+1. 페이지/컴포넌트 생성 + npm run build 성공
+2. Supabase 자동 프로비저닝 (provision_supabase 도구)
+3. .env.local + supabase-client.ts 자동 통합
+4. /var/www/apps 배포 (deploy_to_subdomain 도구)
+5. 사용자에게 작동 URL 전달
+
+## 절대 금지
+- "Supabase 붙여드릴까요?" 같은 사용자 추가 질문
+- 답지 받은 후 사용자에게 묻기 (작업만 진행)
+- 빌드만 하고 멈추기 (배포까지 필수)
+```
+
+**Step F4**: 환경변수
+```
+AGENT_SUPABASE_AUTO=true       # 자동 프로비저닝 켜기
+AGENT_DEPLOY_AUTO=true          # 자동 배포 켜기
+AGENT_SUBDOMAIN_BASE=foundry.ai.kr  # *.foundry.ai.kr 와일드카드
+```
+
+#### Day 4.6: Foundry AI 브랜딩 (UX 변환 레이어, 2시간)
+
+**원칙**: 컨셉 C — 단계별 가시화 (Apple/Toss 스타일)
+
+**Step G1**: event-translator.service.ts 신규
+```typescript
+// raw 도구 호출 → 사용자 친화 메시지
+
+const STAGES = [
+  { id: 'intent',   label: '의도 파악',     emoji: '💭' },
+  { id: 'setup',    label: '프로젝트 초기화', emoji: '⚙️' },
+  { id: 'design',   label: '디자인 시스템',   emoji: '🎨' },
+  { id: 'pages',    label: '페이지 작성',     emoji: '📄' },
+  { id: 'verify',   label: '빌드 검증',       emoji: '🏗' },
+  { id: 'database', label: '데이터베이스 연결', emoji: '🔌' },
+  { id: 'deploy',   label: '서버 배포',       emoji: '🚀' },
+];
+
+function translate(raw: ToolCallEvent): UserEvent | null {
+  // Bash 명령 → 단계 매핑
+  if (raw.tool === 'bash') {
+    if (/create-next-app/.test(raw.input)) return { stage: 'setup', label: '프로젝트 초기화 중', emoji: '⚙️' };
+    if (/npm install/.test(raw.input))     return { stage: 'setup', label: '필수 라이브러리 설치 중', emoji: '📦' };
+    if (/npm run build/.test(raw.input))   return { stage: 'verify', label: '빌드 검증 중', emoji: '🏗' };
+    if (/^ls |^cat |^mkdir/.test(raw.input)) return null; // 내부 작업, 사용자 안 보임
+  }
+  
+  // Write → 페이지 한국어 매핑
+  if (raw.tool === 'write') {
+    const path = raw.input.path;
+    if (path.includes('app/page.tsx'))           return { stage: 'pages', label: '🏠 홈 페이지 디자인 중', emoji: '🏠' };
+    if (path.includes('dashboard'))              return { stage: 'pages', label: '📊 대시보드 만드는 중', emoji: '📊' };
+    if (path.includes('medications'))            return { stage: 'pages', label: '💊 복약 관리 페이지', emoji: '💊' };
+    if (path.includes('health-metrics'))         return { stage: 'pages', label: '📈 건강 지표 페이지', emoji: '📈' };
+    if (path.includes('appointments'))           return { stage: 'pages', label: '📅 예약 페이지', emoji: '📅' };
+    if (path.includes('components/ui/'))         return { stage: 'design', label: '🎨 디자인 컴포넌트', emoji: '🎨' };
+    if (path.includes('components/layout/'))     return { stage: 'design', label: '🧩 레이아웃 만들기', emoji: '🧩' };
+    if (path.includes('lib/'))                   return null; // 내부 (mock-data, types 등)
+  }
+  
+  // Supabase / Deploy
+  if (raw.tool === 'provision_supabase') return { stage: 'database', label: '🔌 데이터베이스 자동 생성 중', emoji: '🔌' };
+  if (raw.tool === 'deploy_to_subdomain') return { stage: 'deploy', label: '🚀 서버에 배포 중', emoji: '🚀' };
+  
+  // AskUser
+  if (raw.tool === 'ask_user') return { stage: 'intent', label: '💭 답지 확인 중', emoji: '💭' };
+  
+  // Read/Glob/Grep — 사용자 안 보임 (내부)
+  return null;
+}
+```
+
+**Step G2**: SSE 이벤트 스트림 변환
+```typescript
+// agent-builder.service.ts에서:
+// raw tool_call 발생 → translate() → 사용자에게는 변환된 이벤트만 emit
+// raw 이벤트는 별도 'dev_log' 채널로 (개발자 모드용)
+
+eventStream.next({ type: 'foundry_progress', stage, label, emoji, percent });
+eventStream.next({ type: 'dev_log', raw }); // 옵션
+```
+
+**Step G3**: FoundryProgress 컴포넌트
+```tsx
+// web/src/app/builder/agent/components/FoundryProgress.tsx
+
+<div className="foundry-progress">
+  <div className="header">
+    🚀 메디트래커 만들기 — Foundry AI 작업 중
+    <ProgressBar percent={overallProgress} />
+    <span>{elapsed} 경과</span>
+  </div>
+  
+  <div className="stages-timeline">
+    {STAGES.map(s => (
+      <StageItem 
+        key={s.id} 
+        stage={s} 
+        status={s.id === currentStage ? 'active' : (completedStages.includes(s.id) ? 'done' : 'pending')}
+        currentTask={s.id === currentStage ? currentLabel : null}
+      />
+    ))}
+  </div>
+  
+  <details className="dev-mode">
+    <summary>▼ Foundry AI 작업 로그 (개발자 모드)</summary>
+    <RawToolCalls events={devLogs} />
+  </details>
+</div>
+```
+
+**Step G4**: 기존 ToolCallBlock 제거/숨김
+- AgentChat에서 `tool_call` 이벤트 직접 표시 X
+- `foundry_progress` 이벤트만 표시
+- `dev_log`는 details 안에서만
+
+**Step G5**: 어휘 매핑표 (intent-patterns.md에 추가)
+| 클로드/개발자 | Foundry 어휘 |
+|---|---|
+| Bash mkdir | (안 보임) |
+| Bash npx create-next-app | ⚙️ 프로젝트 초기화 |
+| Bash npm install | 📦 라이브러리 설치 |
+| Bash npm run build | 🏗 빌드 검증 |
+| Bash ls/cat | (안 보임) |
+| Write app/page.tsx | 🏠 홈 페이지 디자인 |
+| Write app/dashboard | 📊 대시보드 만들기 |
+| Write app/medications | 💊 복약 관리 페이지 |
+| Write components/ui | 🎨 디자인 컴포넌트 |
+| Write components/layout | 🧩 레이아웃 |
+| Write lib/* | (안 보임) |
+| Read/Glob/Grep | (안 보임) |
+| provision_supabase | 🔌 데이터베이스 연결 |
+| deploy_to_subdomain | 🚀 서버 배포 |
+| ask_user | 💭 답지 확인 |
+
+**Step G6**: AGENTS.md / CLAUDE.md 같은 파일도 안 보이게
+- Bash output에서 "AGENTS.md", "CLAUDE.md" 필터링
+- 또는 `ls` 명령 자체를 사용자에게 안 보임
+
+#### 검증 (Day 4.5 + 4.6 게이트)
+
+사장님이 메디트래커 동일 답지로 재실행 → 다음 모두 충족:
+1. ✅ 작동하는 URL 받음 (https://meditacker-xxx.foundry.ai.kr)
+2. ✅ Supabase 연결 OK (회원가입/로그인 작동)
+3. ✅ UI에 "Bash" / "Write" / "AGENTS.md" / `ls /workspace` 등 0건
+4. ✅ "Foundry AI 작업 중" 단계별 진행 표시
+5. ✅ Agent가 추가 질문 0회 (답지 후 끝까지 자동)
+
+---
+
 ### Day 5: E2E + 배포 + 안정화
 
 **Step E1**: 시나리오 5개 테스트 (각 사장님이 직접)
