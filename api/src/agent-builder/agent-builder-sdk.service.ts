@@ -188,6 +188,11 @@ export class AgentBuilderSdkService {
           cwd,
           maxTurns: AGENT_MAX_ITERATIONS,
           ...(claudeBinaryPath ? { pathToClaudeCodeExecutable: claudeBinaryPath } : {}),
+          // Node process.env 를 child (claude binary) 에 명시적 전달
+          // - PM2 환경에서 SDK 기본 env 상속이 ANTHROPIC_API_KEY 를 누락하는 현상 해결
+          //   (2026-04-20 실측: pm2 /proc/PID/environ 에는 키 없지만 runtime process.env 에는 있음)
+          // - 명시적 전달로 확실하게 API 키 + .env 전체 상속
+          env: process.env as Record<string, string | undefined>,
           allowedTools: [
             'Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep',
             ...FOUNDRY_MCP_TOOL_NAMES,
