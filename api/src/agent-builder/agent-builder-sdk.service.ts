@@ -198,10 +198,14 @@ export class AgentBuilderSdkService {
             ...FOUNDRY_MCP_TOOL_NAMES,
           ],
           mcpServers: { foundry: foundryMcp },
-          permissionMode: 'bypassPermissions',
-          // SDK 타입 정의 (sdk.d.ts:L1417) 공식 명시:
-          //   Must be set to 'true' when using permissionMode: 'bypassPermissions'
-          allowDangerouslySkipPermissions: true,
+          // permissionMode: 'dontAsk' — root 환경 대응 + allowedTools 화이트리스트 강제
+          //   ① root/sudo 환경은 bypassPermissions 거부 (GitHub Issue #9184, 공식 보안 설계)
+          //   ② bypassPermissions 는 allowedTools 를 무시함 (Issue #12232) — 의도한
+          //      화이트리스트 제한이 원래부터 무효였음
+          //   ③ dontAsk: allowedTools 에 pre-approved 안 되면 거부, canUseTool 호출 없음
+          //   → 위 3개 allowedTools 에 필요 도구(Read/Write/Edit/Bash/Glob/Grep + MCP 4개)
+          //     전부 등록돼 있으므로 기능적 동등 + 보안 강화 보너스
+          permissionMode: 'dontAsk',
           // 수정 모드: 이전 SDK 세션 UUID 로 이어받기 (대화 이력 자동 복원)
           //   → V2 5번 디버깅한 agentMessages sanitize/cycle-truncate 전체 대체
           ...(resumeSessionId ? { resume: resumeSessionId } : {}),
