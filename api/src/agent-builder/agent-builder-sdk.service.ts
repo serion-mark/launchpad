@@ -39,6 +39,7 @@ import { ProjectPersistenceService } from './project-persistence.service';
 import { AgentDeployService } from './agent-deploy.service';
 import { SessionStoreService } from './session-store.service';
 import { AnswerParserService } from './answer-parser.service';
+import { EventTranslatorService } from './event-translator.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { MemoryService } from '../ai/memory.service';
 import { PrismaService } from '../prisma.service';
@@ -77,10 +78,23 @@ export class AgentBuilderSdkService {
     private readonly supabase: SupabaseService,
     private readonly sessionStore: SessionStoreService,
     private readonly answerParser: AnswerParserService,
+    private readonly translator: EventTranslatorService,
     @Inject(forwardRef(() => MemoryService))
     private readonly memory: MemoryService,
     private readonly prisma: PrismaService,
   ) {}
+
+  // 이슈 #4 (Day 6): 기존 수제 루프의 calcProgress 와 동일. stage → percent 추정치.
+  //   tool_use 마다 foundry_progress 에 percent 넣어서 프론트 프로그레스 바 업데이트.
+  private static readonly STAGE_PERCENT: Record<string, number> = {
+    intent: 10,
+    setup: 25,
+    design: 40,
+    pages: 60,
+    verify: 80,
+    database: 90,
+    deploy: 95,
+  };
 
   async runWithSDK(input: AgentSdkInput): Promise<void> {
     const { userId, prompt, onEvent } = input;
@@ -261,6 +275,9 @@ export class AgentBuilderSdkService {
           cacheReadRef,
           cacheCreateRef,
           onCostLog: (line) => this.logger.log(line),
+          // 이슈 #4: tool_use → foundry_progress 변환 연결
+          translate: (name, input) => this.translator.translate(name, input),
+          stagePercent: AgentBuilderSdkService.STAGE_PERCENT,
         });
         for (const ev of evs) {
           // Day 1 은 start 를 sandbox sessionId 로 이미 방출했으므로 SDK 의 start 는 스킵

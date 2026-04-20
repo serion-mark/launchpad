@@ -10,7 +10,15 @@
 //   - Day 2 에서 foundry_progress(translator) 와 card_request(AskUser) 추가 예정
 
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
-import type { AgentStreamEvent } from './stream-event.types';
+import type { AgentStreamEvent, FoundryStageId } from './stream-event.types';
+
+// 이슈 #4 (Day 6): foundry_progress 이벤트를 SDK 경로에도 방출하기 위한 translate 콜백.
+//   EventTranslatorService.translate() 의 반환 타입을 순수 함수 계약으로 좁힌 것.
+//   service 가 this.translator.translate 를 바인딩해서 전달.
+export type TranslateToolFn = (
+  toolName: string,
+  input: unknown,
+) => { stage: FoundryStageId; label: string; emoji: string } | null;
 
 export type AdapterContext = {
   start: number;                      // 세션 시작 ms
@@ -20,6 +28,11 @@ export type AdapterContext = {
   cacheReadRef?: { value: number };   // Day 5: 세션 전체 cache_read_input_tokens 누적
   cacheCreateRef?: { value: number }; // Day 5: 세션 전체 cache_creation_input_tokens 누적
   onCostLog?: (line: string) => void; // [cost] 서버 로그 기록 (optional)
+  // 이슈 #4 (Day 6): tool_use → foundry_progress 변환용 콜백
+  //   undefined 면 foundry_progress 방출 안 함 (Day 1 호환)
+  translate?: TranslateToolFn;
+  //   stage 별 percent (calcProgress 결과) — service 가 미리 계산해서 map 으로 전달
+  stagePercent?: Record<string, number>;
 };
 
 export function adaptSDKMessage(
@@ -63,6 +76,22 @@ export function adaptSDKMessage(
             name: String(block.name ?? ''),
             input: block.input,
           });
+          // 이슈 #4 (Day 6): tool_use → foundry_progress 방출
+          //   기존 수제 루프 (agent-builder.service.ts:407~417) 와 동일 로직
+          //   → 프론트 단계 UI (의도/셋업/디자인/페이지/빌드/DB/배포) 가 하이라이트됨
+          if (ctx.translate) {
+            const translated = ctx.translate(String(block.name ?? ''), block.input);
+            if (translated) {
+              events.push({
+                type: 'foundry_progress',
+                stage: translated.stage,
+                label: translated.label,
+                emoji: translated.emoji,
+                percent: ctx.stagePercent?.[translated.stage] ?? 50,
+                elapsedMs: Date.now() - ctx.start,
+              });
+            }
+          }
         }
       }
     }
