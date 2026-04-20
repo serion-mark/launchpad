@@ -274,21 +274,22 @@ export class AgentBuilderSdkService {
       // ── Day 6 hotfix: 세션 종료 직후 persistence — sandbox → DB 저장 ──
       //   deploy_to_subdomain 도구가 이미 호출됐다면 generatedCode 중복 저장이지만
       //   같은 내용이므로 무해. 도구 안 쓴 경우 여기서만 DB 반영.
+      //
+      //   Day 6 bugfix 2: 조건은 editingProjectId 가 아니라 projectId (startProject 결과
+      //   포함) 으로 분기해야 함. 이전 버전은 신규 세션에서 persist() 가 startProject
+      //   가 만든 draft 를 무시하고 새 projectId + 새 subdomain 을 또 생성 →
+      //   deploy 는 A 에 하고 DB 는 B 에 저장되는 불일치 유발.
       let persistedFileCount: number | undefined;
       if (projectId && hasUser) {
         try {
-          const persistResult = editingProjectId
-            ? await this.persistence.finishProject({
-                userId: String(userId),
-                cwd,
-                userPrompt: prompt,
-                projectId,
-              })
-            : await this.persistence.persist({
-                userId: String(userId),
-                cwd,
-                userPrompt: prompt,
-              });
+          // startProject 로 확보한 projectId 가 있으면 무조건 finishProject(projectId)
+          // persist() 는 startProject 없이 시작한 경우 전용 (현재 경로엔 도달 안 함)
+          const persistResult = await this.persistence.finishProject({
+            userId: String(userId),
+            cwd,
+            userPrompt: prompt,
+            projectId,
+          });
           if (persistResult.ok) {
             persistedFileCount = persistResult.fileCount;
             // 신규 persist() 가 새 projectId 만들어낸 경우 갱신
