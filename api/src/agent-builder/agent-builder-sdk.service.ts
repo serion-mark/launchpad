@@ -43,6 +43,11 @@ import { AnswerParserService } from './answer-parser.service';
 import { EventTranslatorService } from './event-translator.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { MemoryService } from '../ai/memory.service';
+import {
+  CreditService,
+  CREDIT_COSTS,
+  classifyModifyCost,
+} from '../credit/credit.service';
 import { PrismaService } from '../prisma.service';
 import {
   AgentStreamEvent,
@@ -64,6 +69,8 @@ export type AgentSdkInput = {
   userId: string | number;
   prompt: string;
   projectId?: string;                       // Day 4 에서 resume 기반 재구성 (Day 1 은 무시)
+  customSubdomain?: string;                  // Phase 0 (2026-04-22): 사용자 지정 서브도메인
+                                             //   (사전 확인 모달에서 중복 확인 통과한 값)
   onEvent: (event: AgentStreamEvent) => void;
 };
 
@@ -82,6 +89,7 @@ export class AgentBuilderSdkService {
     private readonly translator: EventTranslatorService,
     @Inject(forwardRef(() => MemoryService))
     private readonly memory: MemoryService,
+    private readonly creditService: CreditService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -103,6 +111,76 @@ export class AgentBuilderSdkService {
     const editingProjectId = input.projectId;
     const hasUser = !!userId && userId !== 'anon';
 
+    // ── Phase 0 (2026-04-22): 크레딧 사전 차감 ────────────────
+    //   기존 /builder (수제 루프) 와 동일 정책 — 세션 시작 직전 1회 차감, 환불 없음.
+    //     - 비로그인(anon): 차감 없이 계속 (기존 정책 준수)
+    //     - 신규 세션 + freeTrialUsed=false → free_trial (0cr, 1회)
+    //     - 신규 세션 + freeTrialUsed=true  → app_generate (6,800cr)
+    //     - 수정 세션 → classifyModifyCost(prompt) → simple 500 / normal 1000 / complex 1500
+    //   잔액 부족 시 ForbiddenException 발생 → controller catch → HTTP 402
+    let creditsDeducted = 0;
+    let creditAction: string = 'none';
+    if (hasUser) {
+      try {
+        const balance = await this.creditService.getBalance(String(userId));
+        if (!editingProjectId) {
+          // 신규 세션
+          if (!balance.freeTrialUsed) {
+            await this.creditService.deduct(String(userId), {
+              action: 'free_trial',
+              projectId: editingProjectId,
+              taskType: 'agent_generate',
+              modelTier: 'sdk',
+              description: `Agent Mode 앱 생성 (맛보기 무료 1회) — ${prompt.slice(0, 50)}`,
+            });
+            creditAction = 'free_trial';
+            creditsDeducted = 0;
+          } else {
+            await this.creditService.deduct(String(userId), {
+              action: 'app_generate',
+              projectId: editingProjectId,
+              taskType: 'agent_generate',
+              modelTier: 'sdk',
+              description: `Agent Mode 앱 생성 — ${prompt.slice(0, 50)}`,
+            });
+            creditAction = 'app_generate';
+            creditsDeducted = CREDIT_COSTS.app_generate;
+          }
+        } else {
+          // 수정 세션 — 복잡도 분류
+          const cost = classifyModifyCost(prompt);
+          const action =
+            cost === CREDIT_COSTS.ai_modify_complex
+              ? 'ai_modify_complex'
+              : cost === CREDIT_COSTS.ai_modify_normal
+                ? 'ai_modify_normal'
+                : 'ai_modify_simple';
+          await this.creditService.deduct(String(userId), {
+            action: action as any,
+            projectId: editingProjectId,
+            taskType: 'agent_modify',
+            modelTier: 'sdk',
+            description: `Agent Mode 수정 (${action}) — ${prompt.slice(0, 50)}`,
+          });
+          creditAction = action;
+          creditsDeducted = cost;
+        }
+        this.logger.log(
+          `[credit] userId=${userId} action=${creditAction} deducted=${creditsDeducted}cr`,
+        );
+      } catch (err: any) {
+        // 잔액 부족 등 과금 실패는 전체 중단
+        const code = err?.response?.code ?? err?.code;
+        if (code === 'INSUFFICIENT_CREDITS') {
+          this.logger.warn(
+            `[credit] 잔액 부족 — userId=${userId} required=${err?.response?.required} current=${err?.response?.current}`,
+          );
+        }
+        // ForbiddenException 그대로 throw → controller 가 402/403 처리
+        throw err;
+      }
+    }
+
     // ── Phase 1: projectId 먼저 확정 (sandbox cwd 를 projectId 기반으로 고정하기 위해) ──
     //   (기존 구조의 문제: sandbox.createSession 이 UUID cwd 를 매번 만들어 SDK
     //    session 저장소 경로(`~/.claude/projects/<cwd-slug>/*.jsonl`) 가
@@ -115,13 +193,14 @@ export class AgentBuilderSdkService {
       const startResult = await this.persistence.startProject(
         String(userId),
         prompt,
+        input.customSubdomain,  // Phase 0: 사용자 지정 서브도메인
       );
       if (startResult.ok) {
         projectId = startResult.projectId;
         projectName = startResult.projectName;
         subdomain = startResult.subdomain;
         this.logger.log(
-          `[agent-sdk] project draft ${projectId} (name=${projectName})`,
+          `[agent-sdk] project draft ${projectId} (name=${projectName}, subdomain=${subdomain ?? 'auto'})`,
         );
       }
     }
@@ -485,7 +564,8 @@ export class AgentBuilderSdkService {
           `isEdit=${!!editingProjectId} ` +
           `fileCount=${persistedFileCount ?? 0} ` +
           `via=SDK ` +
-          `cache_read=${cacheRead} cache_create=${cacheCreate} hit_ratio=${hitRatio.toFixed(1)}%`,
+          `cache_read=${cacheRead} cache_create=${cacheCreate} hit_ratio=${hitRatio.toFixed(1)}% ` +
+          `creditAction=${creditAction} creditsDeducted=${creditsDeducted}`,
       );
     } catch (err: any) {
       this.logger.error(`[agent-sdk] 실패: ${err?.message}`, err?.stack);

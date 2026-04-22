@@ -136,7 +136,14 @@ export class ProjectPersistenceService {
 
   // Agent 작업 시작 시점에 projects 껍데기 먼저 생성 (status='draft')
   // 이유: 도구(provision_supabase / deploy_to_subdomain)가 projectId 필요
-  async startProject(userId: string, userPrompt: string): Promise<ProjectPersistenceResult> {
+  //
+  // Phase 0 (2026-04-22): customSubdomain 전달 — 사용자가 사전 확인 모달에서
+  //   입력 + 중복 체크 통과한 값. projectService.create 가 2차 검증(중복 시 throw).
+  async startProject(
+    userId: string,
+    userPrompt: string,
+    customSubdomain?: string,
+  ): Promise<ProjectPersistenceResult> {
     if (!userId || userId === 'anon') {
       return { ok: false, reason: '비로그인 사용자 — 프로젝트 저장 생략' };
     }
@@ -147,6 +154,7 @@ export class ProjectPersistenceService {
         name: tempName,
         description,
         template: 'agent-mode',
+        ...(customSubdomain ? { subdomain: customSubdomain } : {}),
       });
       this.logger.log(`[startProject] ${project.id} "${tempName}" (draft)`);
       return {

@@ -14,6 +14,11 @@ import { DeployService } from '../project/deploy.service';
 import { AgentDeployService } from './agent-deploy.service';
 import { EventTranslatorService, STAGES } from './event-translator.service';
 import {
+  CreditService,
+  CREDIT_COSTS,
+  classifyModifyCost,
+} from '../credit/credit.service';
+import {
   AgentStreamEvent,
   AGENT_MAX_ITERATIONS,
   CardRequest,
@@ -26,6 +31,7 @@ export type AgentBuilderInput = {
   prompt: string;
   // 수정 모드: 기존 프로젝트 id — 있으면 sandbox 에 generatedCode 복원 + 새 draft 생성 스킵
   projectId?: string;
+  customSubdomain?: string;  // Phase 0 (2026-04-22): 사용자 지정 서브도메인
   onEvent: (event: AgentStreamEvent) => void;
 };
 
@@ -45,6 +51,7 @@ export class AgentBuilderService {
     private readonly deploy: DeployService,
     private readonly translator: EventTranslatorService,
     private readonly agentDeploy: AgentDeployService,
+    private readonly creditService: CreditService,
     private readonly prisma: PrismaService,
   ) {
     this.anthropic = new Anthropic({
@@ -238,6 +245,53 @@ export class AgentBuilderService {
   async run(input: AgentBuilderInput): Promise<void> {
     const { userId, prompt, projectId: editingProjectId, onEvent } = input;
     const start = Date.now();
+    const hasUser = !!userId && userId !== 'anon';
+
+    // ── Phase 0 (2026-04-22): 크레딧 사전 차감 (SDK 경로와 동일 정책) ────
+    //   AGENT_SDK_ENABLED=false 로 롤백 시에도 과금 우회 방지 위해 수제 루프에도 훅.
+    //     신규 + freeTrialUsed=false → free_trial
+    //     신규 + freeTrialUsed=true  → app_generate (6,800cr)
+    //     수정 → classifyModifyCost (500/1000/1500cr)
+    if (hasUser) {
+      try {
+        const balance = await this.creditService.getBalance(String(userId));
+        if (!editingProjectId) {
+          if (!balance.freeTrialUsed) {
+            await this.creditService.deduct(String(userId), {
+              action: 'free_trial',
+              taskType: 'agent_generate',
+              modelTier: 'manual',
+              description: `Agent Mode(수제) 앱 생성 (맛보기 무료) — ${prompt.slice(0, 50)}`,
+            });
+          } else {
+            await this.creditService.deduct(String(userId), {
+              action: 'app_generate',
+              taskType: 'agent_generate',
+              modelTier: 'manual',
+              description: `Agent Mode(수제) 앱 생성 — ${prompt.slice(0, 50)}`,
+            });
+          }
+        } else {
+          const cost = classifyModifyCost(prompt);
+          const action =
+            cost === CREDIT_COSTS.ai_modify_complex
+              ? 'ai_modify_complex'
+              : cost === CREDIT_COSTS.ai_modify_normal
+                ? 'ai_modify_normal'
+                : 'ai_modify_simple';
+          await this.creditService.deduct(String(userId), {
+            action: action as any,
+            projectId: editingProjectId,
+            taskType: 'agent_modify',
+            modelTier: 'manual',
+            description: `Agent Mode(수제) 수정 (${action}) — ${prompt.slice(0, 50)}`,
+          });
+        }
+      } catch (err: any) {
+        // 잔액 부족 등 → controller 가 402 응답
+        throw err;
+      }
+    }
 
     // 1. 샌드박스 세션 생성
     const { sessionId, cwd } = await this.sandbox.createSession(userId);
@@ -286,7 +340,7 @@ export class AgentBuilderService {
       projectName = restoredProjectName;
       this.logger.log(`[agent-builder] 수정 모드 — 기존 project ${projectId} 재사용`);
     } else {
-      const startResult = await this.persistence.startProject(String(userId), prompt);
+      const startResult = await this.persistence.startProject(String(userId), prompt, input.customSubdomain);
       projectId = startResult.ok ? startResult.projectId : undefined;
       projectName = startResult.ok ? startResult.projectName : undefined;
       subdomain = startResult.ok ? startResult.subdomain : undefined;

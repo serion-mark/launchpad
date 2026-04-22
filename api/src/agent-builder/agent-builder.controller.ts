@@ -34,7 +34,7 @@ export class AgentBuilderController {
   agentBuild(
     @Req() req: any,
     @Res() res: Response,
-    @Body() body: { prompt: string; projectId?: string },
+    @Body() body: { prompt: string; projectId?: string; customSubdomain?: string },
   ) {
     if (process.env.AGENT_MODE_ENABLED !== 'true') {
       throw new HttpException(
@@ -49,6 +49,16 @@ export class AgentBuilderController {
       typeof body.projectId === 'string' && body.projectId.trim().length > 0
         ? body.projectId.trim()
         : undefined;
+    const customSubdomain =
+      typeof body.customSubdomain === 'string' && body.customSubdomain.trim().length > 0
+        ? body.customSubdomain.trim()
+        : undefined;
+
+    const userId = req.user?.userId ?? 'anon';
+
+    // Phase 0 (2026-04-22): 크레딧/서브도메인 사전 오류는 service 내부에서 throw
+    //   → .catch 블록이 error 이벤트로 전달 (프론트가 error.message 로 분기)
+    //   프론트는 fetch 전에 모달에서 GET /credits/balance 로 잔액 UX 표시 (이중 안전)
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -56,7 +66,6 @@ export class AgentBuilderController {
     res.setHeader('X-Accel-Buffering', 'no');
     res.flushHeaders();
 
-    const userId = req.user?.userId ?? 'anon';
     let closed = false;
 
     const write = (event: AgentStreamEvent) => {
@@ -73,7 +82,13 @@ export class AgentBuilderController {
     });
 
     this.agentBuilder
-      .run({ userId, prompt: body.prompt, projectId: editingProjectId, onEvent: write })
+      .run({
+        userId,
+        prompt: body.prompt,
+        projectId: editingProjectId,
+        customSubdomain,
+        onEvent: write,
+      })
       .catch((err) => {
         write({
           type: 'error',
@@ -93,7 +108,7 @@ export class AgentBuilderController {
   agentBuildSdk(
     @Req() req: any,
     @Res() res: Response,
-    @Body() body: { prompt: string; projectId?: string },
+    @Body() body: { prompt: string; projectId?: string; customSubdomain?: string },
   ) {
     if (process.env.AGENT_SDK_ENABLED !== 'true') {
       throw new HttpException(
@@ -107,6 +122,10 @@ export class AgentBuilderController {
     const editingProjectId =
       typeof body.projectId === 'string' && body.projectId.trim().length > 0
         ? body.projectId.trim()
+        : undefined;
+    const customSubdomain =
+      typeof body.customSubdomain === 'string' && body.customSubdomain.trim().length > 0
+        ? body.customSubdomain.trim()
         : undefined;
 
     res.setHeader('Content-Type', 'text/event-stream');
@@ -132,7 +151,13 @@ export class AgentBuilderController {
     });
 
     this.agentBuilderSdk
-      .runWithSDK({ userId, prompt: body.prompt, projectId: editingProjectId, onEvent: write })
+      .runWithSDK({
+        userId,
+        prompt: body.prompt,
+        projectId: editingProjectId,
+        customSubdomain,
+        onEvent: write,
+      })
       .catch((err) => {
         write({
           type: 'error',

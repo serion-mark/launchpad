@@ -11,6 +11,7 @@ import { authFetch, getUser } from '@/lib/api';
 import { useAgentStream } from './useAgentStream';
 import AgentChat from './components/AgentChat';
 import FoundryPreviewPane from './components/FoundryPreviewPane';
+import AgentCreditConfirmModal from './components/AgentCreditConfirmModal';
 
 function BuilderAgentContent() {
   const router = useRouter();
@@ -20,6 +21,14 @@ function BuilderAgentContent() {
   const { state, start, submitAnswer, cancel, resumeProject } = useAgentStream();
   const [editingProject, setEditingProject] = useState<{ name: string; subdomain?: string | null; template: string } | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+
+  // Phase 0 (2026-04-22): 과금 + 서브도메인 사전 확인 모달
+  const [pendingStart, setPendingStart] = useState<{
+    wrappedPrompt: string;
+    displayText: string;
+    projectId: string | null;
+    isEdit: boolean;
+  } | null>(null);
 
   // 비로그인 가드 — 토큰 없으면 /login 으로 리다이렉트 (redirect 쿼리 포함)
   // 포비는 프로젝트 저장/배포에 userId 가 필요해서 비로그인 사용 불가
@@ -59,26 +68,38 @@ function BuilderAgentContent() {
   //
   // 수정 모드 판정: URL ?projectId 또는 state.projectId (방금 생성 완료한 세션) 둘 중 하나라도 있으면.
   //   → 앱 생성 완료 후 같은 세션에서 이어서 대화해도 기존 앱 맥락 유지됨.
+  // Phase 0 (2026-04-22): submit → 모달 → 확인 후 실제 start() 호출 흐름
   const handleStart = (userText: string) => {
     const effectiveProjectId = projectId ?? state.projectId ?? null;
     const effectiveProjectName = editingProject?.name ?? state.projectName ?? null;
     const effectiveSubdomain = editingProject?.subdomain ?? state.subdomain ?? null;
     const isEdit = !!(effectiveProjectId && effectiveProjectName);
 
-    if (isEdit) {
-      const wrapped =
-        `[기존 프로젝트 "${effectiveProjectName}" 작업 중]\n` +
+    const wrappedPrompt = isEdit
+      ? `[기존 프로젝트 "${effectiveProjectName}" 작업 중]\n` +
         `- projectId: ${effectiveProjectId}\n` +
         (effectiveSubdomain ? `- subdomain: ${effectiveSubdomain}\n` : '') +
         `- 사용자 발화: ${userText}\n\n` +
         `이 앱은 이미 배포된 상태입니다.\n` +
         `- 질문/추천/상의 요청이면 → 자연어로 답변 (기존 코드 Read 해서 맥락 기반).\n` +
         `- 수정/추가 요청이면 → 요청된 부분만 수정/추가 후 deploy_to_subdomain 으로 재배포.\n` +
-        `- 맥락은 네가 판단. 처음부터 만들지는 말 것.`;
-      start(wrapped, userText, effectiveProjectId);
-    } else {
-      start(userText);
-    }
+        `- 맥락은 네가 판단. 처음부터 만들지는 말 것.`
+      : userText;
+
+    setPendingStart({
+      wrappedPrompt,
+      displayText: userText,
+      projectId: effectiveProjectId,
+      isEdit,
+    });
+  };
+
+  // 모달 "시작" 확인 시 실제 fetch 트리거
+  const handleConfirmStart = (customSubdomain?: string) => {
+    if (!pendingStart) return;
+    const { wrappedPrompt, displayText, projectId: pid, isEdit } = pendingStart;
+    setPendingStart(null);
+    start(wrappedPrompt, isEdit ? displayText : undefined, pid ?? undefined, customSubdomain);
   };
 
   // 비로그인 사용자: 리다이렉트 진행 중 빈 화면 대신 간단한 로딩 표시
@@ -195,6 +216,15 @@ function BuilderAgentContent() {
           />
         </div>
       </main>
+
+      {/* Phase 0 (2026-04-22): 크레딧 + 서브도메인 사전 확인 모달 */}
+      <AgentCreditConfirmModal
+        isOpen={!!pendingStart}
+        isEditMode={!!pendingStart?.isEdit}
+        prompt={pendingStart?.displayText ?? ''}
+        onConfirm={handleConfirmStart}
+        onCancel={() => setPendingStart(null)}
+      />
     </div>
   );
 }

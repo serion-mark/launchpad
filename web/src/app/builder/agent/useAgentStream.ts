@@ -277,7 +277,12 @@ export function useAgentStream() {
   // displayText 생략 시 prompt 그대로 표시 (기존 호환)
   // projectId = 수정 모드일 때 전달 → 백엔드가 sandbox 에 기존 generatedCode 를 복원
   const start = useCallback(
-    async (prompt: string, displayText?: string, projectId?: string) => {
+    async (
+      prompt: string,
+      displayText?: string,
+      projectId?: string,
+      customSubdomain?: string,   // Phase 0 (2026-04-22): 사용자 지정 서브도메인
+    ) => {
       if (state.status === 'streaming' || state.status === 'awaiting_answer') return;
 
       setState({
@@ -340,7 +345,11 @@ export function useAgentStream() {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ prompt, ...(projectId ? { projectId } : {}) }),
+          body: JSON.stringify({
+            prompt,
+            ...(projectId ? { projectId } : {}),
+            ...(customSubdomain ? { customSubdomain } : {}),
+          }),
           signal: controller.signal,
         });
       } catch (err: any) {
