@@ -41,6 +41,7 @@ import { AgentDeployService } from './agent-deploy.service';
 import { SessionStoreService } from './session-store.service';
 import { AnswerParserService } from './answer-parser.service';
 import { EventTranslatorService } from './event-translator.service';
+import { AttachmentService } from './attachment.service';
 import { SupabaseService } from '../supabase/supabase.service';
 import { MemoryService } from '../ai/memory.service';
 import {
@@ -90,6 +91,7 @@ export class AgentBuilderSdkService {
     private readonly sessionStore: SessionStoreService,
     private readonly answerParser: AnswerParserService,
     private readonly translator: EventTranslatorService,
+    private readonly attachment: AttachmentService,
     @Inject(forwardRef(() => MemoryService))
     private readonly memory: MemoryService,
     private readonly creditService: CreditService,
@@ -588,6 +590,8 @@ export class AgentBuilderSdkService {
     } finally {
       // AskUser 대기 중인 pending 을 정리 (세션 종료 시 Promise leak 방지)
       this.sessionStore.cancelSession(sessionId, 'runWithSDK 종료');
+      // Phase I (2026-04-22): 첨부 이미지 임시 파일 정리 (세션 종료 시)
+      this.attachment.cleanupSession(sessionId).catch(() => {});
 
       // Day 6 hotfix: 쓰레기 draft 자동 정리 (기존 agent-builder.service.ts 와 동일 로직)
       //   상의 모드로 파일 한 개도 안 만들고 끝난 경우 startProject 로 만든 draft 삭제

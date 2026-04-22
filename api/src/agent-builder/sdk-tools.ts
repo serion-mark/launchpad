@@ -160,17 +160,31 @@ export function createFoundryMcpServer(
       ctx.onEvent({ type: 'card_request', card });
 
       try {
-        const userRaw = await deps.sessionStore.waitForAnswer(
+        // Phase I (2026-04-22): waitForAnswer 반환 타입이 AnswerPayload 로 변경됨
+        //   { answer: string, attachments: string[] (이미지 절대 경로) }
+        const payload = await deps.sessionStore.waitForAnswer(
           ctx.sandboxSessionId,
           pendingId,
           card,
         );
-        const parsed = deps.answerParser.parse(userRaw, card);
-        const summary = deps.answerParser.summarize(parsed);
+        const parsed = deps.answerParser.parse(payload.answer, card);
+        let summary = deps.answerParser.summarize(parsed);
+
+        // 첨부 이미지가 있으면 Agent 에게 Read 로 열람하도록 명시
+        //   Claude vision 이 Read 도구로 이미지 파일 읽으면 자동 해석 — 디자인/레이아웃/컬러 추출
+        if (payload.attachments.length > 0) {
+          summary +=
+            `\n\n📎 사용자 참고 자료 (${payload.attachments.length}장)\n` +
+            payload.attachments
+              .map((p, i) => `  ${i + 1}. Read("${p}") — Claude vision 으로 이미지 내용 확인 후 반드시 디자인/레이아웃 반영`)
+              .join('\n') +
+            `\n\n⚠️ 위 이미지는 사용자가 원하는 디자인 레퍼런스입니다. 반드시 Read 도구로 열람 후 컬러/레이아웃/톤을 실제 코드에 반영하세요. 무시 금지.`;
+        }
+
         ctx.onEvent({
           type: 'card_answered',
           pendingId,
-          answerSummary: parsed.message,
+          answerSummary: parsed.message + (payload.attachments.length > 0 ? ` · 📎 ${payload.attachments.length}장 첨부` : ''),
         });
         return {
           content: [{ type: 'text' as const, text: summary }],

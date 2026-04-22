@@ -490,13 +490,22 @@ export class AgentBuilderService {
               let resultContent: string;
               let resultOk = true;
               try {
-                const userRaw = await this.sessionStore.waitForAnswer(sessionId, tu.id, card);
-                const parsed = this.parser.parse(userRaw, card);
+                // Phase I (2026-04-22): waitForAnswer 반환 타입 AnswerPayload
+                const payload = await this.sessionStore.waitForAnswer(sessionId, tu.id, card);
+                const parsed = this.parser.parse(payload.answer, card);
                 resultContent = this.parser.summarize(parsed);
+                if (payload.attachments.length > 0) {
+                  resultContent +=
+                    `\n\n📎 사용자 참고 자료 (${payload.attachments.length}장)\n` +
+                    payload.attachments
+                      .map((p, i) => `  ${i + 1}. Read("${p}") — Claude vision 으로 확인 후 디자인 반영 필수`)
+                      .join('\n') +
+                    `\n\n⚠️ 위 이미지는 레퍼런스 스크린샷입니다. 반드시 Read 로 열람 + 컬러/레이아웃/톤 반영. 무시 금지.`;
+                }
                 onEvent({
                   type: 'card_answered',
                   pendingId: tu.id,
-                  answerSummary: parsed.message,
+                  answerSummary: parsed.message + (payload.attachments.length > 0 ? ` · 📎 ${payload.attachments.length}장 첨부` : ''),
                 });
               } catch (err: any) {
                 resultContent = `[AskUser 실패] ${err?.message ?? String(err)}`;
