@@ -18,6 +18,9 @@ function BuilderAgentContent() {
   const pathname = usePathname();
   const params = useSearchParams();
   const projectId = params?.get('projectId') ?? null;
+  // Phase 4 (2026-04-22): AI 회의실에서 "포비에게 바로 맡기기" 버튼으로 진입 시
+  //   sessionStorage.meeting_context 를 자동으로 첫 prompt 로 주입
+  const fromMeeting = params?.get('fromMeeting') === '1';
   const { state, start, submitAnswer, cancel, resumeProject } = useAgentStream();
   const [editingProject, setEditingProject] = useState<{ name: string; subdomain?: string | null; template: string } | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -63,6 +66,32 @@ function BuilderAgentContent() {
     }
     setAuthChecked(true);
   }, [router, pathname, projectId]);
+
+  // Phase 4 (2026-04-22): meeting 에서 넘어왔으면 회의 보고서를 프롬프트로 자동 주입 (1회성)
+  const meetingAutoStartedRef = useRef(false);
+  useEffect(() => {
+    if (!authChecked || !fromMeeting || projectId || meetingAutoStartedRef.current) return;
+    if (typeof window === 'undefined') return;
+    const meetingContext = sessionStorage.getItem('meeting_context');
+    if (!meetingContext) return;
+    meetingAutoStartedRef.current = true;
+    // 사용자 표시용 간단 프롬프트 + LLM 전달용 상세 회의 컨텍스트 분리
+    const displayText = '🧠 AI 회의실 종합 보고서를 바탕으로 앱 만들어주세요';
+    const wrappedPrompt =
+      `[AI 회의실 종합 보고서 기반 앱 요청]\n\n` +
+      `아래 보고서 내용을 참고해 앱을 설계하고 만들어주세요.\n` +
+      `불명확한 부분은 답지 카드로 한 번에 질문해주세요.\n\n` +
+      `=== 회의 보고서 ===\n${meetingContext}\n==================`;
+    // 모달로 띄우기 (크레딧 + 서브도메인 확인)
+    setPendingStart({
+      wrappedPrompt,
+      displayText,
+      projectId: null,
+      isEdit: false,
+    });
+    // sessionStorage 는 사용 후 삭제 (새로고침 시 재호출 방지)
+    sessionStorage.removeItem('meeting_context');
+  }, [authChecked, fromMeeting, projectId]);
 
   useEffect(() => {
     if (!projectId || !authChecked) return;

@@ -349,6 +349,16 @@ export default function MeetingPage() {
     window.location.href = '/start';
   };
 
+  // Phase 4 (2026-04-22): 회의 종합 보고서를 바로 Agent Mode 로 넘기기
+  //   /start 질문지 건너뛰고 포비에게 직접 맡김. meeting_context 를 읽어 첫 prompt 로.
+  const goToAgent = () => {
+    const report = messages.find(m => m.phase === 'report');
+    if (report) {
+      sessionStorage.setItem('meeting_context', report.content);
+    }
+    window.location.href = '/builder/agent?fromMeeting=1';
+  };
+
   // ── 추가 채팅 ───────────────────────────────────────
 
   const getMeetingContext = () => messages.map(m => {
@@ -849,10 +859,18 @@ export default function MeetingPage() {
                     📥 보고서 복사
                   </button>
                   <button
-                    onClick={goToStart}
+                    onClick={goToAgent}
                     className="flex-1 rounded-xl bg-gradient-to-r from-[#3182f6] to-[#6366f1] py-3 text-sm font-bold text-white hover:brightness-110 transition-all"
+                    title="회의 결과를 포비에게 바로 전달 (질문지 건너뜀)"
                   >
-                    🚀 이걸로 앱 만들기
+                    🌗 포비에게 바로 맡기기
+                  </button>
+                  <button
+                    onClick={goToStart}
+                    className="flex-1 rounded-xl border border-[var(--border-primary)] py-3 text-sm font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-white transition-colors"
+                    title="질문지를 거쳐 세부 설정 후 생성"
+                  >
+                    🚀 질문지로 만들기
                   </button>
                   <button
                     onClick={() => { setPhase('idle'); setMessages([]); setChatMessages([]); }}
