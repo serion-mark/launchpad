@@ -1,7 +1,11 @@
 'use client';
 
 // 사이드 프리뷰 — 배포된 앱을 iframe 으로 옆에서 보면서 수정 요청
-// 배포 전: 포비 작업 중 플레이스홀더
+// 배포 전: 포비 작업 중 개발 과정 UI (Phase 2, 2026-04-22)
+//   · streaming + 도구 호출 有 : FoundryProgress (7단계 + 진행도) + 파일 카운트 + 경과 시간
+//   · streaming + 도구 호출 無 : 상담 모드 (무료) — 채팅만 진행 중 표시
+//   · awaiting_answer : 답지 카드 답변 안내
+//   · idle : 시작 안내
 // 배포 후: iframe + URL 바 + 📱/🖥 토글
 //
 // PC 모드: viewport simulator
@@ -10,6 +14,7 @@
 //   iframe 은 absolute positioning → 부모 flex 계산을 밀지 않음
 
 import { useEffect, useRef, useState } from 'react';
+import FoundryProgress, { type StageId } from './FoundryProgress';
 
 type DeviceMode = 'desktop' | 'mobile';
 
@@ -21,6 +26,15 @@ interface Props {
   projectName?: string | null;
   status: 'idle' | 'streaming' | 'awaiting_answer' | 'complete' | 'error';
   lastActivity?: string;
+  // Phase 2 (2026-04-22): 개발 과정 표시용
+  currentStage?: StageId | null;
+  currentLabel?: string;
+  completedStages?: Set<StageId>;
+  percent?: number;
+  toolCount?: number;
+  writeFileCount?: number;   // Write/Edit 도구 호출 수 (생성/수정 파일 추정)
+  hasToolCall?: boolean;     // 상담(무료) vs 작업(유료) 구분
+  elapsedMs?: number;
 }
 
 export default function FoundryPreviewPane({
@@ -28,6 +42,14 @@ export default function FoundryPreviewPane({
   projectName,
   status,
   lastActivity,
+  currentStage = null,
+  currentLabel = '',
+  completedStages,
+  percent = 0,
+  toolCount = 0,
+  writeFileCount = 0,
+  hasToolCall = false,
+  elapsedMs = 0,
 }: Props) {
   const [device, setDevice] = useState<DeviceMode>('desktop');
   const [dims, setDims] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
@@ -52,27 +74,91 @@ export default function FoundryPreviewPane({
   const desktopIframeHeight = dims.h > 0 && desktopScale > 0 ? dims.h / desktopScale : 0;
 
   if (!previewUrl) {
+    // Phase 2 (2026-04-22): streaming + 도구 호출 있을 때 개발 과정 뷰 (기존 MVP 빌더와 동일 UX)
+    //   FoundryProgress 가 왼쪽 채팅에도 인라인으로 나오지만, 오른쪽 큰 영역에서도 상세 표시.
+    //   도구 호출 0 (= 상담/채팅만) 인 경우엔 간단한 상태 카드만.
+    if (status === 'streaming' && hasToolCall) {
+      return (
+        <div className="flex h-full w-full flex-col overflow-auto bg-slate-50 p-4 dark:bg-slate-900/40 sm:p-6">
+          <div className="mx-auto w-full max-w-lg">
+            <FoundryProgress
+              currentStage={currentStage}
+              currentLabel={currentLabel}
+              completed={completedStages ?? new Set<StageId>()}
+              percent={percent}
+              elapsedMs={elapsedMs}
+            />
+
+            {/* 파일 카운트 + 마지막 활동 */}
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <div className="grid grid-cols-2 gap-3 text-center">
+                <div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">📂 생성/수정</div>
+                  <div className="mt-1 text-lg font-bold text-slate-900 tabular-nums dark:text-white">
+                    {writeFileCount}<span className="ml-0.5 text-xs text-slate-400">개</span>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">🔧 도구 호출</div>
+                  <div className="mt-1 text-lg font-bold text-slate-900 tabular-nums dark:text-white">
+                    {toolCount}<span className="ml-0.5 text-xs text-slate-400">회</span>
+                  </div>
+                </div>
+              </div>
+              {lastActivity && (
+                <div className="mt-3 truncate border-t border-slate-100 pt-3 text-center text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                  {lastActivity}
+                </div>
+              )}
+            </div>
+
+            <p className="mt-4 text-center text-xs text-slate-400">
+              ⏳ 보통 7~10분 소요됩니다. 완성되면 여기에 앱이 바로 뜹니다.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // streaming 이지만 도구 호출 X (상담 모드) — 간단한 채팅 인디케이터
+    if (status === 'streaming' && !hasToolCall) {
+      return (
+        <div className="flex h-full w-full flex-col items-center justify-center bg-slate-50 p-6 text-center dark:bg-slate-900/40">
+          <div className="mb-3 text-5xl">💬</div>
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            포비가 답변 중...
+          </p>
+          <p className="mt-2 max-w-xs text-xs text-slate-500 dark:text-slate-400">
+            {lastActivity || '상담/추천/분석 요청은 무료예요'}
+          </p>
+        </div>
+      );
+    }
+
+    if (status === 'awaiting_answer') {
+      return (
+        <div className="flex h-full w-full flex-col items-center justify-center bg-slate-50 p-6 text-center dark:bg-slate-900/40">
+          <div className="mb-3 text-5xl">💭</div>
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            답지 카드에 답변해 주세요
+          </p>
+          <p className="mt-2 text-xs text-slate-400">
+            👆 왼쪽 채팅의 번호를 골라주시면 이어서 만들어요
+          </p>
+        </div>
+      );
+    }
+
+    // idle / error / fallback
     return (
       <div className="flex h-full w-full flex-col items-center justify-center bg-slate-50 p-6 text-center text-slate-400 dark:bg-slate-900/40">
         <div className="mb-3 text-5xl">🌐</div>
         <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
           배포 완료 후 여기에 앱이 실시간으로 뜹니다
         </p>
-        {status === 'idle' && (
-          <p className="mt-2 text-xs text-slate-400">
-            왼쪽에서 만들고 싶은 앱을 말씀해주세요
-          </p>
-        )}
-        {status === 'streaming' && (
-          <p className="mt-2 max-w-xs truncate text-xs text-slate-400">
-            {lastActivity || '✨ 포비가 작업 중이에요...'}
-          </p>
-        )}
-        {status === 'awaiting_answer' && (
-          <p className="mt-2 text-xs text-slate-400">
-            👆 답지 카드에 답변하시면 포비가 이어서 만들어요
-          </p>
-        )}
+        <p className="mt-2 text-xs text-slate-400">
+          왼쪽에서 만들고 싶은 앱을 말씀해주세요
+        </p>
       </div>
     );
   }

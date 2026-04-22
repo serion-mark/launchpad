@@ -85,6 +85,7 @@ export interface UseAgentStreamState {
   lastActivity: string;
   iteration: number;
   toolCount: number;
+  writeFileCount: number;  // Phase 2 (2026-04-22): Write/Edit 도구 호출 수 — 오른쪽 프리뷰 표시
   submittingAnswer: boolean;
   // 실제 도구 호출이 있었는지 — FoundryProgress 노출 조건
   // (상의 모드에서 도구 안 쓰면 채팅 말풍선만, 빌드 단계 표 X)
@@ -114,6 +115,7 @@ export function useAgentStream() {
     lastActivity: '',
     iteration: 0,
     toolCount: 0,
+    writeFileCount: 0,
     submittingAnswer: false,
     hasToolCall: false,
     currentStage: null,
@@ -173,8 +175,15 @@ export function useAgentStream() {
           const input = ev.input as any;
           const summary = `${ev.name}  ${JSON.stringify(input).slice(0, 80)}`;
           pushDev({ ts: Date.now(), kind: 'tool', text: summary });
+          // Phase 2 (2026-04-22): Write/Edit 호출은 writeFileCount 에 집계 → 프리뷰에 표시
+          const isFileWrite = ev.name === 'Write' || ev.name === 'Edit';
           // hasToolCall=true → FoundryProgress 단계 표 노출 조건 활성화
-          setState((s) => ({ ...s, toolCount: s.toolCount + 1, hasToolCall: true }));
+          setState((s) => ({
+            ...s,
+            toolCount: s.toolCount + 1,
+            writeFileCount: s.writeFileCount + (isFileWrite ? 1 : 0),
+            hasToolCall: true,
+          }));
           break;
         }
 
@@ -294,6 +303,7 @@ export function useAgentStream() {
         lastActivity: '🚀 포비 연결 중...',
         iteration: 0,
         toolCount: 0,
+    writeFileCount: 0,
         submittingAnswer: false,
         hasToolCall: false,
         currentStage: null,
@@ -482,6 +492,7 @@ export function useAgentStream() {
         lastActivity: '✅ 이전 작업 이어서',
         iteration: 0,
         toolCount: 0,
+    writeFileCount: 0,
         submittingAnswer: false,
         hasToolCall: false,
         currentStage: null,

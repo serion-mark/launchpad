@@ -5,7 +5,7 @@
 // ?projectId=xxx 쿼리 파라미터가 있으면 "수정 모드"로 진입 (기존 프로젝트 이어서 작업)
 
 import Link from 'next/link';
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { authFetch, getUser } from '@/lib/api';
 import { useAgentStream } from './useAgentStream';
@@ -29,6 +29,26 @@ function BuilderAgentContent() {
     projectId: string | null;
     isEdit: boolean;
   } | null>(null);
+
+  // Phase 2 (2026-04-22): 세션 경과 시간 — FoundryProgress 에 표시
+  const sessionStartRef = useRef<number | null>(null);
+  const [elapsedMs, setElapsedMs] = useState(0);
+  useEffect(() => {
+    if (state.status === 'streaming' || state.status === 'awaiting_answer') {
+      if (sessionStartRef.current === null) sessionStartRef.current = Date.now();
+      const t = setInterval(() => {
+        if (sessionStartRef.current !== null) {
+          setElapsedMs(Date.now() - sessionStartRef.current);
+        }
+      }, 1000);
+      return () => clearInterval(t);
+    }
+    if (state.status === 'complete' || state.status === 'error') {
+      // 완료 시 시간 초기화 (다음 세션 위해)
+      sessionStartRef.current = null;
+      setElapsedMs(0);
+    }
+  }, [state.status]);
 
   // 비로그인 가드 — 토큰 없으면 /login 으로 리다이렉트 (redirect 쿼리 포함)
   // 포비는 프로젝트 저장/배포에 userId 가 필요해서 비로그인 사용 불가
@@ -213,6 +233,14 @@ function BuilderAgentContent() {
             projectName={state.projectName}
             status={state.status}
             lastActivity={state.lastActivity}
+            currentStage={state.currentStage}
+            currentLabel={state.currentLabel}
+            completedStages={state.completedStages}
+            percent={state.percent}
+            toolCount={state.toolCount}
+            writeFileCount={state.writeFileCount}
+            hasToolCall={state.hasToolCall}
+            elapsedMs={elapsedMs}
           />
         </div>
       </main>
