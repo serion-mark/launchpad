@@ -44,6 +44,21 @@ export class AiController {
     return this.aiService.chat(req.user.userId, body);
   }
 
+  // Phase A (2026-04-22): Agent Mode 진입 전 입력 요약
+  //   body: { raw: string, sourceType: 'prompt' | 'meeting' }
+  //   return: { spec, strategy, raw, sourceType, confidence, fallbackRequired }
+  //   사용자 과금 없음 (내부 부담)
+  @Post('summarize-to-agent-spec')
+  summarizeToAgentSpec(
+    @Body() body: { raw: string; sourceType: 'prompt' | 'meeting' },
+  ) {
+    if (!body?.raw || typeof body.raw !== 'string') {
+      return { spec: null, strategy: null, raw: '', sourceType: 'prompt', confidence: 0, fallbackRequired: true };
+    }
+    const source: 'prompt' | 'meeting' = body.sourceType === 'meeting' ? 'meeting' : 'prompt';
+    return this.aiService.summarizeToAgentSpec(body.raw, source);
+  }
+
   // ── 앱 아키텍처 생성 (레거시) ──────────────────────
   @Post('generate')
   generate(

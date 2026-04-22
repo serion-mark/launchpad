@@ -590,6 +590,131 @@ export class AiService {
     };
   }
 
+  // ── Phase A (2026-04-22): Agent Mode 진입 전 입력 요약 ──────────
+  //   Sonnet 으로 3층 구조 (spec / strategy / raw) 추출.
+  //   Haiku fallback 제거 — 같은 API 장애면 Haiku 도 실패. 대신 exponential
+  //   backoff 로 Sonnet 재시도 1회 + 그래도 실패 시 fallbackRequired=true 로
+  //   프론트가 [직접 입력] 또는 [요약 없이 진행] 유도.
+  //
+  //   사용자 과금 없음 (AI 회의실/앱 생성 크레딧으로 내부 흡수).
+  //
+  //   입력 종류:
+  //     - 'prompt' (/start 한 줄): 100자 수준
+  //     - 'meeting' (AI 회의실 보고서): 3,000~10,000자
+  async summarizeToAgentSpec(
+    rawInput: string,
+    sourceType: 'prompt' | 'meeting',
+  ): Promise<{
+    spec: { appName: string; tagline: string; coreFeatures: string[]; designTone: string; techHints: { supabase: boolean; requiresApiKey?: string; mobile?: boolean } } | null;
+    strategy: { targetUser: string; differentiator: string; mvpScope: { include: string[]; exclude: string[] }; benchmarks?: string[]; risks?: string[] } | null;
+    raw: string;
+    sourceType: 'prompt' | 'meeting';
+    confidence: number;    // 0~1, 0이면 fallbackRequired
+    fallbackRequired: boolean;
+  }> {
+    // 입력 길이 제한 — Sonnet context 보호 (장문이면 앞부분 10K자만)
+    const MAX_RAW = 10_000;
+    const safe = rawInput.length > MAX_RAW ? rawInput.slice(0, MAX_RAW) + '\n[...이하 생략]' : rawInput;
+
+    const systemPrompt = `당신은 AI 앱 빌더(포비) 에게 전달할 "앱 스펙" 을 추출하는 역할입니다.
+입력은 사용자의 한 줄 아이디어 또는 AI 회의실 종합 보고서입니다.
+출력은 반드시 아래 JSON 스키마만 따릅니다. 다른 텍스트 금지.
+
+추출 원칙:
+- spec: 포비가 즉시 만들 수 있는 최소 정보 (이름, 기능, 디자인)
+- strategy: 타겟/차별화/MVP 범위 (포비 설계 시 참고, 사용자에게 표시)
+- 정보 부족 시: 합리적 기본값 (예: appName 없으면 주제에서 추론, designTone 없으면 "미니멀 모던")
+- confidence: 추출 신뢰도 (raw 가 구체적이면 0.9+, 모호하면 0.5 이하)
+- techHints: 보고서에 Supabase / OpenAI API / 모바일 앱 언급 있으면 true/값, 없으면 false/생략
+
+JSON 스키마:
+{
+  "spec": {
+    "appName": "string",
+    "tagline": "string (한 줄 요약, 누구를 위한 어떤 앱인지)",
+    "coreFeatures": ["string", "string", "string"],  // 3~5개, 각 20자 이내 구체
+    "designTone": "string (예: 미니멀 모던, 따뜻한 주황톤, 레딧 스타일)",
+    "techHints": { "supabase": boolean, "requiresApiKey": "string?", "mobile": boolean? }
+  },
+  "strategy": {
+    "targetUser": "string (1줄)",
+    "differentiator": "string (1줄)",
+    "mvpScope": {
+      "include": ["string"],   // MVP V1.0 포함
+      "exclude": ["string"]    // V2.0 이후로 미룸
+    },
+    "benchmarks": ["string"],   // 언급된 경쟁사/레퍼런스
+    "risks": ["string"]         // 언급된 리스크
+  },
+  "confidence": number
+}`;
+
+    const userPrompt = `[입력 종류: ${sourceType === 'meeting' ? 'AI 회의실 종합 보고서' : '사용자 한 줄 프롬프트'}]
+
+${safe}
+
+위 입력에서 앱 스펙과 전략 컨텍스트를 추출해 JSON 으로만 응답하세요.`;
+
+    const tryOnce = async (): Promise<any> => {
+      const response = await this.anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+      });
+      const text = response.content
+        .filter((b) => b.type === 'text')
+        .map((b) => (b as Anthropic.TextBlock).text)
+        .join('\n');
+      // JSON 추출 (코드블록 제거)
+      const jsonStr = text.replace(/```json\s*|\s*```/g, '').trim();
+      return JSON.parse(jsonStr);
+    };
+
+    // Layer 1: Sonnet 직접 시도
+    try {
+      const result = await tryOnce();
+      this.logger.log(`[summarize] Sonnet 1차 성공 — confidence=${result.confidence} source=${sourceType}`);
+      return {
+        spec: result.spec ?? null,
+        strategy: result.strategy ?? null,
+        raw: rawInput,
+        sourceType,
+        confidence: result.confidence ?? 0.5,
+        fallbackRequired: false,
+      };
+    } catch (err: any) {
+      this.logger.warn(`[summarize] Sonnet 1차 실패 (재시도 예정): ${err?.message}`);
+    }
+
+    // Layer 2: 300ms backoff 후 재시도
+    await new Promise((r) => setTimeout(r, 300));
+    try {
+      const result = await tryOnce();
+      this.logger.log(`[summarize] Sonnet 2차 성공 — confidence=${result.confidence}`);
+      return {
+        spec: result.spec ?? null,
+        strategy: result.strategy ?? null,
+        raw: rawInput,
+        sourceType,
+        confidence: result.confidence ?? 0.5,
+        fallbackRequired: false,
+      };
+    } catch (err: any) {
+      this.logger.error(`[summarize] Sonnet 2차 실패 — 사용자 선택 필요: ${err?.message}`);
+    }
+
+    // Layer 3: 사용자 강제 선택
+    return {
+      spec: null,
+      strategy: null,
+      raw: rawInput,
+      sourceType,
+      confidence: 0,
+      fallbackRequired: true,
+    };
+  }
+
   // ── 빌더 채팅 (실시간 대화) ────────────────────────
   async chat(userId: string, params: {
     projectId: string;
