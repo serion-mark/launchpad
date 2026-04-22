@@ -113,9 +113,13 @@ export class AgentDeployService {
         });
         append('npm install 완료');
       } catch (err: any) {
-        const stderr = String(err?.stderr ?? err?.stdout ?? err?.message ?? err).slice(0, 2000);
-        append(`npm install 실패: ${stderr.slice(0, 500)}`);
-        await this.markFailed(projectId, stderr, log);
+        // Phase Y (2026-04-22): 에러 로그 끝부분 캡처 (실제 메시지 위치)
+        //   기존: slice(0, 500) — 앞부분만 (헤더) → 실제 에러 잘림
+        //   개선: slice(-1500) — 끝부분 (stderr 실제 에러 메시지)
+        const raw = String(err?.stderr ?? err?.stdout ?? err?.message ?? err);
+        const tail = raw.slice(-1500);
+        append(`npm install 실패 (끝 1500자):\n${tail}`);
+        await this.markFailed(projectId, raw.slice(0, 3000), log);
         return { ok: false, error: 'npm install 실패', stage: 'install', logTail: logTail() };
       }
 
@@ -130,9 +134,24 @@ export class AgentDeployService {
         });
         append('next build 완료');
       } catch (err: any) {
-        const stderr = String(err?.stderr ?? err?.stdout ?? err?.message ?? err).slice(0, 3000);
-        append(`next build 실패: ${stderr.slice(0, 800)}`);
-        await this.markFailed(projectId, stderr, log);
+        // Phase Y (2026-04-22): Next.js 실제 에러 메시지는 stderr 끝부분에 있음
+        //   예: "Error: Page "/profile/[id]" is missing generateStaticParams..."
+        //   기존: slice(0, 800) — 앞부분(컴파일 헤더)만 찍혀서 실제 원인 불명
+        //   개선: slice(-2500) 로 끝부분 캡처 + message/stderr/stdout 구조화
+        const errMsg = err?.message ?? '';
+        const errStderr = String(err?.stderr ?? '');
+        const errStdout = String(err?.stdout ?? '');
+        const combined = [
+          errMsg && `message: ${errMsg}`,
+          errStderr && `stderr:\n${errStderr.slice(-2000)}`,
+          errStdout && `stdout:\n${errStdout.slice(-500)}`,
+        ]
+          .filter(Boolean)
+          .join('\n───\n');
+        append(`next build 실패:\n${combined || '(no error output)'}`);
+        // markFailed 에는 원본 3000자 (DB buildLog 에 저장)
+        const rawForDb = (errStderr || errStdout || errMsg || String(err)).slice(0, 3000);
+        await this.markFailed(projectId, rawForDb, log);
         return { ok: false, error: 'next build 실패', stage: 'build', logTail: logTail() };
       }
 

@@ -121,16 +121,88 @@ export class ProjectPersistenceService {
     return out;
   }
 
-  // 사용자 prompt에서 프로젝트 이름 추정 (LLM 없이 간단 추출)
-  // 우선순위: 루트 디렉토리명 > prompt 첫 20자 > 'agent-app'
+  // Phase AB (2026-04-22): 실제 사용자 대면 앱 이름 추출 (우선순위)
+  //   1. src/app/layout.tsx 의 metadata.title — 가장 정확 (한글 앱명: "마케팅봇")
+  //   2. package.json 의 name — 영문 프로젝트명
+  //   3. 루트 디렉토리명 — foundry-agent-/foundry-project- 제외
+  //   4. userPrompt 첫 30자 — fallback
+  //   5. 'agent-app' — 최후 fallback
+  //
+  // 실전 버그 (2026-04-22 사장님 테스트):
+  //   기존에는 디렉토리명 `foundry-project-cmo9mnyr30003rhfjodu4g465` 가 그대로 name 에 들어감
+  //   → 대시보드 "내 프로젝트" 에 개발자용 ID 노출. 실제 앱은 "마케팅봇"인데.
+  //   → layout.tsx 에서 <title>{"마케팅봇 — AI 인스타그램 마케팅 자동화"}</title> 추출
+  //   → "—" 앞의 "마케팅봇" 만 name 으로 사용.
   private deriveName(projectRoot: string, cwd: string, userPrompt: string): string {
+    // 1. layout.tsx / _app.tsx 의 metadata.title 에서 추출
+    if (projectRoot) {
+      try {
+        const layoutCandidates = [
+          'src/app/layout.tsx',
+          'app/layout.tsx',
+          'src/app/layout.ts',
+          'src/pages/_app.tsx',
+          'pages/_app.tsx',
+        ];
+        for (const rel of layoutCandidates) {
+          const layoutPath = path.join(projectRoot, rel);
+          if (!fs.existsSync(layoutPath)) continue;
+          const content = fs.readFileSync(layoutPath, 'utf8');
+          // metadata: { title: 'X' } / title: "X" / title: `X`
+          const titleMatch = content.match(
+            /title\s*:\s*['"`]([^'"`\n]{2,80})['"`]/,
+          );
+          if (!titleMatch) continue;
+          const full = titleMatch[1].trim();
+          // "앱이름 — 설명" / "앱이름 | 설명" / "앱이름: 설명" 형태 → 앞부분만
+          const short = full.split(/[—–|·:]/)[0].trim();
+          if (short && short.length >= 2 && short.length <= 40) {
+            return short;
+          }
+          // 구분자 없으면 전체 (단 40자 제한)
+          if (full.length <= 40) return full;
+          return full.slice(0, 40);
+        }
+      } catch {
+        // fall through
+      }
+
+      // 2. package.json 의 name
+      try {
+        const pkgPath = path.join(projectRoot, 'package.json');
+        if (fs.existsSync(pkgPath)) {
+          const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+          const n = String(pkg?.name ?? '').trim();
+          if (
+            n &&
+            n !== 'nextjs' &&
+            n !== 'next-app' &&
+            n !== 'app' &&
+            !n.startsWith('foundry-')
+          ) {
+            return n.slice(0, 40);
+          }
+        }
+      } catch {
+        // fall through
+      }
+    }
+
+    // 3. 루트 디렉토리명 (의미 있는 경우만)
     const dirName = path.basename(projectRoot);
-    // cwd 이름(예: foundry-agent-xxx-xxx)이면 의미 있는 이름 아님
-    if (dirName && !dirName.startsWith('foundry-agent-')) {
+    if (
+      dirName &&
+      !dirName.startsWith('foundry-agent-') &&
+      !dirName.startsWith('foundry-project-') // Phase AB: 신규 제외 패턴
+    ) {
       return dirName.slice(0, 40);
     }
+
+    // 4. userPrompt fallback
     const cleaned = (userPrompt ?? '').trim().replace(/\s+/g, ' ').slice(0, 30);
     if (cleaned) return cleaned;
+
+    // 5. 최후
     return 'agent-app';
   }
 
