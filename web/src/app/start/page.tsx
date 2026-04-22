@@ -1,25 +1,40 @@
 'use client';
 
 // Phase C (2026-04-22): /start 대수술 — 한 줄 프롬프트 입력 + "시작" 만 남김
-//   · 질문지 2단계~N단계 (업종/매장명/디자인/기능/테마) 전부 제거 (사장님 지시)
-//   · 템플릿 버튼 제거 (placeholder 예시 텍스트로만)
-//   · POST /projects 제거 — 프로젝트 생성은 /builder/agent 진입 후 모달 확인 시점으로 이동
-//     (취소 시 쓰레기 draft 방지)
-//   · 로그인 가드: 비로그인 → /login?redirect=... (입력한 prompt 는 sessionStorage 로 복원)
+// Phase P (2026-04-22): 대화형 인터뷰 + 확인 스테이지 state 머신 확장
 //
-// 흐름:
-//   1. 사용자가 한 줄 입력 → [시작]
-//   2. 비로그인: /login?redirect=/start?prompt=X (복귀 후 input 자동 복원)
-//   3. 로그인: /builder/agent?prompt=X&fromStart=1 → Haiku 요약 + 확인 모달
+// state 머신:
+//   'input'     — 한 줄 입력 (최초 진입)
+//     ↓ [시작]
+//   'choice'    — 선택 모달 (🚀바로 / 💬상의)
+//     ├─ 🚀바로 → 'summarizing'  (Sonnet 요약만)
+//     └─ 💬상의 → 'interview'    (포비 3~6턴)
+//         ↓ onComplete(finalSpec)
+//   'summarizing' → 'review'  (finalSpec 받은 후 확인 스테이지)
+//   'interview'   → 'review'
+//   'review'    — 스펙 카드 + 채팅 수정 (ReviewStage)
+//     ├─ [이대로 시작] → /builder/agent?fromStart=1 (finalSpec sessionStorage 전달)
+//     └─ [취소] → 'input' (입력 보존)
 //
-// 크레딧 표시: 기존 잔액 배너 유지 ("N cr | 앱 약 M개 제작 가능")
+// 회의실과 철학 일관: 각 진입점에서 스펙 정리 → 포비에게 넘김
+//
+// 안전성:
+//   - 기존 sessionStorage start_draft_prompt 유지 (로그인 복귀 복원)
+//   - finalSpec 은 별도 키 start_final_spec (/builder/agent 가 소비 후 삭제)
+//   - 각 state 전환마다 guard clause (비로그인/빈 prompt/loading 방지)
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { authFetch, getUser, getToken } from '@/lib/api';
 import Logo from '@/app/components/Logo';
+import ChoiceModal from './components/ChoiceModal';
+import InterviewChat from './components/InterviewChat';
+import ReviewStage, { type SpecBundle } from './components/ReviewStage';
 
-const CREDIT_PER_APP = 6800;  // app_generate 단가 (credit.service.ts 와 동기화)
+const CREDIT_PER_APP = 6800;
+const FINAL_SPEC_KEY = 'start_final_spec';
+
+type StartMode = 'input' | 'choice' | 'interview' | 'summarizing' | 'review';
 
 function StartContent() {
   const router = useRouter();
@@ -29,23 +44,23 @@ function StartContent() {
   const [user, setUser] = useState<{ id: string; email: string } | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
   const [input, setInput] = useState('');
+  const [mode, setMode] = useState<StartMode>('input');
   const [submitting, setSubmitting] = useState(false);
+  const [finalSpec, setFinalSpec] = useState<SpecBundle | null>(null);
+  const [summarizeError, setSummarizeError] = useState<string | null>(null);
 
   // 초기 진입 — 로그인 + 잔액 + 복원
   useEffect(() => {
     const u = getUser();
     setUser(u as any);
 
-    // URL 쿼리 prompt 가 있으면 우선 반영 (로그인 리다이렉트 복귀 케이스)
     if (urlPrompt) {
       setInput(urlPrompt);
     } else if (typeof window !== 'undefined') {
-      // sessionStorage 복원 (비로그인 상태에서 입력 후 로그인 진입 시)
       const saved = sessionStorage.getItem('start_draft_prompt');
       if (saved) setInput(saved);
     }
 
-    // 크레딧 잔액
     if (u) {
       authFetch('/credits/balance')
         .then((r) => (r.ok ? r.json() : null))
@@ -56,13 +71,16 @@ function StartContent() {
     }
   }, [urlPrompt]);
 
+  // ── handlers ───────────────────────────────────────────
+
   const handleStart = () => {
     const prompt = input.trim();
     if (!prompt) return;
     if (submitting) return;
+    if (mode !== 'input') return;
     setSubmitting(true);
 
-    // 비로그인 → 로그인 후 돌아오도록 (입력 보존)
+    // 비로그인 → 로그인 후 복귀 (입력 보존)
     if (!user || !getToken()) {
       sessionStorage.setItem('start_draft_prompt', prompt);
       const redirect = `/start?prompt=${encodeURIComponent(prompt)}`;
@@ -70,12 +88,87 @@ function StartContent() {
       return;
     }
 
-    // 로그인 완료 → /builder/agent 로 이동. Haiku 요약 + 확인 모달은 거기서.
-    // 프로젝트 생성은 모달 [이대로 시작] 시점에 runWithSDK 내부 startProject 가 담당.
+    // 선택 모달 오픈
     sessionStorage.removeItem('start_draft_prompt');
+    setMode('choice');
+    setSubmitting(false);
+  };
+
+  // 🚀 바로 만들기 — 인터뷰 스킵 + Sonnet 요약만
+  const handleSelectDirect = async () => {
+    setMode('summarizing');
+    setSummarizeError(null);
+    try {
+      const res = await authFetch('/ai/summarize-to-agent-spec', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ raw: input.trim(), sourceType: 'prompt' }),
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => res.statusText);
+        throw new Error(`HTTP ${res.status}: ${txt}`);
+      }
+      const data = await res.json();
+      if (data.fallbackRequired) {
+        setSummarizeError('스펙 추출 실패 — 더 구체적으로 입력해주세요.');
+        setMode('input');
+        return;
+      }
+      setFinalSpec(data as SpecBundle);
+      setMode('review');
+    } catch (e: any) {
+      setSummarizeError(e?.message ?? '요약 오류');
+      setMode('input');
+    }
+  };
+
+  // 💬 상의 — 인터뷰 진입
+  const handleSelectInterview = () => {
+    setMode('interview');
+  };
+
+  // 인터뷰 완료 콜백
+  const handleInterviewComplete = (
+    spec: SpecBundle | undefined,
+  ) => {
+    if (!spec) {
+      // finalSpec 누락 → 입력으로 복귀
+      setMode('input');
+      setSummarizeError('인터뷰 결과를 받지 못했어요. 다시 시도해주세요.');
+      return;
+    }
+    setFinalSpec(spec);
+    setMode('review');
+  };
+
+  // 인터뷰 중단 → 선택 모달로 복귀 (입력 유지)
+  const handleInterviewCancel = () => {
+    setMode('input');
+  };
+
+  // 확인 스테이지 — [이대로 시작]
+  const handleReviewConfirm = (spec: SpecBundle) => {
+    // finalSpec 을 sessionStorage 에 저장하고 /builder/agent 로 점프
+    // /builder/agent 의 Phase Q 분기가 이를 읽어서 확인 모달 스킵 + 바로 Agent 실행
+    try {
+      sessionStorage.setItem(FINAL_SPEC_KEY, JSON.stringify(spec));
+    } catch {}
     router.push(
-      `/builder/agent?prompt=${encodeURIComponent(prompt)}&fromStart=1`,
+      `/builder/agent?prompt=${encodeURIComponent(
+        input.trim(),
+      )}&fromStart=1&hasFinalSpec=1`,
     );
+  };
+
+  // 확인 스테이지 — [취소] (입력 모드 복귀, spec 초기화)
+  const handleReviewCancel = () => {
+    setFinalSpec(null);
+    setMode('input');
+  };
+
+  // 선택 모달 닫기
+  const handleChoiceClose = () => {
+    setMode('input');
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -87,9 +180,69 @@ function StartContent() {
 
   const possibleApps = balance !== null ? Math.floor(balance / CREDIT_PER_APP) : null;
 
+  // ── 렌더 분기 ──────────────────────────────────────────
+
+  // review 모드 — 전체 화면 점유
+  if (mode === 'review' && finalSpec) {
+    return (
+      <main className="min-h-screen bg-[var(--bg-primary)] py-6 text-[var(--text-primary)]">
+        <header className="mx-auto mb-4 flex max-w-6xl items-center justify-between px-5">
+          <a href="/">
+            <Logo />
+          </a>
+          <span className="text-xs text-slate-500">
+            스펙 확인 & 수정 (무료)
+          </span>
+        </header>
+        <div className="mx-auto h-[calc(100vh-120px)] max-w-6xl px-5">
+          <ReviewStage
+            initialSpec={finalSpec}
+            balance={balance}
+            onConfirm={handleReviewConfirm}
+            onCancel={handleReviewCancel}
+          />
+        </div>
+      </main>
+    );
+  }
+
+  // interview 모드 — 채팅 화면
+  if (mode === 'interview') {
+    return (
+      <main className="min-h-screen bg-[var(--bg-primary)] py-6 text-[var(--text-primary)]">
+        <header className="mx-auto mb-4 flex max-w-2xl items-center justify-between px-5">
+          <a href="/">
+            <Logo />
+          </a>
+          <span className="text-xs text-slate-500">상의 중 (무료)</span>
+        </header>
+        <div className="mx-auto h-[calc(100vh-120px)] max-w-2xl px-5">
+          <InterviewChat
+            initialPrompt={input.trim()}
+            onComplete={handleInterviewComplete}
+            onCancel={handleInterviewCancel}
+          />
+        </div>
+      </main>
+    );
+  }
+
+  // summarizing 모드 — 로딩
+  if (mode === 'summarizing') {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[var(--bg-primary)] text-[var(--text-primary)]">
+        <div className="text-center">
+          <div className="mb-4 text-5xl">🧠</div>
+          <div className="text-base font-semibold">포비가 아이디어를 정리 중...</div>
+          <div className="mt-2 text-sm text-slate-500">3~5초 정도 걸려요</div>
+        </div>
+      </main>
+    );
+  }
+
+  // input / choice 모드 — 기본 홈 화면
   return (
     <main className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
-      {/* 상단 */}
       <header className="flex items-center justify-between border-b border-[var(--border-primary)] px-5 py-4">
         <a href="/">
           <Logo />
@@ -113,9 +266,7 @@ function StartContent() {
         </div>
       </header>
 
-      {/* 본문 */}
       <section className="mx-auto flex max-w-3xl flex-col items-center px-5 py-16 md:py-24">
-        {/* 인사 배너 */}
         {user && (
           <div className="mb-8 w-full max-w-xl rounded-2xl border border-[var(--border-primary)] bg-[var(--bg-card)]/80 p-5">
             <div className="flex items-center gap-2 text-base font-bold">
@@ -137,7 +288,6 @@ function StartContent() {
           </div>
         )}
 
-        {/* 타이틀 */}
         <h1 className="mb-3 text-center text-3xl font-extrabold tracking-tight md:text-5xl">
           어떤 앱을 만들까요?
         </h1>
@@ -145,7 +295,6 @@ function StartContent() {
           아이디어를 입력해 주세요. 포비가 바로 만들어 드립니다.
         </p>
 
-        {/* 입력창 */}
         <div className="w-full max-w-2xl rounded-3xl border border-[var(--border-primary)] bg-[var(--bg-card)]/70 p-5 shadow-sm">
           <textarea
             value={input}
@@ -167,9 +316,14 @@ function StartContent() {
               {submitting ? '이동 중...' : '시작 →'}
             </button>
           </div>
+
+          {summarizeError && (
+            <div className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/30 dark:text-rose-300">
+              ⚠️ {summarizeError}
+            </div>
+          )}
         </div>
 
-        {/* 회의실 안내 */}
         <div className="mt-6 text-center text-sm text-[var(--text-tertiary)]">
           🧠 사업계획서나 전략을 정리하고 싶으시다면{' '}
           <a
@@ -181,6 +335,16 @@ function StartContent() {
           에서 토론 후 넘어오세요.
         </div>
       </section>
+
+      {/* 선택 모달 */}
+      <ChoiceModal
+        isOpen={mode === 'choice'}
+        prompt={input.trim()}
+        balance={balance}
+        onClose={handleChoiceClose}
+        onSelectDirect={handleSelectDirect}
+        onSelectInterview={handleSelectInterview}
+      />
     </main>
   );
 }

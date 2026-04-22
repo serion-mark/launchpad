@@ -715,6 +715,320 @@ ${safe}
     };
   }
 
+  // ── Phase L (2026-04-22): /start 대화형 인터뷰 ──────────────────
+  //   한 줄 입력 → 포비가 번호 카드 중심으로 3~6턴 질문 → SpecBundle 생성
+  //   핵심: 고정 질문 리스트가 아니라 Sonnet 이 상황 보고 동적 선택
+  //   카테고리 풀: 정체성 / 타겟 / 핵심기능 / 디자인 / 차별점 / 수익 / 레퍼런스
+  //   3턴 안에 정보 충분 → 조기 종료. 모호하면 최대 6턴까지.
+  //   사용자 과금 없음 (진입 유도 투자).
+  //
+  //   응답 포맷 (JSON 강제):
+  //   - 질문 턴: { message, options? [{num,label}], done: false, turnCount }
+  //   - 종료 턴: { message, done: true, turnCount, finalSpec: SpecBundle }
+  async interviewNextTurn(params: {
+    initialPrompt: string;
+    history: { role: 'user' | 'assistant'; content: string }[];
+  }): Promise<{
+    message: string;
+    options?: { num: number; label: string }[];
+    done: boolean;
+    turnCount: number;
+    finalSpec?: {
+      spec: any;
+      strategy: any;
+      raw: string;
+      sourceType: 'prompt';
+      confidence: number;
+      fallbackRequired: false;
+    };
+  }> {
+    const turnCount = Math.floor(params.history.length / 2); // user-assistant 쌍 = 1턴
+    const MAX_TURNS = 6;
+    const MIN_TURNS = 3;
+
+    const systemPrompt = `당신은 AI 앱 빌더 "포비" 의 인터뷰어입니다.
+사용자가 짧은 아이디어를 주면 3~6턴 대화로 앱 스펙을 정교화해서 빌더에게 넘깁니다.
+
+## 철학
+- 번호 카드 UX: 사용자는 "1,3" 처럼 번호로 답하는 걸 선호. 자유 타이핑은 부담.
+- 동적 질문: 고정 리스트 X. 사용자 입력과 이전 답변 맥락으로 다음 질문을 스스로 판단.
+- 조기 종료: 3턴 안에 정보 충분하면 즉시 종료. 모호하면 최대 6턴.
+
+## 질문 카테고리 풀 (상황 맞게 골라 사용)
+- 🎯 정체성(WHY): "이 앱이 사용자에게 주고 싶은 한 마디?" (아이디어가 모호할 때)
+- 👥 타겟 사용자: 주로 누가 쓸까? (거의 항상 필요)
+- ⚙️ 핵심 기능 3개: 꼭 있어야 하는 기능 3가지 (거의 항상 필요)
+- 🎨 디자인 톤: 파스텔/미니멀/신뢰감 등 (거의 항상 필요)
+- 🏆 차별점: 비슷한 서비스 대비 뭐가 다른지 (경쟁 많은 분야)
+- 💰 수익 모델: 무료/구독/광고 등 (상업성 애매할 때만)
+- 📸 레퍼런스: 참고 앱/사이트 (디자인 방향 모호할 때)
+
+## 진행 원칙
+- 매 턴 1개 질문만. 여러 질문 묶어서 내지 마.
+- 번호 옵션 3~5개 제시 + 마지막에 "④ 기타 직접 입력" 옵션 포함.
+- 옵션 label 은 짧고 구체적으로 (15자 내).
+- 이전 답변 참조: "방금 '양방향' 선택하셨으니..." 같이 맥락 연결.
+- 조기 종료 판단: 입력이 이미 구체적(예: "B2B SaaS 리드 관리") 이면 3턴 만에 종료.
+
+## 종료 조건
+- turnCount >= ${MIN_TURNS} 이고 정체성+타겟+핵심기능+디자인 정보가 모였으면 done=true
+- turnCount >= ${MAX_TURNS} 이면 무조건 done=true (강제 종료)
+- done=true 일 때는 message 는 종료 멘트 + finalSpec JSON 필수 생성
+
+## 응답 형식 (JSON 만, 다른 텍스트 금지)
+
+### 질문 턴 (done=false)
+{
+  "done": false,
+  "message": "좋아요! 주로 누가 쓸 앱인가요?",
+  "options": [
+    { "num": 1, "label": "개인 사용자 (B2C)" },
+    { "num": 2, "label": "기업·자영업 (B2B)" },
+    { "num": 3, "label": "양방향 매칭" },
+    { "num": 4, "label": "기타 직접 입력" }
+  ]
+}
+
+### 종료 턴 (done=true)
+{
+  "done": true,
+  "message": "👌 정리됐어요! 이대로 만들어드릴까요?",
+  "finalSpec": {
+    "spec": {
+      "appName": "string",
+      "tagline": "string (한 줄 요약)",
+      "coreFeatures": ["string", "string", "string"],
+      "designTone": "string",
+      "techHints": { "supabase": true, "mobile": false }
+    },
+    "strategy": {
+      "targetUser": "string",
+      "differentiator": "string",
+      "mvpScope": { "include": ["string"], "exclude": ["string"] },
+      "benchmarks": [],
+      "risks": []
+    },
+    "confidence": 0.9
+  }
+}
+
+지금까지 진행된 턴: ${turnCount}/${MAX_TURNS}`;
+
+    // history 에 initialPrompt 를 첫 user 메시지로 변환해서 전달
+    const historyForLLM: { role: 'user' | 'assistant'; content: string }[] = [
+      { role: 'user', content: params.initialPrompt },
+      ...params.history,
+    ];
+
+    const tryOnce = async (): Promise<any> => {
+      const response = await this.anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2500,
+        system: systemPrompt,
+        messages: historyForLLM,
+      });
+      const text = response.content
+        .filter((b) => b.type === 'text')
+        .map((b) => (b as Anthropic.TextBlock).text)
+        .join('\n');
+      const jsonStr = text.replace(/```json\s*|\s*```/g, '').trim();
+      return JSON.parse(jsonStr);
+    };
+
+    try {
+      const result = await tryOnce();
+      const isDone = result.done === true || turnCount + 1 >= MAX_TURNS;
+      this.logger.log(
+        `[interview] turn=${turnCount + 1} done=${isDone} options=${result.options?.length ?? 0}`,
+      );
+      // 종료인데 finalSpec 없으면 강제로 summarizeToAgentSpec 호출해서 보완
+      if (isDone && !result.finalSpec) {
+        const conversationSummary =
+          [params.initialPrompt, ...params.history.map((m) => m.content)].join('\n');
+        const fallbackSpec = await this.summarizeToAgentSpec(conversationSummary, 'prompt');
+        return {
+          message: result.message ?? '정보 정리 완료! 확인해 주세요.',
+          done: true,
+          turnCount: turnCount + 1,
+          finalSpec: {
+            spec: fallbackSpec.spec,
+            strategy: fallbackSpec.strategy,
+            raw: conversationSummary,
+            sourceType: 'prompt',
+            confidence: fallbackSpec.confidence,
+            fallbackRequired: false,
+          },
+        };
+      }
+      return {
+        message: result.message,
+        options: result.options,
+        done: isDone,
+        turnCount: turnCount + 1,
+        finalSpec: isDone
+          ? {
+              spec: result.finalSpec.spec,
+              strategy: result.finalSpec.strategy,
+              raw: [params.initialPrompt, ...params.history.map((m) => m.content)].join('\n'),
+              sourceType: 'prompt',
+              confidence: result.finalSpec.confidence ?? 0.9,
+              fallbackRequired: false,
+            }
+          : undefined,
+      };
+    } catch (err: any) {
+      this.logger.error(`[interview] 실패: ${err?.message}`);
+      // 한 번만 재시도
+      await new Promise((r) => setTimeout(r, 300));
+      try {
+        const result = await tryOnce();
+        return {
+          message: result.message,
+          options: result.options,
+          done: result.done === true,
+          turnCount: turnCount + 1,
+          finalSpec: result.finalSpec,
+        };
+      } catch (err2: any) {
+        // 최종 실패 — 조기 종료 + 대강 요약
+        this.logger.error(`[interview] 2차 실패 — 강제 종료: ${err2?.message}`);
+        const summary = [params.initialPrompt, ...params.history.map((m) => m.content)].join(
+          '\n',
+        );
+        const fallback = await this.summarizeToAgentSpec(summary, 'prompt');
+        return {
+          message: '대화 정리 중 오류가 났어요. 지금까지 정보로 진행할게요.',
+          done: true,
+          turnCount: turnCount + 1,
+          finalSpec: {
+            spec: fallback.spec,
+            strategy: fallback.strategy,
+            raw: summary,
+            sourceType: 'prompt',
+            confidence: fallback.confidence,
+            fallbackRequired: false,
+          },
+        };
+      }
+    }
+  }
+
+  // ── Phase L (2026-04-22): 확인 스테이지에서 채팅으로 스펙 수정 ──
+  //   사용자가 "쇼핑몰 말고 커뮤니티로" 같은 자연어 요청 → Sonnet 이 스펙 in-place 업데이트
+  //   짧은 확인 메시지 + 업데이트된 SpecBundle 반환
+  //   사용자 과금 없음
+  async refineSpec(params: {
+    currentSpec: {
+      spec: any;
+      strategy: any;
+      raw: string;
+      sourceType: 'prompt' | 'meeting';
+      confidence: number;
+    };
+    userRequest: string;
+    chatHistory: { role: 'user' | 'assistant'; content: string }[];
+  }): Promise<{
+    message: string;
+    updatedSpec: {
+      spec: any;
+      strategy: any;
+      raw: string;
+      sourceType: 'prompt' | 'meeting';
+      confidence: number;
+      fallbackRequired: false;
+    };
+    changes: string[];
+  }> {
+    const systemPrompt = `당신은 앱 빌더 "포비" 입니다. 사용자가 이미 정리된 앱 스펙을 보고
+"이 부분 수정해줘" "빠진 거 추가해줘" 같이 요청하면 스펙을 in-place 로 수정합니다.
+
+## 원칙
+- 사용자 요청을 정확히 반영 (추측 최소화)
+- 기존 스펙의 다른 부분은 건드리지 마
+- 변경 내용을 짧게 요약해서 사용자에게 확인 메시지로 알림
+- 질문하지 마. 판단이 애매하면 합리적 기본값으로 반영하고 "~로 반영했어요. 다시 바꿀까요?" 안내
+
+## 응답 형식 (JSON 만)
+{
+  "message": "결제 추가했어요. 토스페이 연동으로 가겠습니다!",
+  "changes": ["coreFeatures에 '결제(토스페이)' 추가"],
+  "updatedSpec": {
+    "spec": { ...전체 spec 객체... },
+    "strategy": { ...전체 strategy 객체... },
+    "confidence": 0.9
+  }
+}
+
+## 현재 스펙
+${JSON.stringify(params.currentSpec, null, 2)}`;
+
+    const messages: { role: 'user' | 'assistant'; content: string }[] = [
+      ...params.chatHistory,
+      { role: 'user', content: params.userRequest },
+    ];
+
+    const tryOnce = async (): Promise<any> => {
+      const response = await this.anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2500,
+        system: systemPrompt,
+        messages,
+      });
+      const text = response.content
+        .filter((b) => b.type === 'text')
+        .map((b) => (b as Anthropic.TextBlock).text)
+        .join('\n');
+      const jsonStr = text.replace(/```json\s*|\s*```/g, '').trim();
+      return JSON.parse(jsonStr);
+    };
+
+    try {
+      const result = await tryOnce();
+      this.logger.log(`[refine-spec] changes=${(result.changes ?? []).length}`);
+      return {
+        message: result.message ?? '업데이트 완료했어요',
+        updatedSpec: {
+          spec: result.updatedSpec?.spec ?? params.currentSpec.spec,
+          strategy: result.updatedSpec?.strategy ?? params.currentSpec.strategy,
+          raw: params.currentSpec.raw,
+          sourceType: params.currentSpec.sourceType,
+          confidence: result.updatedSpec?.confidence ?? params.currentSpec.confidence,
+          fallbackRequired: false,
+        },
+        changes: result.changes ?? [],
+      };
+    } catch (err: any) {
+      this.logger.warn(`[refine-spec] 1차 실패: ${err?.message}`);
+      await new Promise((r) => setTimeout(r, 300));
+      try {
+        const result = await tryOnce();
+        return {
+          message: result.message ?? '업데이트 완료',
+          updatedSpec: {
+            spec: result.updatedSpec?.spec ?? params.currentSpec.spec,
+            strategy: result.updatedSpec?.strategy ?? params.currentSpec.strategy,
+            raw: params.currentSpec.raw,
+            sourceType: params.currentSpec.sourceType,
+            confidence: result.updatedSpec?.confidence ?? params.currentSpec.confidence,
+            fallbackRequired: false,
+          },
+          changes: result.changes ?? [],
+        };
+      } catch (err2: any) {
+        this.logger.error(`[refine-spec] 2차 실패: ${err2?.message}`);
+        // 변경 없이 안내만
+        return {
+          message: '수정 중 오류가 나서 기존 스펙 유지했어요. 다시 시도해주세요.',
+          updatedSpec: {
+            ...params.currentSpec,
+            fallbackRequired: false,
+          },
+          changes: [],
+        };
+      }
+    }
+  }
+
   // ── 빌더 채팅 (실시간 대화) ────────────────────────
   async chat(userId: string, params: {
     projectId: string;

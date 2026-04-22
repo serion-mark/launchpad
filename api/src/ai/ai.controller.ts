@@ -59,6 +59,60 @@ export class AiController {
     return this.aiService.summarizeToAgentSpec(body.raw, source);
   }
 
+  // ── Phase L (2026-04-22): /start 대화형 인터뷰 ──────────────────
+  //   body: { initialPrompt: string, history: [{role, content}] }
+  //   return: { message, options?, done, turnCount, finalSpec? }
+  //   사용자 과금 없음 (진입 유도 투자)
+  @Post('interview')
+  interview(
+    @Body() body: {
+      initialPrompt: string;
+      history: { role: 'user' | 'assistant'; content: string }[];
+    },
+  ) {
+    if (!body?.initialPrompt || typeof body.initialPrompt !== 'string') {
+      return {
+        message: 'initialPrompt 필수',
+        done: true,
+        turnCount: 0,
+      };
+    }
+    const history = Array.isArray(body.history) ? body.history : [];
+    // history 길이 상한 (방어): 12개 초과 시 잘라냄 (6턴 = 12 메시지)
+    const safeHistory = history.slice(-12);
+    return this.aiService.interviewNextTurn({
+      initialPrompt: body.initialPrompt,
+      history: safeHistory,
+    });
+  }
+
+  // ── Phase L (2026-04-22): 확인 스테이지 채팅 수정 ──────────────────
+  //   body: { currentSpec, userRequest, chatHistory }
+  //   return: { message, updatedSpec, changes }
+  //   사용자 과금 없음
+  @Post('refine-spec')
+  refineSpec(
+    @Body() body: {
+      currentSpec: any;
+      userRequest: string;
+      chatHistory?: { role: 'user' | 'assistant'; content: string }[];
+    },
+  ) {
+    if (!body?.currentSpec || !body?.userRequest) {
+      return {
+        message: 'currentSpec 과 userRequest 필수',
+        updatedSpec: body?.currentSpec ?? null,
+        changes: [],
+      };
+    }
+    const chatHistory = Array.isArray(body.chatHistory) ? body.chatHistory.slice(-20) : [];
+    return this.aiService.refineSpec({
+      currentSpec: body.currentSpec,
+      userRequest: body.userRequest,
+      chatHistory,
+    });
+  }
+
   // ── 앱 아키텍처 생성 (레거시) ──────────────────────
   @Post('generate')
   generate(

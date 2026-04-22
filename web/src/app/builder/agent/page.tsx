@@ -76,6 +76,10 @@ function BuilderAgentContent() {
   const fromMeeting = params?.get('fromMeeting') === '1';
   // Phase E (2026-04-22): /start 한 줄 입력 후 진입 시 ?prompt=X&fromStart=1
   const fromStart = params?.get('fromStart') === '1';
+  // Phase Q (2026-04-22): /start 에서 ReviewStage 까지 거친 후 진입 = &hasFinalSpec=1
+  //   sessionStorage.start_final_spec 에 SpecBundle 저장되어 있음
+  //   → Sonnet 요약 호출 스킵 + 확인 모달 스킵 + 바로 Agent 실행 (skipAskUser=true)
+  const hasFinalSpec = params?.get('hasFinalSpec') === '1';
   const initialPrompt = params?.get('prompt') ?? '';
   const { state, start, submitAnswer, cancel, resumeProject, uploadAttachment } =
     useAgentStream();
@@ -130,7 +134,39 @@ function BuilderAgentContent() {
     setAuthChecked(true);
   }, [router, pathname, projectId]);
 
+  // Phase Q (2026-04-22): /start 에서 ReviewStage 까지 거친 경우 — 모달 스킵 + 즉시 실행
+  //   sessionStorage.start_final_spec 에 SpecBundle 이 저장되어 있음
+  //   기존 Sonnet 요약 + 확인 모달 플로우를 전부 건너뛴다 (이미 /start 에서 끝남)
+  useEffect(() => {
+    if (!authChecked || projectId || autoStartedRef.current) return;
+    if (typeof window === 'undefined') return;
+    if (!(fromStart && hasFinalSpec && initialPrompt)) return;
+
+    try {
+      const raw = sessionStorage.getItem('start_final_spec');
+      if (!raw) {
+        // /start 우회 직접 hasFinalSpec=1 만 붙여 들어온 경우 — fallback 으로 일반 fromStart 플로우
+        return;
+      }
+      const spec: SpecBundle = JSON.parse(raw);
+      sessionStorage.removeItem('start_final_spec');
+      autoStartedRef.current = true;
+
+      const wrappedPrompt = spec.fallbackRequired
+        ? buildWrappedFromRaw(spec.raw, spec.sourceType)
+        : buildWrappedFromSpec(spec);
+
+      // 확인 모달 없이 바로 Agent 실행 — /start 의 ReviewStage 가 확인 역할 수행함
+      // skipAskUser=true — 이미 스펙 확정됨
+      start(wrappedPrompt, undefined, undefined, undefined, true);
+    } catch (e) {
+      // JSON 파싱 실패 — 일반 fromStart 플로우로 fallback (아래 useEffect 에서 처리)
+      // 이 useEffect 만 skip
+    }
+  }, [authChecked, fromStart, hasFinalSpec, initialPrompt, projectId, start]);
+
   // Phase E (2026-04-22): fromStart 또는 fromMeeting 진입 시 Haiku 요약 + 모달 자동 팝업
+  //   Phase Q 우회 조건: hasFinalSpec=1 + start_final_spec 로드 성공 시에는 위 useEffect 가 처리
   useEffect(() => {
     if (!authChecked || projectId || autoStartedRef.current) return;
     if (typeof window === 'undefined') return;
@@ -148,6 +184,8 @@ function BuilderAgentContent() {
       displayText = '🧠 AI 회의실 종합 보고서 기반으로 만들기';
       sessionStorage.removeItem('meeting_context');
     } else if (fromStart && initialPrompt) {
+      // Phase Q: hasFinalSpec 은 위 useEffect 에서 처리 — 여기는 fromStart 단독 진입만
+      if (hasFinalSpec) return;
       rawInput = initialPrompt;
       sourceType = 'prompt';
       displayText = initialPrompt;
@@ -218,7 +256,7 @@ function BuilderAgentContent() {
           wrappedPrompt: buildWrappedFromRaw(rawInput, sourceType),
         } : prev));
       });
-  }, [authChecked, fromMeeting, fromStart, initialPrompt, projectId]);
+  }, [authChecked, fromMeeting, fromStart, hasFinalSpec, initialPrompt, projectId]);
 
   useEffect(() => {
     if (!projectId || !authChecked) return;
