@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { authFetch, getUser, logout } from '@/lib/api';
 import Logo from '@/app/components/Logo';
 import ThemeToggle from '@/app/components/ThemeToggle';
+import JSZip from 'jszip';
 
 type Project = {
   id: string;
@@ -52,7 +53,58 @@ export default function DashboardPage() {
   const [creating, setCreating] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
+  const [downloadId, setDownloadId] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
   const user = getUser();
+
+  // 📦 코드 다운로드 (10,000cr 차감 후 JSZip으로 클라이언트 조립)
+  const handleDownload = async (projectId: string, projectName: string) => {
+    setDownloading(true);
+    try {
+      const res = await authFetch(`/projects/${projectId}/download`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: '다운로드 실패' }));
+        alert(`❌ ${err.message || '다운로드 실패'}\n\n잔액이 부족하거나 권한이 없을 수 있습니다.`);
+        setDownloadId(null);
+        setDownloading(false);
+        return;
+      }
+      const manifest = await res.json();
+      const files: { path: string; content: string }[] = manifest.files || [];
+      if (!files.length) {
+        alert('⚠️ 다운로드할 파일이 없습니다.');
+        setDownloadId(null);
+        setDownloading(false);
+        return;
+      }
+
+      // JSZip 조립
+      const zip = new JSZip();
+      const rootName = (projectName || manifest.projectName || 'foundry-app').replace(/[^a-zA-Z0-9ㄱ-힣_.-]/g, '_');
+      files.forEach(f => {
+        zip.file(`${rootName}/${f.path}`, f.content ?? '');
+      });
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${rootName}_source.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      // 잔액 갱신
+      fetchBalance();
+      setDownloadId(null);
+      alert(`✅ ${rootName} 코드집 다운로드 완료! (${files.length}개 파일)`);
+    } catch (err: any) {
+      alert(`❌ 오류: ${err?.message || err}`);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const fetchProjects = async () => {
     try {
@@ -319,6 +371,16 @@ export default function DashboardPage() {
                         미리보기
                       </a>
                     )}
+                    {(project.status === 'active' || project.status === 'deployed') && (
+                      <button
+                        onClick={() => setDownloadId(project.id)}
+                        disabled={downloading}
+                        className="rounded-xl bg-[var(--bg-elevated)] px-4 py-2.5 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--toss-blue)] hover:bg-[var(--toss-blue)]/10 transition-colors disabled:opacity-50"
+                        title="코드집 다운로드 (10,000cr)"
+                      >
+                        📦 코드
+                      </button>
+                    )}
                     <button
                       onClick={() => setDeleteId(project.id)}
                       className="rounded-xl bg-[var(--bg-elevated)] px-4 py-2.5 text-sm text-[var(--text-tertiary)] hover:bg-[var(--toss-red)]/10 hover:text-[var(--toss-red)] transition-colors"
@@ -326,6 +388,36 @@ export default function DashboardPage() {
                       삭제
                     </button>
                   </div>
+
+                  {/* 📦 코드 다운로드 확인 모달 */}
+                  {downloadId === project.id && (
+                    <div className="mt-4 rounded-xl border border-[var(--toss-blue)]/20 bg-[var(--toss-blue)]/8 p-4">
+                      <p className="mb-1 text-sm font-semibold text-[var(--toss-blue)]">📦 코드집 다운로드</p>
+                      <p className="mb-3 text-xs text-[var(--text-secondary)]">
+                        전체 소스 파일을 ZIP 압축하여 다운로드합니다.<br/>
+                        <b className="text-[var(--toss-blue)]">10,000 크레딧 차감</b> (스탠다드/프로 플랜은 무료)
+                        {creditBalance !== null && (
+                          <> · 현재 잔액: <b>{creditBalance.toLocaleString()}cr</b></>
+                        )}
+                      </p>
+                      <div className="flex gap-2.5">
+                        <button
+                          onClick={() => setDownloadId(null)}
+                          disabled={downloading}
+                          className="flex-1 rounded-lg bg-[var(--bg-elevated)] py-2 text-xs font-medium text-[var(--text-secondary)] hover:bg-[var(--border-hover)] transition-colors disabled:opacity-50"
+                        >
+                          취소
+                        </button>
+                        <button
+                          onClick={() => handleDownload(project.id, project.name)}
+                          disabled={downloading}
+                          className="flex-1 rounded-lg bg-[var(--toss-blue)] py-2 text-xs font-bold text-white hover:bg-[var(--toss-blue-hover)] transition-colors disabled:opacity-50"
+                        >
+                          {downloading ? '⏳ 생성 중...' : '📥 다운로드 시작'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* 독립 패키지 안내 — 가격 정리 후 재활성화 예정 */}
 
