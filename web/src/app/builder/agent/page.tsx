@@ -11,7 +11,60 @@ import { authFetch, getUser } from '@/lib/api';
 import { useAgentStream } from './useAgentStream';
 import AgentChat from './components/AgentChat';
 import FoundryPreviewPane from './components/FoundryPreviewPane';
-import AgentCreditConfirmModal from './components/AgentCreditConfirmModal';
+import AgentCreditConfirmModal, { type SpecBundle } from './components/AgentCreditConfirmModal';
+
+// Phase E (2026-04-22): Sonnet 요약 결과(spec+strategy) 를 Agent system prompt append 용 문자열로 변환
+//   Agent 가 즉시 작업 시작할 수 있도록 핵심 정보를 구조화해서 전달.
+function buildWrappedFromSpec(bundle: SpecBundle): string {
+  const { spec, strategy, sourceType, raw } = bundle;
+  if (!spec) return buildWrappedFromRaw(raw, sourceType);
+
+  const features = spec.coreFeatures.map((f, i) => `  ${i + 1}. ${f}`).join('\n');
+  const include = strategy?.mvpScope?.include?.join(', ') ?? '';
+  const exclude = strategy?.mvpScope?.exclude?.join(', ') ?? '';
+  const benchmarks = strategy?.benchmarks?.join(', ') ?? '';
+
+  return [
+    `[${sourceType === 'meeting' ? 'AI 회의실 정리본' : '사용자 요청'} — 포비 작업 지시]`,
+    '',
+    '## 📝 앱 스펙 (primary — 이대로 만들어야 할 것)',
+    `- 이름: ${spec.appName}`,
+    spec.tagline ? `- 한 줄: ${spec.tagline}` : '',
+    '- 핵심 기능:',
+    features,
+    `- 디자인 톤: ${spec.designTone}`,
+    spec.techHints?.supabase ? '- Supabase 연결 필요' : '',
+    spec.techHints?.requiresApiKey ? `- 외부 API 키 필요: ${spec.techHints.requiresApiKey}` : '',
+    '',
+    strategy ? '## 📊 전략 컨텍스트 (secondary — 설계 방향 참고)' : '',
+    strategy?.targetUser ? `- 타겟: ${strategy.targetUser}` : '',
+    strategy?.differentiator ? `- 차별화: ${strategy.differentiator}` : '',
+    include ? `- MVP 포함: ${include}` : '',
+    exclude ? `- 제외 (V2 이후): ${exclude}` : '',
+    benchmarks ? `- 참고: ${benchmarks}` : '',
+    '',
+    '## 룰 (중요)',
+    '- 위 스펙 기반으로 즉시 작업 시작. AskUser 도구 사용 금지 (모든 정보 여기 있음).',
+    '- 부족한 정보는 합리적 기본값 (agent-core.md 11번 룰).',
+    '- 완료 후 ✅ 완성 메시지 + 번호 제안 포맷 (agent-core.md 12번).',
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+// Fallback: Sonnet 요약 실패 시 원본 그대로 + 경고 삽입
+function buildWrappedFromRaw(raw: string, sourceType: 'prompt' | 'meeting'): string {
+  return [
+    `[${sourceType === 'meeting' ? 'AI 회의실 보고서' : '사용자 요청'} — 요약 실패, 원본 직접 해석]`,
+    '',
+    '⚠️ AI 요약이 실패했으므로 아래 원본을 포비가 직접 해석해서 작업.',
+    'AskUser 도구는 1회만 허용 (핵심 누락된 정보가 있을 때만).',
+    '',
+    '=== 원본 ===',
+    raw,
+    '============',
+  ].join('\n');
+}
 
 function BuilderAgentContent() {
   const router = useRouter();
@@ -21,17 +74,26 @@ function BuilderAgentContent() {
   // Phase 4 (2026-04-22): AI 회의실에서 "포비에게 바로 맡기기" 버튼으로 진입 시
   //   sessionStorage.meeting_context 를 자동으로 첫 prompt 로 주입
   const fromMeeting = params?.get('fromMeeting') === '1';
+  // Phase E (2026-04-22): /start 한 줄 입력 후 진입 시 ?prompt=X&fromStart=1
+  const fromStart = params?.get('fromStart') === '1';
+  const initialPrompt = params?.get('prompt') ?? '';
   const { state, start, submitAnswer, cancel, resumeProject } = useAgentStream();
   const [editingProject, setEditingProject] = useState<{ name: string; subdomain?: string | null; template: string } | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
   // Phase 0 (2026-04-22): 과금 + 서브도메인 사전 확인 모달
+  // Phase D 확장: specBundle (Sonnet 요약 결과) 포함
   const [pendingStart, setPendingStart] = useState<{
     wrappedPrompt: string;
     displayText: string;
     projectId: string | null;
     isEdit: boolean;
+    specBundle: SpecBundle | null;   // Phase D
+    summaryLoading: boolean;          // Phase D
   } | null>(null);
+
+  // Phase E (2026-04-22): 한 번만 auto-start (새로고침/탭 전환 중복 방지)
+  const autoStartedRef = useRef(false);
 
   // Phase 2 (2026-04-22): 세션 경과 시간 — FoundryProgress 에 표시
   const sessionStartRef = useRef<number | null>(null);
@@ -67,31 +129,95 @@ function BuilderAgentContent() {
     setAuthChecked(true);
   }, [router, pathname, projectId]);
 
-  // Phase 4 (2026-04-22): meeting 에서 넘어왔으면 회의 보고서를 프롬프트로 자동 주입 (1회성)
-  const meetingAutoStartedRef = useRef(false);
+  // Phase E (2026-04-22): fromStart 또는 fromMeeting 진입 시 Haiku 요약 + 모달 자동 팝업
   useEffect(() => {
-    if (!authChecked || !fromMeeting || projectId || meetingAutoStartedRef.current) return;
+    if (!authChecked || projectId || autoStartedRef.current) return;
     if (typeof window === 'undefined') return;
-    const meetingContext = sessionStorage.getItem('meeting_context');
-    if (!meetingContext) return;
-    meetingAutoStartedRef.current = true;
-    // 사용자 표시용 간단 프롬프트 + LLM 전달용 상세 회의 컨텍스트 분리
-    const displayText = '🧠 AI 회의실 종합 보고서를 바탕으로 앱 만들어주세요';
-    const wrappedPrompt =
-      `[AI 회의실 종합 보고서 기반 앱 요청]\n\n` +
-      `아래 보고서 내용을 참고해 앱을 설계하고 만들어주세요.\n` +
-      `불명확한 부분은 답지 카드로 한 번에 질문해주세요.\n\n` +
-      `=== 회의 보고서 ===\n${meetingContext}\n==================`;
-    // 모달로 띄우기 (크레딧 + 서브도메인 확인)
+
+    // 소스 판별
+    let rawInput = '';
+    let sourceType: 'prompt' | 'meeting' = 'prompt';
+    let displayText = '';
+
+    if (fromMeeting) {
+      const meetingContext = sessionStorage.getItem('meeting_context');
+      if (!meetingContext) return;
+      rawInput = meetingContext;
+      sourceType = 'meeting';
+      displayText = '🧠 AI 회의실 종합 보고서 기반으로 만들기';
+      sessionStorage.removeItem('meeting_context');
+    } else if (fromStart && initialPrompt) {
+      rawInput = initialPrompt;
+      sourceType = 'prompt';
+      displayText = initialPrompt;
+      // sessionStorage 정리
+      sessionStorage.removeItem('start_draft_prompt');
+    } else {
+      return;  // 직접 진입 (쿼리 없음) — auto-start 안 함
+    }
+
+    autoStartedRef.current = true;
+
+    // 1) 모달 즉시 표시 (요약 로딩 Skeleton)
     setPendingStart({
-      wrappedPrompt,
+      wrappedPrompt: '',   // 요약 완료 후 채움
       displayText,
       projectId: null,
       isEdit: false,
+      specBundle: null,
+      summaryLoading: true,
     });
-    // sessionStorage 는 사용 후 삭제 (새로고침 시 재호출 방지)
-    sessionStorage.removeItem('meeting_context');
-  }, [authChecked, fromMeeting, projectId]);
+
+    // 2) Sonnet 요약 API 호출
+    authFetch('/ai/summarize-to-agent-spec', {
+      method: 'POST',
+      body: JSON.stringify({ raw: rawInput, sourceType }),
+    })
+      .then(async (r) => (r.ok ? r.json() : null))
+      .then((data: SpecBundle | null) => {
+        if (!data) {
+          // 네트워크 실패 — fallback UI 트리거
+          setPendingStart((prev) => (prev ? {
+            ...prev,
+            summaryLoading: false,
+            specBundle: {
+              spec: null,
+              strategy: null,
+              raw: rawInput,
+              sourceType,
+              confidence: 0,
+              fallbackRequired: true,
+            },
+            wrappedPrompt: buildWrappedFromRaw(rawInput, sourceType),
+          } : prev));
+          return;
+        }
+        // 성공 — spec/strategy 주입
+        setPendingStart((prev) => (prev ? {
+          ...prev,
+          summaryLoading: false,
+          specBundle: data,
+          wrappedPrompt: data.fallbackRequired
+            ? buildWrappedFromRaw(rawInput, sourceType)
+            : buildWrappedFromSpec(data),
+        } : prev));
+      })
+      .catch(() => {
+        setPendingStart((prev) => (prev ? {
+          ...prev,
+          summaryLoading: false,
+          specBundle: {
+            spec: null,
+            strategy: null,
+            raw: rawInput,
+            sourceType,
+            confidence: 0,
+            fallbackRequired: true,
+          },
+          wrappedPrompt: buildWrappedFromRaw(rawInput, sourceType),
+        } : prev));
+      });
+  }, [authChecked, fromMeeting, fromStart, initialPrompt, projectId]);
 
   useEffect(() => {
     if (!projectId || !authChecked) return;
@@ -140,6 +266,9 @@ function BuilderAgentContent() {
       displayText: userText,
       projectId: effectiveProjectId,
       isEdit,
+      // 수정 모드는 요약 불필요 — 기존 프로젝트 정보는 DB/resume 으로 복원됨
+      specBundle: null,
+      summaryLoading: false,
     });
   };
 
@@ -274,13 +403,31 @@ function BuilderAgentContent() {
         </div>
       </main>
 
-      {/* Phase 0 (2026-04-22): 크레딧 + 서브도메인 사전 확인 모달 */}
+      {/* Phase 0 + D (2026-04-22): 크레딧 + 서브도메인 + spec/strategy 통합 모달 */}
       <AgentCreditConfirmModal
         isOpen={!!pendingStart}
         isEditMode={!!pendingStart?.isEdit}
         prompt={pendingStart?.displayText ?? ''}
+        specBundle={pendingStart?.specBundle ?? null}
+        summaryLoading={pendingStart?.summaryLoading ?? false}
         onConfirm={handleConfirmStart}
-        onCancel={() => setPendingStart(null)}
+        onCancel={() => {
+          setPendingStart(null);
+          autoStartedRef.current = false;  // 취소 시 재진입 허용
+          // Phase E 보호장치: fromStart/fromMeeting 모두 취소 시 /start 로 복귀
+          if (fromStart || fromMeeting) {
+            router.push('/start');
+          }
+        }}
+        onEdit={() => {
+          // 신규 모드에서만 의미 있음 — 사용자를 /start 로 돌려 보내 재입력
+          if (pendingStart && !pendingStart.isEdit) {
+            const backPrompt = encodeURIComponent(pendingStart.displayText);
+            setPendingStart(null);
+            autoStartedRef.current = false;
+            router.push(`/start?prompt=${backPrompt}`);
+          }
+        }}
       />
     </div>
   );
