@@ -77,7 +77,8 @@ function BuilderAgentContent() {
   // Phase E (2026-04-22): /start 한 줄 입력 후 진입 시 ?prompt=X&fromStart=1
   const fromStart = params?.get('fromStart') === '1';
   const initialPrompt = params?.get('prompt') ?? '';
-  const { state, start, submitAnswer, cancel, resumeProject } = useAgentStream();
+  const { state, start, submitAnswer, cancel, resumeProject, uploadAttachment } =
+    useAgentStream();
   const [editingProject, setEditingProject] = useState<{ name: string; subdomain?: string | null; template: string } | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
@@ -275,9 +276,13 @@ function BuilderAgentContent() {
   // 모달 "시작" 확인 시 실제 fetch 트리거
   const handleConfirmStart = (customSubdomain?: string) => {
     if (!pendingStart) return;
-    const { wrappedPrompt, displayText, projectId: pid, isEdit } = pendingStart;
+    const { wrappedPrompt, displayText, projectId: pid, isEdit, specBundle } = pendingStart;
     setPendingStart(null);
-    start(wrappedPrompt, isEdit ? displayText : undefined, pid ?? undefined, customSubdomain);
+    // Phase F (2026-04-22): specBundle 존재 = Sonnet 요약 + 사용자 확인 완료 → AskUser 차단
+    //   (/start 한 줄 입력 후 확인 모달 거친 케이스, /meeting 회의실 요약 케이스)
+    //   프롬프트·편집·수정 모드는 specBundle=null → 기존 AskUser 플로우 유지
+    const skipAskUser = !!specBundle;
+    start(wrappedPrompt, isEdit ? displayText : undefined, pid ?? undefined, customSubdomain, skipAskUser);
   };
 
   // 비로그인 사용자: 리다이렉트 진행 중 빈 화면 대신 간단한 로딩 표시
@@ -382,6 +387,7 @@ function BuilderAgentContent() {
             state={state}
             onStart={handleStart}
             onSubmitAnswer={submitAnswer}
+            onUploadAttachment={uploadAttachment}
             isEditingMode={!!((projectId && editingProject) || state.projectId)}
           />
         </div>

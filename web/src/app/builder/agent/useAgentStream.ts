@@ -291,6 +291,7 @@ export function useAgentStream() {
       displayText?: string,
       projectId?: string,
       customSubdomain?: string,   // Phase 0 (2026-04-22): 사용자 지정 서브도메인
+      skipAskUser?: boolean,      // Phase F (2026-04-22): /start·/meeting 진입은 스펙 확정됨 → AskUser 차단
     ) => {
       if (state.status === 'streaming' || state.status === 'awaiting_answer') return;
 
@@ -359,6 +360,7 @@ export function useAgentStream() {
             prompt,
             ...(projectId ? { projectId } : {}),
             ...(customSubdomain ? { customSubdomain } : {}),
+            ...(skipAskUser ? { skipAskUser: true } : {}),
           }),
           signal: controller.signal,
         });
@@ -407,7 +409,9 @@ export function useAgentStream() {
   );
 
   const submitAnswer = useCallback(
-    async (answer: string) => {
+    // Phase H (2026-04-22): attachments 는 업로드 후 받은 서버 path 배열
+    //   (빈 배열 = 첨부 없음)
+    async (answer: string, attachments: string[] = []) => {
       if (state.status !== 'awaiting_answer' || !state.sessionId || !state.pendingCard) return;
       // 즉시 UI 피드백 — 답변 전송 중 상태
       setState((s) => ({
@@ -427,7 +431,11 @@ export function useAgentStream() {
               'Content-Type': 'application/json',
               ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
-            body: JSON.stringify({ answer, pendingId: state.pendingCard.pendingId }),
+            body: JSON.stringify({
+              answer,
+              pendingId: state.pendingCard.pendingId,
+              ...(attachments.length > 0 ? { attachments } : {}),
+            }),
           },
         );
         if (!res.ok) {
@@ -449,6 +457,41 @@ export function useAgentStream() {
     abortRef.current?.abort();
     setState((s) => ({ ...s, status: 'idle' }));
   }, []);
+
+  // Phase H (2026-04-22): 답지 카드에서 "📎 참고 자료" 이미지 업로드용
+  //   POST /api/ai/agent-build/:sessionId/attachments (multipart/form-data)
+  //   성공 시 서버 저장 경로 반환 → submitAnswer 의 attachments 배열에 포함
+  //   sessionId 없으면 (아직 start 안 된 상태) 에러
+  const uploadAttachment = useCallback(
+    async (
+      file: File,
+    ): Promise<{ path: string; filename: string; originalName: string; size: number }> => {
+      if (!state.sessionId) throw new Error('세션이 아직 시작되지 않았어요');
+      const token = getToken();
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(
+        `${API_BASE}/ai/agent-build/${state.sessionId}/attachments`,
+        {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: fd,
+        },
+      );
+      if (!res.ok) {
+        const txt = await res.text().catch(() => res.statusText);
+        throw new Error(`업로드 실패: ${txt}`);
+      }
+      const data = await res.json();
+      return {
+        path: data.path,
+        filename: data.filename,
+        originalName: data.originalName,
+        size: data.size,
+      };
+    },
+    [state.sessionId],
+  );
 
   // 기존 프로젝트 "이어서 작업" — /builder/agent?projectId=xxx 로 진입 시 호출
   // complete 상태로 초기화 해서 FoundryComplete 카드 + iframe 프리뷰 바로 뜨게
@@ -512,5 +555,5 @@ export function useAgentStream() {
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  return { state, start, submitAnswer, cancel, resumeProject };
+  return { state, start, submitAnswer, cancel, resumeProject, uploadAttachment };
 }

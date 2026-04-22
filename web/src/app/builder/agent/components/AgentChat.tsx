@@ -15,7 +15,12 @@ import MarkdownRenderer from '@/app/components/MarkdownRenderer';
 interface Props {
   state: UseAgentStreamState;
   onStart: (prompt: string) => void;
-  onSubmitAnswer: (answer: string) => void;
+  // Phase H (2026-04-22): attachments 는 업로드 완료된 서버 path 배열
+  onSubmitAnswer: (answer: string, attachments?: string[]) => void;
+  // Phase H: 답지 카드에서 "📎 참고 자료" 이미지 업로드에 사용
+  onUploadAttachment?: (
+    file: File,
+  ) => Promise<{ path: string; filename: string; originalName: string; size: number }>;
   // 수정 모드(기존 프로젝트)에 진입했는지 — placeholder 힌트용
   isEditingMode?: boolean;
 }
@@ -24,6 +29,7 @@ export default function AgentChat({
   state,
   onStart,
   onSubmitAnswer,
+  onUploadAttachment,
   isEditingMode = false,
 }: Props) {
   const [input, setInput] = useState('');
@@ -123,6 +129,7 @@ export default function AgentChat({
               key={idx}
               entry={entry}
               onCardSubmit={onSubmitAnswer}
+              onUploadAttachment={onUploadAttachment}
               cardDisabled={!isActiveCard}
             />
           );
@@ -261,10 +268,14 @@ export default function AgentChat({
 function ChatEntryRow({
   entry,
   onCardSubmit,
+  onUploadAttachment,
   cardDisabled,
 }: {
   entry: ChatEntry;
-  onCardSubmit: (answer: string) => void;
+  onCardSubmit: (answer: string, attachments?: string[]) => void;
+  onUploadAttachment?: (
+    file: File,
+  ) => Promise<{ path: string; filename: string; originalName: string; size: number }>;
   cardDisabled: boolean;
 }) {
   switch (entry.kind) {
@@ -290,7 +301,12 @@ function ChatEntryRow({
     case 'card':
       return (
         <div className="space-y-2">
-          <AnswerSheetCard card={entry.card} onSubmit={onCardSubmit} disabled={cardDisabled} />
+          <AnswerSheetCard
+            card={entry.card}
+            onSubmit={onCardSubmit}
+            onUploadAttachment={onUploadAttachment}
+            disabled={cardDisabled}
+          />
           {entry.answered && (
             <div className="rounded-lg bg-slate-100 px-3 py-2 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-400">
               ✓ 답지 완료: {entry.answered}

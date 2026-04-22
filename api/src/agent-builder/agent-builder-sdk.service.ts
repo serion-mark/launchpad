@@ -75,6 +75,10 @@ export type AgentSdkInput = {
   projectId?: string;                       // Day 4 에서 resume 기반 재구성 (Day 1 은 무시)
   customSubdomain?: string;                  // Phase 0 (2026-04-22): 사용자 지정 서브도메인
                                              //   (사전 확인 모달에서 중복 확인 통과한 값)
+  // Phase F (2026-04-22): 신규 세션이 /start / /meeting 요약을 거쳐 왔으면 skipAskUser=true
+  //   → allowedTools 에서 mcp__foundry__AskUser 제외
+  //   → Agent 가 답지 카드 안 띄우고 바로 작업 시작
+  skipAskUser?: boolean;
   onEvent: (event: AgentStreamEvent) => void;
 };
 
@@ -396,18 +400,29 @@ export class AgentBuilderSdkService {
           //   (2026-04-20 실측: pm2 /proc/PID/environ 에는 키 없지만 runtime process.env 에는 있음)
           // - 명시적 전달로 확실하게 API 키 + .env 전체 상속
           env: process.env as Record<string, string | undefined>,
-          // 2026-04-22 사장님 정책: 상담 모드는 코드 수정 도구 차단 (읽기만 허용)
-          //   → Agent 가 "상담 무료" 정책을 실수로도 악용하지 않도록 구조적 안전망
+          // 2026-04-22 사장님 정책:
+          //   1) 상담 모드(consultation) — 코드 수정 도구 차단, AskUser 만 허용
+          //   2) skipAskUser=true (Phase F) — 답지 카드 도구 자체 제거
+          //      (Sonnet 요약으로 모든 정보 system prompt 에 있음 → 재질문 불필요)
+          //   3) 일반 — 전체 도구 허용
           allowedTools:
             sessionIntent === 'consultation'
               ? [
                   'Read', 'Glob', 'Grep',
-                  'mcp__foundry__AskUser',  // 답지 카드는 추가 질문용으로 허용
+                  'mcp__foundry__AskUser',  // 상담 모드: 질문은 허용 (코드 수정은 불허)
                 ]
-              : [
-                  'Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep',
-                  ...FOUNDRY_MCP_TOOL_NAMES,
-                ],
+              : input.skipAskUser
+                ? [
+                    // skipAskUser 모드: AskUser 제거 → 바로 작업
+                    'Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep',
+                    ...FOUNDRY_MCP_TOOL_NAMES.filter(
+                      (n) => n !== 'mcp__foundry__AskUser',
+                    ),
+                  ]
+                : [
+                    'Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep',
+                    ...FOUNDRY_MCP_TOOL_NAMES,
+                  ],
           mcpServers: { foundry: foundryMcp },
           // permissionMode: 'dontAsk' — root 환경 대응 + allowedTools 화이트리스트 강제
           //   ① root/sudo 환경은 bypassPermissions 거부 (GitHub Issue #9184, 공식 보안 설계)

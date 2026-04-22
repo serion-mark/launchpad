@@ -4,23 +4,53 @@
 // 반응형: 모바일 1열 세로 (h-12 터치) / PC 2~3열 그리드
 // 번호 입력 친화: 옵션마다 [1] [2] [3]
 // 복수 선택 지원 + 기타 옵션 클릭 시 인라인 입력창
+//
+// Phase H (2026-04-22): "📎 참고 자료" 이미지 첨부 섹션 추가
+//   - image/png|jpg|jpeg|webp, 5MB/장, 3장/세션
+//   - URL 입력은 받지 않음 (로그인 필수 사이트 / 동적 사이트 이슈)
+//   - 업로드 성공 = 서버 절대 경로 수집 → onSubmit 시 attachments 로 전달
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { CardRequest } from '../useAgentStream';
+
+interface UploadedFile {
+  path: string;
+  filename: string;
+  originalName: string;
+  size: number;
+  previewUrl: string; // blob: URL for thumbnail
+}
 
 interface Props {
   card: CardRequest;
-  onSubmit: (answer: string) => void;
+  onSubmit: (answer: string, attachments?: string[]) => void;
+  onUploadAttachment?: (
+    file: File,
+  ) => Promise<{ path: string; filename: string; originalName: string; size: number }>;
   disabled?: boolean;
 }
 
-export default function AnswerSheetCard({ card, onSubmit, disabled }: Props) {
+const MAX_FILES = 3;
+const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+
+export default function AnswerSheetCard({
+  card,
+  onSubmit,
+  onUploadAttachment,
+  disabled,
+}: Props) {
   // 각 질문별 선택 상태 — 복수 선택 가능 (Set<번호>)
   const [picks, setPicks] = useState<Record<string, Set<number>>>({});
   // 기타 옵션 선택 시 각 질문별 자유 입력
   const [freeInputs, setFreeInputs] = useState<Record<string, string>>({});
   // 카드 전체 자유 입력 (하단)
   const [freeText, setFreeText] = useState('');
+  // Phase H — 업로드된 참고 자료
+  const [uploads, setUploads] = useState<UploadedFile[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const togglePick = (qId: string, num: number) => {
     setPicks((prev) => {
@@ -36,6 +66,8 @@ export default function AnswerSheetCard({ card, onSubmit, disabled }: Props) {
   // 질문 하나에서 기타(needsInput) 옵션이 선택됐는지
   const hasFreeOption = (q: CardRequest['questions'][number]) =>
     (q.options ?? []).some((o) => o.needsInput && isPicked(q.id, o.num));
+
+  const collectAttachmentPaths = (): string[] => uploads.map((u) => u.path);
 
   const handleSubmitPicks = () => {
     // 복수 선택 지원 — 각 질문의 선택된 옵션 label을 "+" 로 연결한 자연어 조합 생성
@@ -61,20 +93,70 @@ export default function AnswerSheetCard({ card, onSubmit, disabled }: Props) {
       .filter(Boolean);
 
     if (parts.length === 0) return;
-    onSubmit(parts.join('\n'));
+    onSubmit(parts.join('\n'), collectAttachmentPaths());
   };
 
   const handleSubmitFree = () => {
     if (!freeText.trim()) return;
-    onSubmit(freeText.trim());
+    onSubmit(freeText.trim(), collectAttachmentPaths());
     setFreeText('');
   };
 
-  const handleQuickStart = () => onSubmit(card.quickStart.value);
+  const handleQuickStart = () =>
+    onSubmit(card.quickStart.value, collectAttachmentPaths());
 
   // 질문마다 최소 1개 선택됐는지 (complete 기준 완화 — 복수 선택 가능하므로)
   const anyPicked = card.questions.some((q) => (picks[q.id]?.size ?? 0) > 0);
   const allPicked = card.questions.every((q) => (picks[q.id]?.size ?? 0) > 0);
+
+  // Phase H — 파일 선택 핸들러
+  const handleFilePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    // 초기화 (같은 파일 다시 선택 가능하도록)
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (files.length === 0) return;
+    if (!onUploadAttachment) {
+      setUploadError('업로드 기능을 사용할 수 없어요');
+      return;
+    }
+    setUploadError(null);
+
+    for (const file of files) {
+      if (uploads.length >= MAX_FILES) {
+        setUploadError(`최대 ${MAX_FILES}장까지만 올릴 수 있어요`);
+        break;
+      }
+      if (!ACCEPTED_TYPES.includes(file.type)) {
+        setUploadError(`${file.name}: 이미지(PNG/JPG/WEBP)만 가능해요`);
+        continue;
+      }
+      if (file.size > MAX_SIZE) {
+        setUploadError(`${file.name}: 5MB 초과`);
+        continue;
+      }
+      setUploading(true);
+      try {
+        const result = await onUploadAttachment(file);
+        const previewUrl = URL.createObjectURL(file);
+        setUploads((prev) => [
+          ...prev,
+          { ...result, previewUrl },
+        ]);
+      } catch (err: any) {
+        setUploadError(err?.message ?? '업로드 실패');
+      } finally {
+        setUploading(false);
+      }
+    }
+  };
+
+  const removeUpload = (idx: number) => {
+    setUploads((prev) => {
+      const victim = prev[idx];
+      if (victim) URL.revokeObjectURL(victim.previewUrl);
+      return prev.filter((_, i) => i !== idx);
+    });
+  };
 
   return (
     <div
@@ -158,6 +240,81 @@ export default function AnswerSheetCard({ card, onSubmit, disabled }: Props) {
           </div>
         ))}
       </div>
+
+      {/* Phase H — 📎 참고 자료 (이미지 첨부) */}
+      {onUploadAttachment && (
+        <div className="mt-5 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900/50">
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+              📎 참고 자료 (선택)
+            </p>
+            <span className="text-xs text-slate-400">
+              {uploads.length}/{MAX_FILES}장 · 최대 5MB · PNG/JPG/WEBP
+            </span>
+          </div>
+          <p className="mb-3 text-xs text-slate-500 dark:text-slate-400">
+            레퍼런스 디자인·화면 스크린샷이 있으면 올려주세요. 포비가 꼭 참고해요.
+          </p>
+
+          {/* 업로드된 썸네일 */}
+          {uploads.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-2">
+              {uploads.map((u, i) => (
+                <div
+                  key={u.path}
+                  className="group relative h-20 w-20 overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={u.previewUrl}
+                    alt={u.originalName}
+                    className="h-full w-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeUpload(i)}
+                    disabled={disabled}
+                    className="absolute right-0 top-0 rounded-bl-md bg-black/60 px-1.5 py-0.5 text-xs text-white opacity-0 transition group-hover:opacity-100"
+                    title="삭제"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={
+                disabled || uploading || uploads.length >= MAX_FILES
+              }
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-400 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            >
+              {uploading
+                ? '⏳ 업로드 중...'
+                : uploads.length >= MAX_FILES
+                  ? `최대 ${MAX_FILES}장 도달`
+                  : '+ 이미지 추가'}
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              multiple
+              onChange={handleFilePick}
+              className="hidden"
+            />
+            {uploadError && (
+              <span className="text-xs text-rose-600 dark:text-rose-400">
+                ⚠️ {uploadError}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 입력 안내 */}
       <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">

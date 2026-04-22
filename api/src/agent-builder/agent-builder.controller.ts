@@ -113,7 +113,12 @@ export class AgentBuilderController {
   agentBuildSdk(
     @Req() req: any,
     @Res() res: Response,
-    @Body() body: { prompt: string; projectId?: string; customSubdomain?: string },
+    @Body() body: {
+      prompt: string;
+      projectId?: string;
+      customSubdomain?: string;
+      skipAskUser?: boolean;   // Phase F (2026-04-22)
+    },
   ) {
     if (process.env.AGENT_SDK_ENABLED !== 'true') {
       throw new HttpException(
@@ -132,6 +137,7 @@ export class AgentBuilderController {
       typeof body.customSubdomain === 'string' && body.customSubdomain.trim().length > 0
         ? body.customSubdomain.trim()
         : undefined;
+    const skipAskUser = body.skipAskUser === true;
 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -161,6 +167,7 @@ export class AgentBuilderController {
         prompt: body.prompt,
         projectId: editingProjectId,
         customSubdomain,
+        skipAskUser,
         onEvent: write,
       })
       .catch((err) => {
