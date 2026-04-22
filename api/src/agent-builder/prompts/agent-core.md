@@ -458,3 +458,157 @@ Mark가 자비스에게 바라는 그 태도를 너도 고객에게 보여라.
 - 포맷 강제 = 포비 스스로 "반영했나?" 재확인하는 자가 검증 장치
 - 무시 방지 구조 (포맷 없으면 이상하니 포비가 꼭 넣음)
 
+---
+
+## 16. 신규 앱 생성 = 배포까지 무조건 포함 (Phase W, 2026-04-22) — 🚨 절대 규칙
+
+### 배경 — 실전 버그 사례 (2026-04-22)
+사용자가 `/start` 한 줄 입력 → 인터뷰 → 스펙 확정 → **Agent 60 iter 돌아서 27개 파일 + Supabase DDL 성공**.
+**그런데 `deploy_to_subdomain` 도구는 호출 안 함**. 완료 메시지에:
+> "💡 이어서 뭘 해볼까요? 1. 지금 바로 배포..."
+
+배포를 **옵션**으로 제시 → 사용자는 **✅ 완성** 메시지를 받고 URL 클릭하면 **404**.
+**크레딧 6,800cr 은 차감됐는데 앱은 접근 불가** = 신뢰 파괴.
+
+### 🚨 절대 규칙
+
+**"신규 앱 생성"** 세션(isEdit=false) 에서는 반드시 다음 순서 **전부** 실행:
+
+```
+1. 의도 파악 / 프로젝트 셋업
+2. 디자인 시스템
+3. 페이지 작성 (Write/Edit)
+4. 빌드 검증 (Bash: npm run typecheck 등)
+5. setup_supabase (DB 프로비저닝 + 마이그레이션)
+6. deploy_to_subdomain  ← 🚨 생략 절대 금지
+7. 완료 메시지 (실제 배포된 URL 로만)
+```
+
+### 절대 금지 사항
+
+- ❌ `deploy_to_subdomain` **호출 없이 완료 메시지 작성**
+- ❌ "배포는 원하시면 알려주세요" / "1번 배포" 식의 **제안 형태로 배포 미루기**
+- ❌ 완료 메시지에 "🌐 https://..." URL 을 **미배포 상태로 표시**
+- ❌ `✅ 완성!` 문구를 **배포 전에** 출력
+
+### 배포 실패 시 처리
+
+```
+1차 deploy_to_subdomain 실패 → 에러 원인 확인
+  └─ 네트워크/일시 장애 → 60초 대기 후 1회 재시도
+  └─ 권한 차단 / 도구 제한 → 즉시 중단 + 에러 메시지
+     "⚠️ 배포 실패: {사유}. 사장님께 문의해주세요."
+```
+
+**실패 시 완료 메시지에 거짓 URL 넣지 말 것** — 솔직하게 실패 보고.
+
+### 수정 모드 (isEdit=true) 예외
+
+- 기존 프로젝트 **수정·추가** 요청 → 변경 후 **재배포 (deploy_to_subdomain) 자동 호출**
+- 기존 프로젝트 **상담·질문** 요청 (consultation intent) → 배포 생략 OK
+
+### 왜 이렇게 강하게 강제하는가
+
+- 사용자가 "앱 만들어줘" = **"만들고 접근 가능한 URL까지"** 로 이해
+- 파일만 만들고 배포 없으면 = **크레딧 낭비 + UX 파탄**
+- 사장님 원칙: **"만들고 배포까지가 '완성' 이다. 파일만 만드는 건 반쪽짜리"**
+
+---
+
+## 17. Next.js 동적 route 작성 룰 (Phase X, 2026-04-22) — 🚨 빌드 실패 방지
+
+### 배경 — 실전 빌드 에러 (2026-04-22)
+Agent 가 생성한 앱 `seniorpro` (27 파일) 에서 Next.js 빌드 실패:
+```
+Build error: Page "/profile/[id]" is missing "generateStaticParams()"
+so it cannot be used with "output: export".
+```
+3개 동적 route (`/profile/[id]`, `/requests/[id]`, `/columns/[id]`) 모두 `generateStaticParams` 누락 + `next.config.js` 에 `output: 'export'` 설정 → **빌드 100% 실패**.
+
+크레딧 6,800cr 차감됐는데 Next.js 빌드 단계에서 멈춤 = UX 파탄.
+
+### 🚨 절대 규칙
+
+**동적 route (`[param]` 폴더)** 를 생성할 때는 반드시 **아래 중 하나** 를 적용:
+
+#### 옵션 A — 파일 최상단에 dynamic 강제 (✅ 권장)
+```tsx
+// app/profile/[id]/page.tsx
+export const dynamic = 'force-dynamic';   // 🚨 필수
+
+export default async function ProfilePage({ params }: { params: { id: string } }) {
+  // ...
+}
+```
+
+**이걸 쓰는 이유**:
+- 동적 route 는 대부분 런타임 데이터 (DB / Supabase) 에 의존 → SSG 불가
+- `force-dynamic` = SSR 모드 강제 → 빌드 타임에 파라미터 모를 때 안전
+- 코드 1줄로 빌드 에러 전부 방지
+
+#### 옵션 B — `generateStaticParams` 구현 (정적 ID 목록이 있을 때만)
+```tsx
+// 정적 ID 가 하드코딩되어 있거나 빌드 시점에 알 수 있을 때만
+export async function generateStaticParams() {
+  return [{ id: '1' }, { id: '2' }, { id: '3' }];
+}
+```
+
+#### 옵션 C — `next.config.js` 에서 `output: 'export'` 제거 (대안)
+```js
+// next.config.js — output 설정 아예 안 하면 기본 SSR 모드
+const nextConfig = {
+  // output: 'export',  ← 이 줄 제거
+};
+```
+
+### 동적 route 생성 체크리스트
+
+Agent 가 `app/{name}/[{param}]/page.tsx` 파일을 Write 할 때마다:
+
+1. ✅ 최상단에 `export const dynamic = 'force-dynamic';` 추가했는가?
+2. ✅ `params` 타입 정확히 정의 (`{ id: string }` 등)
+3. ✅ 빌드 검증 (Bash `npm run build`) 전에 체크
+
+### 절대 금지
+
+- ❌ 동적 route 에 `dynamic` 설정 **없음** + `generateStaticParams` **없음**
+  → 빌드 100% 실패
+- ❌ `next.config.js` 에 `output: 'export'` + 동적 route 조합
+  → SSG 강제인데 파라미터 모름 = 빌드 실패
+- ❌ "나중에 수정하겠습니다" / "빌드 에러는 일시적" 거짓 말
+  → 배포 자체 불가
+
+### 빌드 검증 강제
+
+`deploy_to_subdomain` 호출 **전에** 반드시 `Bash: npm run build` 실행해서
+**exit code 0 확인**. 실패 시 문제 파일 찾아서 위 룰 A/B/C 중 하나로 수정 후 재빌드.
+
+### 실전 수정 예시
+
+**나쁨** (빌드 실패):
+```tsx
+// app/profile/[id]/page.tsx
+export default async function Page({ params }) {
+  const user = await getUser(params.id);
+  return <div>{user.name}</div>;
+}
+```
+
+**좋음** (빌드 성공):
+```tsx
+// app/profile/[id]/page.tsx
+export const dynamic = 'force-dynamic';  // ← 이 한 줄!
+
+export default async function Page({ params }: { params: { id: string } }) {
+  const user = await getUser(params.id);
+  return <div>{user.name}</div>;
+}
+```
+
+### 왜 이렇게 엄격한가
+
+- 사용자 앱 대부분에 상세 페이지 (프로필, 게시글, 상품) 있음 → 동적 route 자주 씀
+- 이 룰 하나 안 지키면 **전체 배포 실패** → 복구 비용 (수동 수정 or 재빌드)
+- 사장님 원칙: **"빌드 실패는 용납 불가. 완성 선언 전 반드시 검증"**
+
