@@ -46,7 +46,10 @@ import { MemoryService } from '../ai/memory.service';
 import {
   CreditService,
   CREDIT_COSTS,
-  classifyModifyCost,
+  classifyIntent,
+  intentToAction,
+  intentToCost,
+  type AgentIntent,
 } from '../credit/credit.service';
 import { PrismaService } from '../prisma.service';
 import {
@@ -120,6 +123,11 @@ export class AgentBuilderSdkService {
     //   잔액 부족 시 ForbiddenException 발생 → controller catch → HTTP 402
     let creditsDeducted = 0;
     let creditAction: string = 'none';
+    // 의도 분류 — 수정 모드 세션에서만 상담/수정 분기. 신규 세션은 무조건 앱 생성(6800cr).
+    //   consultation 의 경우 아래 query() 에서 allowedTools 를 읽기 도구로 제한.
+    const sessionIntent: AgentIntent | null = editingProjectId
+      ? classifyIntent(prompt)
+      : null;
     if (hasUser) {
       try {
         const balance = await this.creditService.getBalance(String(userId));
@@ -146,27 +154,22 @@ export class AgentBuilderSdkService {
             creditAction = 'app_generate';
             creditsDeducted = CREDIT_COSTS.app_generate;
           }
-        } else {
-          // 수정 세션 — 복잡도 분류
-          const cost = classifyModifyCost(prompt);
-          const action =
-            cost === CREDIT_COSTS.ai_modify_complex
-              ? 'ai_modify_complex'
-              : cost === CREDIT_COSTS.ai_modify_normal
-                ? 'ai_modify_normal'
-                : 'ai_modify_simple';
+        } else if (sessionIntent) {
+          // 수정 모드 — 상담/수정 분류 (2026-04-22 사장님 정책)
+          const action = intentToAction(sessionIntent);
+          const cost = intentToCost(sessionIntent);
           await this.creditService.deduct(String(userId), {
-            action: action as any,
+            action,
             projectId: editingProjectId,
-            taskType: 'agent_modify',
+            taskType: sessionIntent === 'consultation' ? 'agent_consult' : 'agent_modify',
             modelTier: 'sdk',
-            description: `Agent Mode 수정 (${action}) — ${prompt.slice(0, 50)}`,
+            description: `Agent Mode ${sessionIntent === 'consultation' ? '상담' : '수정'} (${action}) — ${prompt.slice(0, 50)}`,
           });
           creditAction = action;
           creditsDeducted = cost;
         }
         this.logger.log(
-          `[credit] userId=${userId} action=${creditAction} deducted=${creditsDeducted}cr`,
+          `[credit] userId=${userId} intent=${sessionIntent ?? 'generate'} action=${creditAction} deducted=${creditsDeducted}cr`,
         );
       } catch (err: any) {
         // 잔액 부족 등 과금 실패는 전체 중단
@@ -391,10 +394,18 @@ export class AgentBuilderSdkService {
           //   (2026-04-20 실측: pm2 /proc/PID/environ 에는 키 없지만 runtime process.env 에는 있음)
           // - 명시적 전달로 확실하게 API 키 + .env 전체 상속
           env: process.env as Record<string, string | undefined>,
-          allowedTools: [
-            'Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep',
-            ...FOUNDRY_MCP_TOOL_NAMES,
-          ],
+          // 2026-04-22 사장님 정책: 상담 모드는 코드 수정 도구 차단 (읽기만 허용)
+          //   → Agent 가 "상담 무료" 정책을 실수로도 악용하지 않도록 구조적 안전망
+          allowedTools:
+            sessionIntent === 'consultation'
+              ? [
+                  'Read', 'Glob', 'Grep',
+                  'mcp__foundry__AskUser',  // 답지 카드는 추가 질문용으로 허용
+                ]
+              : [
+                  'Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep',
+                  ...FOUNDRY_MCP_TOOL_NAMES,
+                ],
           mcpServers: { foundry: foundryMcp },
           // permissionMode: 'dontAsk' — root 환경 대응 + allowedTools 화이트리스트 강제
           //   ① root/sudo 환경은 bypassPermissions 거부 (GitHub Issue #9184, 공식 보안 설계)

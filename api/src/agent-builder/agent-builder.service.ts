@@ -16,7 +16,9 @@ import { EventTranslatorService, STAGES } from './event-translator.service';
 import {
   CreditService,
   CREDIT_COSTS,
-  classifyModifyCost,
+  classifyIntent,
+  intentToAction,
+  intentToCost,
 } from '../credit/credit.service';
 import {
   AgentStreamEvent,
@@ -272,19 +274,15 @@ export class AgentBuilderService {
             });
           }
         } else {
-          const cost = classifyModifyCost(prompt);
-          const action =
-            cost === CREDIT_COSTS.ai_modify_complex
-              ? 'ai_modify_complex'
-              : cost === CREDIT_COSTS.ai_modify_normal
-                ? 'ai_modify_normal'
-                : 'ai_modify_simple';
+          // 수정 모드 — 상담/수정 의도 분류 (2026-04-22)
+          const intent = classifyIntent(prompt);
+          const action = intentToAction(intent);
           await this.creditService.deduct(String(userId), {
-            action: action as any,
+            action,
             projectId: editingProjectId,
-            taskType: 'agent_modify',
+            taskType: intent === 'consultation' ? 'agent_consult' : 'agent_modify',
             modelTier: 'manual',
-            description: `Agent Mode(수제) 수정 (${action}) — ${prompt.slice(0, 50)}`,
+            description: `Agent Mode(수제) ${intent === 'consultation' ? '상담' : '수정'} (${action}) — ${prompt.slice(0, 50)}`,
           });
         }
       } catch (err: any) {

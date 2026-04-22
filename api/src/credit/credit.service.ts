@@ -17,6 +17,7 @@ export const CREDIT_COSTS = {
   ai_modify_normal: 1000,    // AI 수정 (보통: 레이아웃/스타일/버튼/폰트)
   ai_modify_complex: 1500,   // AI 수정 (복잡: 페이지추가/반응형/기능/DB/API) — 실측 $1.00
   ai_modify: 500,            // AI 수정 (레거시 호환)
+  ai_consultation: 0,        // Agent 상담 (추천/분석/제안 — 코드 수정 없음, 2026-04-22 신설)
   ai_chat: 30,               // AI 대화 (질문/일반대화)
   premium_theme: 1000,       // 프리미엄 테마 적용
   code_download: 10000,       // 코드 다운로드 (10,000cr — 스탠다드/프로/모두의창업은 무료)
@@ -52,14 +53,67 @@ const COMPLEX_KEYWORDS = ['추가', '생성', '만들어', '연동', '결제', '
 const NORMAL_KEYWORDS = ['레이아웃', '구조', '스타일', '버튼', '폰트', '크기', '위치', '정렬', '간격', '여백', '디자인'];
 const SIMPLE_KEYWORDS = ['색', '색상', '텍스트', '문구', '글자', '이미지', '사진', '로고', '이름', '제목', '바꿔', '변경'];
 
-export function classifyModifyCost(message: string): number {
+// 상담(추천/분석/제안) 의도 — 코드 수정 없음 → 무료 (2026-04-22 사장님 정책)
+const CONSULTATION_KEYWORDS = [
+  '추천', '제안', '어떤', '어떻게', '뭐가', '무엇이', '분석', '의견', '평가',
+  '조언', '리뷰', '살펴', '진단', '체크', '상담', '상의', '토론', '비교',
+  '판단', '참고', '설명', '알려줘', '가르쳐', '궁금', '좋을까', '할만한',
+  '있을까', '괜찮을까', '어울릴까', '어떨까', '뭘까', '할까', '필요할까',
+];
+
+// 명시적 작업 지시 — 상담 키워드가 있어도 이 prefix 로 시작하면 수정으로 간주
+//   예: "추가해줘"(추가)/"적용해줘" → 수정. "기능 추천해줘"(추천) → 상담.
+const EXPLICIT_MODIFY_PREFIX = /^(추가해|만들어|바꿔|고쳐|수정해|변경해|삭제|제거|적용|배포)/;
+
+export type AgentIntent = 'consultation' | 'modify_simple' | 'modify_normal' | 'modify_complex';
+
+/**
+ * Agent Mode 의도 분류 — 상담(무료) vs 수정(3단계 유료).
+ *   코드 수정이 수반되지 않는 상담/추천 요청은 무료로 판정.
+ *   상담 모드에서는 allowedTools 에서 Write/Edit/Bash/provision/deploy 차단
+ *   (사용자가 "상담 무료" 악용 못 하게 안전망).
+ */
+export function classifyIntent(message: string): AgentIntent {
   const lower = message.toLowerCase();
-  const isComplex = COMPLEX_KEYWORDS.some(kw => lower.includes(kw));
-  const isNormal = NORMAL_KEYWORDS.some(kw => lower.includes(kw));
-  const isSimple = SIMPLE_KEYWORDS.some(kw => lower.includes(kw));
-  if (isComplex) return CREDIT_COSTS.ai_modify_complex;  // 복잡 1,500cr
-  if (isNormal) return CREDIT_COSTS.ai_modify_normal;     // 보통 1,000cr
-  return CREDIT_COSTS.ai_modify_simple;                    // 단순 500cr (기본)
+  const hasConsultation = CONSULTATION_KEYWORDS.some((kw) => lower.includes(kw));
+  const startsWithModify = EXPLICIT_MODIFY_PREFIX.test(lower);
+
+  // 상담 키워드 있고 + 명시적 수정 명령으로 시작하지 않으면 → 상담 (무료)
+  if (hasConsultation && !startsWithModify) {
+    return 'consultation';
+  }
+
+  // 기존 3단계 수정 복잡도
+  if (COMPLEX_KEYWORDS.some((kw) => lower.includes(kw))) return 'modify_complex';
+  if (NORMAL_KEYWORDS.some((kw) => lower.includes(kw))) return 'modify_normal';
+  return 'modify_simple';
+}
+
+/** 의도 → 크레딧 매핑 */
+export function intentToCost(intent: AgentIntent): number {
+  switch (intent) {
+    case 'consultation': return CREDIT_COSTS.ai_consultation;
+    case 'modify_simple': return CREDIT_COSTS.ai_modify_simple;
+    case 'modify_normal': return CREDIT_COSTS.ai_modify_normal;
+    case 'modify_complex': return CREDIT_COSTS.ai_modify_complex;
+  }
+}
+
+/** 의도 → CreditAction 매핑 */
+export function intentToAction(intent: AgentIntent): CreditAction {
+  switch (intent) {
+    case 'consultation': return 'ai_consultation';
+    case 'modify_simple': return 'ai_modify_simple';
+    case 'modify_normal': return 'ai_modify_normal';
+    case 'modify_complex': return 'ai_modify_complex';
+  }
+}
+
+/** @deprecated classifyIntent 사용 권장 (상담 0원 분리). 레거시 호환용 유지. */
+export function classifyModifyCost(message: string): number {
+  const intent = classifyIntent(message);
+  if (intent === 'consultation') return CREDIT_COSTS.ai_modify_simple;  // 구 호출부가 무료 기대 안 함
+  return intentToCost(intent);
 }
 
 const SIGNUP_BONUS = 1000;   // 회원가입 보너스 크레딧 (체험용 1,000cr)

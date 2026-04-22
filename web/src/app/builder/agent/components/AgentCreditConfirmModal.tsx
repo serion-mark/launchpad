@@ -19,17 +19,48 @@ const CREDIT_COSTS = {
   ai_modify_simple: 500,
   ai_modify_normal: 1000,
   ai_modify_complex: 1500,
+  ai_consultation: 0,
 } as const;
 
-// 서버 classifyModifyCost 와 동일한 분류 로직 (동기화 필수 — 사용자 표시용)
+// 서버 classifyIntent 와 동일한 분류 로직 (동기화 필수)
+//   상담(추천/분석/제안) = 0cr — 2026-04-22 사장님 정책
+//   수정(복잡도 3단계) = 500/1000/1500cr
 const COMPLEX_KEYWORDS = ['추가', '생성', '만들어', '연동', '결제', '페이지', '기능', 'db', '테이블', 'api', '반응형', '모바일', '삭제', '제거'];
 const NORMAL_KEYWORDS = ['레이아웃', '구조', '스타일', '버튼', '폰트', '크기', '위치', '정렬', '간격', '여백', '디자인'];
+const CONSULTATION_KEYWORDS = [
+  '추천', '제안', '어떤', '어떻게', '뭐가', '무엇이', '분석', '의견', '평가',
+  '조언', '리뷰', '살펴', '진단', '체크', '상담', '상의', '토론', '비교',
+  '판단', '참고', '설명', '알려줘', '가르쳐', '궁금', '좋을까', '할만한',
+  '있을까', '괜찮을까', '어울릴까', '어떨까', '뭘까', '할까', '필요할까',
+];
+const EXPLICIT_MODIFY_PREFIX = /^(추가해|만들어|바꿔|고쳐|수정해|변경해|삭제|제거|적용|배포)/;
 
-function classifyModifyCost(message: string): number {
+type Intent = 'consultation' | 'simple' | 'normal' | 'complex';
+
+function classifyIntent(message: string): Intent {
   const lower = message.toLowerCase();
-  if (COMPLEX_KEYWORDS.some((kw) => lower.includes(kw))) return CREDIT_COSTS.ai_modify_complex;
-  if (NORMAL_KEYWORDS.some((kw) => lower.includes(kw))) return CREDIT_COSTS.ai_modify_normal;
+  const hasConsultation = CONSULTATION_KEYWORDS.some((kw) => lower.includes(kw));
+  const startsWithModify = EXPLICIT_MODIFY_PREFIX.test(lower);
+  if (hasConsultation && !startsWithModify) return 'consultation';
+  if (COMPLEX_KEYWORDS.some((kw) => lower.includes(kw))) return 'complex';
+  if (NORMAL_KEYWORDS.some((kw) => lower.includes(kw))) return 'normal';
+  return 'simple';
+}
+
+function intentCost(intent: Intent): number {
+  if (intent === 'consultation') return CREDIT_COSTS.ai_consultation;
+  if (intent === 'complex') return CREDIT_COSTS.ai_modify_complex;
+  if (intent === 'normal') return CREDIT_COSTS.ai_modify_normal;
   return CREDIT_COSTS.ai_modify_simple;
+}
+
+function intentLabel(intent: Intent): string {
+  switch (intent) {
+    case 'consultation': return '💬 상담 (무료)';
+    case 'complex': return '✏️ 수정 (복잡)';
+    case 'normal': return '✏️ 수정 (보통)';
+    case 'simple': return '✏️ 수정 (단순)';
+  }
 }
 
 type SubdomainStatus = 'idle' | 'checking' | 'available' | 'unavailable';
@@ -89,14 +120,18 @@ export default function AgentCreditConfirmModal({
   if (!isOpen) return null;
 
   // 이번 세션 예상 비용
+  //   수정 모드: 상담/수정 의도 분류 — 상담은 0cr
+  //   신규 모드: 맛보기 여부에 따라 0 or 6,800cr
+  const editIntent: Intent | null = isEditMode ? classifyIntent(prompt) : null;
   const cost = isEditMode
-    ? classifyModifyCost(prompt)
+    ? intentCost(editIntent!)
     : (freeTrialUsed ? CREDIT_COSTS.app_generate : 0);
   const costLabel = isEditMode
-    ? (cost === CREDIT_COSTS.ai_modify_complex ? '복잡' : cost === CREDIT_COSTS.ai_modify_normal ? '보통' : '단순')
-    : (freeTrialUsed ? '앱 생성' : '맛보기 무료 1회');
+    ? intentLabel(editIntent!)
+    : (freeTrialUsed ? '🚀 앱 생성' : '🎁 맛보기 무료 1회');
 
   const insufficient = balance !== null && balance < cost;
+  const isConsultation = editIntent === 'consultation';
 
   // 중복 확인
   const checkSubdomain = async () => {
@@ -148,13 +183,17 @@ export default function AgentCreditConfirmModal({
         </h2>
 
         {/* 비용 요약 */}
-        <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800">
+        <div
+          className={`mb-4 rounded-xl border p-4 ${
+            isConsultation
+              ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30'
+              : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800'
+          }`}
+        >
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm text-slate-600 dark:text-slate-400">
-              💳 소모 크레딧 ({costLabel})
-            </span>
-            <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
-              {cost.toLocaleString()} cr
+            <span className="text-sm text-slate-600 dark:text-slate-400">{costLabel}</span>
+            <span className={`text-lg font-bold ${isConsultation ? 'text-emerald-600' : 'text-slate-900 dark:text-slate-100'}`}>
+              {cost === 0 ? '무료' : `${cost.toLocaleString()} cr`}
             </span>
           </div>
           <div className="flex items-center justify-between text-xs">
@@ -163,6 +202,11 @@ export default function AgentCreditConfirmModal({
               {loadingBalance ? '조회 중...' : `${(balance ?? 0).toLocaleString()} cr`}
             </span>
           </div>
+          {isConsultation && (
+            <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
+              💡 상담/추천/분석 요청입니다. 코드 수정 없이 무료로 답변드려요.
+            </p>
+          )}
           {insufficient && (
             <p className="mt-2 text-xs text-rose-600">
               ⚠️ 크레딧 부족 —{' '}
