@@ -1,8 +1,9 @@
 import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
-import { query } from '@anthropic-ai/claude-agent-sdk';
+import { query, getSessionMessages } from '@anthropic-ai/claude-agent-sdk';
 import * as fs from 'fs/promises';
 import * as fsSync from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 
 // Claude Code native binary 자동 감지
 // Anthropic SDK 내부 감지가 Ubuntu(glibc) 서버를 musl 로 오판하는 버그 회피
@@ -102,13 +103,11 @@ export class AgentBuilderSdkService {
     const editingProjectId = input.projectId;
     const hasUser = !!userId && userId !== 'anon';
 
-    // 1. 샌드박스 세션 (기존 SandboxService 재사용)
-    const { sessionId, cwd } = await this.sandbox.createSession(userId);
-
-    // Day 6 hotfix — projectId 확정 (신규는 startProject, 수정은 input 그대로)
-    //   이게 없으면 MCP tool ctx.projectId=undefined → provision_supabase /
-    //   deploy_to_subdomain 도구들이 "projectId 없음" 으로 실패 → Agent 가
-    //   수동 가이드로 fallback. 기존 agent-builder.service.ts 의 패턴 이식.
+    // ── Phase 1: projectId 먼저 확정 (sandbox cwd 를 projectId 기반으로 고정하기 위해) ──
+    //   (기존 구조의 문제: sandbox.createSession 이 UUID cwd 를 매번 만들어 SDK
+    //    session 저장소 경로(`~/.claude/projects/<cwd-slug>/*.jsonl`) 가
+    //    세션마다 달라져 resume 불가능. → 같은 projectId 로 여러 세션 진입 시
+    //    같은 cwd 를 재사용하여 jsonl 이 한 디렉토리에 누적되게 함.)
     let projectId: string | undefined = editingProjectId;
     let projectName = '';
     let subdomain: string | undefined;
@@ -127,9 +126,10 @@ export class AgentBuilderSdkService {
       }
     }
 
-    // 1-bis. 수정 모드: 기존 프로젝트의 generatedCode 를 sandbox 로 복원
-    //   + 이전 SDK 세션 UUID (resume 후보) 조회
-    //   + memoryService 로 프로젝트/사용자 컨텍스트 조립
+    // ── Phase 2: 샌드박스 세션 생성 (projectId 있으면 고정 cwd) ──
+    const { sessionId, cwd } = await this.sandbox.createSession(userId, { projectId });
+
+    // ── Phase 3: 수정 모드 — 이전 프로젝트 DB 정보 로드 + sandbox cwd 청소 + 복원 + memoryContext ──
     let resumeSessionId: string | undefined;
     let memoryContext = '';
     if (editingProjectId && hasUser) {
@@ -142,9 +142,21 @@ export class AgentBuilderSdkService {
           projectName = existing.name ?? '';
           if (existing.agentSessionId) {
             resumeSessionId = existing.agentSessionId;
-            this.logger.log(`[restore] ${editingProjectId} → SDK resume=${resumeSessionId.slice(0, 8)}`);
+            this.logger.log(`[restore] ${editingProjectId} → SDK resume 후보=${resumeSessionId.slice(0, 8)}`);
           }
           if (existing.generatedCode) {
+            // project-<id> cwd 는 이전 세션 잔재가 남아있을 수 있음.
+            // 안전을 위해 cwd 내부를 한 번 비우고 DB 의 최신 generatedCode 로 복원.
+            // (cwd 자체는 삭제하지 않음 — SandboxService 가 mkdir 후 반환한 디렉토리 유지)
+            try {
+              const entries = await fs.readdir(cwd);
+              for (const entry of entries) {
+                await fs.rm(path.join(cwd, entry), { recursive: true, force: true });
+              }
+            } catch (cleanErr: any) {
+              this.logger.warn(`[restore] cwd 청소 일부 실패 (무시): ${cleanErr?.message}`);
+            }
+
             const files = existing.generatedCode as unknown as Array<{ path: string; content: string }>;
             const safeName = (existing.name || 'app').replace(/[^a-zA-Z0-9_\-가-힣]/g, '_').slice(0, 40) || 'app';
             const projectDir = path.join(cwd, safeName);
@@ -173,13 +185,83 @@ export class AgentBuilderSdkService {
       }
     }
 
-    // 2. 파운더리 고유 system prompt (agent-core + intent + vague + selection)
-    //    SDK 기본 Claude Code preset 뒤에 append 하여 두 가지 모두 활용
-    //    + memoryContext (수정 모드에서만 보강)
+    // ── Phase 4: Resume 3단계 방어선 ──────────────────────────────────
+    //   Layer 1 (Primary): resumeSessionId 있으면 query() 에 resume 옵션 전달.
+    //     SDK 가 `~/.claude/projects/<cwd-slug>/<sessionId>.jsonl` 에서 로드.
+    //   Layer 2 (Pre-check): jsonl 파일 실존 확인 → 없으면 resume 옵션 생략하고
+    //     Layer 3 으로 위임 (불필요한 SDK 내부 실패 방지 + 로그 노이즈 감소).
+    //   Layer 3 (Official Fallback): getSessionMessages(sessionId) 로 공식 API
+    //     사용 — dir 생략 시 전체 projects 디렉토리 스캔 → 과거 cwd 에 있던
+    //     jsonl 도 찾음. 메시지 배열을 텍스트로 요약해 systemPrompt.append 에 주입.
+    //     (resume 옵션은 쓰지 않고 새 세션으로 시작하되 이전 맥락을 prompt 에 태움)
+    let finalResumeSessionId: string | undefined = undefined;
+    let resumeFallbackText = '';
+    if (resumeSessionId) {
+      // Layer 2: 새 cwd slug 기준 jsonl 존재 체크
+      const cwdSlug = cwd.replace(/\//g, '-');
+      const expectedJsonl = path.join(
+        os.homedir(),
+        '.claude',
+        'projects',
+        cwdSlug,
+        `${resumeSessionId}.jsonl`,
+      );
+      if (fsSync.existsSync(expectedJsonl)) {
+        finalResumeSessionId = resumeSessionId;
+        this.logger.log(`[restore] resume jsonl 발견 → SDK resume 사용 (${resumeSessionId.slice(0, 8)})`);
+      } else {
+        this.logger.log(`[restore] resume jsonl 없음 (${expectedJsonl}) → Layer 3 fallback 시도`);
+        // Layer 3: 공식 API 로 과거 메시지 로드 (dir 생략 → 전체 스캔)
+        try {
+          const priorMessages = await getSessionMessages(resumeSessionId);
+          if (priorMessages && priorMessages.length > 0) {
+            // user/assistant text 추출 → 간결한 대화 이력으로 포맷
+            const lines: string[] = [];
+            for (const m of priorMessages as any[]) {
+              const role = m?.message?.role ?? m?.type ?? '';
+              const content = m?.message?.content;
+              let text = '';
+              if (typeof content === 'string') {
+                text = content;
+              } else if (Array.isArray(content)) {
+                text = content
+                  .filter((b: any) => b?.type === 'text' && typeof b.text === 'string')
+                  .map((b: any) => b.text)
+                  .join('\n');
+              }
+              if (text.trim()) {
+                lines.push(`[${role}] ${text.slice(0, 500)}`); // 한 턴당 500자 제한
+              }
+            }
+            if (lines.length > 0) {
+              // 너무 길면 앞부분 요약 + 최근 몇 턴만 (SDK 가 캐싱할 수 있도록 고정 형식)
+              const joined = lines.join('\n---\n');
+              const truncated = joined.length > 30_000
+                ? joined.slice(-30_000) // 최근 30K 자 유지
+                : joined;
+              resumeFallbackText = `\n\n═══ 이전 세션 대화 이력 (${lines.length}턴) ═══\n${truncated}\n═══════════════════════════════════════\n`;
+              this.logger.log(
+                `[restore] fallback 성공 — 이전 ${lines.length}턴 복원, ${truncated.length} chars 주입`,
+              );
+            } else {
+              this.logger.log(`[restore] fallback — 공식 API 는 세션 찾았으나 내용 없음 (새 세션 시작)`);
+            }
+          } else {
+            this.logger.log(`[restore] fallback — 공식 API 로도 세션 못 찾음 (새 세션 시작)`);
+          }
+        } catch (err: any) {
+          this.logger.warn(`[restore] fallback 실패 (새 세션 시작): ${err?.message}`);
+        }
+      }
+    }
+
+    // ── Phase 5: 파운더리 고유 system prompt 조립 ────────────────────
+    //   순서: foundry 핵심 프롬프트 + memoryContext + resumeFallbackText
+    //   resumeFallbackText 는 Layer 3 복원 시에만 비어있지 않음
     const foundrySystemPrompt = await this.promptLoader.getSystemPrompt();
-    const systemAppend = memoryContext
-      ? `${foundrySystemPrompt}\n\n${memoryContext}`
-      : foundrySystemPrompt;
+    const systemAppend = [foundrySystemPrompt, memoryContext, resumeFallbackText]
+      .filter((s) => s && s.trim())
+      .join('\n\n');
 
     // 3. adapter 컨텍스트
     const sessionIdRef = { value: sessionId };
@@ -245,7 +327,10 @@ export class AgentBuilderSdkService {
           permissionMode: 'dontAsk',
           // 수정 모드: 이전 SDK 세션 UUID 로 이어받기 (대화 이력 자동 복원)
           //   → V2 5번 디버깅한 agentMessages sanitize/cycle-truncate 전체 대체
-          ...(resumeSessionId ? { resume: resumeSessionId } : {}),
+          //   → finalResumeSessionId 는 Phase 4 Pre-check 통과한 경우만 set.
+          //     실패 시 resumeFallbackText 가 systemPrompt 에 주입돼 있으므로
+          //     resume 옵션 없이 새 세션으로 시작해도 맥락 유지됨.
+          ...(finalResumeSessionId ? { resume: finalResumeSessionId } : {}),
           systemPrompt: {
             type: 'preset',
             preset: 'claude_code',

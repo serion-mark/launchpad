@@ -20,11 +20,26 @@ const RM_ALLOWED = true;
 export class SandboxService {
   private readonly logger = new Logger(SandboxService.name);
 
-  async createSession(userId: string | number): Promise<{ sessionId: string; cwd: string }> {
+  /**
+   * 샌드박스 세션 생성.
+   * @param options.projectId — 지정 시 cwd 를 `/tmp/foundry-project-<id>` 로 고정.
+   *   같은 projectId 로 여러 세션이 진입해도 cwd 가 동일 → Claude Agent SDK 의
+   *   session 저장소(`~/.claude/projects/<cwd-slug>/*.jsonl`) 가 프로젝트별로
+   *   한 디렉토리에 모여 resume 이 정상 작동.
+   *
+   *   options 생략 시 기존 동작(UUID 기반 1회성 cwd) 유지 — 수제 루프 호환.
+   */
+  async createSession(
+    userId: string | number,
+    options?: { projectId?: string },
+  ): Promise<{ sessionId: string; cwd: string }> {
     const sessionId = randomUUID();
-    const cwd = path.join(os.tmpdir(), `foundry-agent-${userId}-${sessionId}`);
+    const cwd = options?.projectId
+      ? path.join(os.tmpdir(), `foundry-project-${options.projectId}`)
+      : path.join(os.tmpdir(), `foundry-agent-${userId}-${sessionId}`);
     await fs.mkdir(cwd, { recursive: true });
-    this.logger.log(`[sandbox] 세션 생성: ${cwd}`);
+    const mode = options?.projectId ? ' (project-fixed)' : '';
+    this.logger.log(`[sandbox] 세션 생성: ${cwd}${mode}`);
     return { sessionId, cwd };
   }
 
