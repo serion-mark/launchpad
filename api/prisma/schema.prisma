@@ -65,6 +65,11 @@ model Project {
   // Claude Agent SDK 세션 UUID — 수정 모드 진입 시 resume 옵션으로 이어받기
   // (Z안 Day 4 추가 — session_state_changed / init 에서 캡처)
   agentSessionId String?
+  // Phase 1 (2026-04-22): AI 회의실 보고서 또는 /start 한 줄 프롬프트 기반 요약 저장
+  //   { raw: string, spec: object, strategy: object, sourceType: 'prompt'|'meeting', summarizedAt: ISO }
+  //   사용자 추후 참고용 + "회의 내용 보기" UI 에서 노출
+  //   프로젝트 삭제 시 Json 필드라 자동 소실 (별도 cascade 불필요)
+  meetingReport Json?
   generatedCode Json?  // generated file paths/code
   deployedUrl String?
   // ── 코드 생성 엔진 필드 (Sprint 1) ──
