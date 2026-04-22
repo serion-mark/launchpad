@@ -85,7 +85,8 @@ export default function DashboardPage() {
       });
       if (res.ok) {
         const project = await res.json();
-        window.location.href = `/builder?projectId=${project.id}`;
+        // Phase 3 (2026-04-22): 신규 프로젝트는 Agent Mode 로 진입 (기존 /builder 는 숨김)
+        window.location.href = `/builder/agent?projectId=${project.id}`;
       }
     } catch { /* */ }
     setCreating(false);
@@ -302,16 +303,11 @@ export default function DashboardPage() {
 
                   <div className="flex gap-2.5">
                     <a
-                      href={
-                        project.template === 'agent-mode'
-                          ? `/builder/agent?projectId=${project.id}`
-                          : `/builder?projectId=${project.id}`
-                      }
+                      /* Phase 3 (2026-04-22): 기존 /builder 링크 전부 /builder/agent 로 통합 */
+                      href={`/builder/agent?projectId=${project.id}`}
                       className="flex-1 rounded-xl bg-[var(--toss-blue)] py-2.5 text-center text-sm font-semibold text-white hover:bg-[var(--toss-blue-hover)] transition-colors"
                     >
-                      {project.template === 'agent-mode'
-                        ? (project.status === 'draft' ? '🌗 포비에게 맡기기' : '🌗 포비로 수정')
-                        : (project.status === 'draft' ? '빌드하기' : '수정하기')}
+                      {project.status === 'draft' ? '🌗 포비에게 맡기기' : '🌗 포비로 수정'}
                     </a>
                     {(project.status === 'active' || project.status === 'deployed') && (
                       <a

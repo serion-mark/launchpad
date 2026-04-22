@@ -929,7 +929,8 @@ function StartPage() {
           await new Promise(r => setTimeout(r, 150));
           setProgress(i);
         }
-        window.location.href = `/builder?projectId=${project.id}`;
+        // Phase 3 (2026-04-22): 기존 /builder 는 홈 네비에서 숨김 처리 — Agent Mode 로 통합
+        window.location.href = `/builder/agent?projectId=${project.id}`;
         return;
       }
     } catch { /* fallback to simulation */ }
