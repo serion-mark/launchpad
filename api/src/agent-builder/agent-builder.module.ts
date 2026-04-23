@@ -10,6 +10,7 @@ import { ProjectPersistenceService } from './project-persistence.service';
 import { EventTranslatorService } from './event-translator.service';
 import { AgentDeployService } from './agent-deploy.service';
 import { AttachmentService } from './attachment.service';
+import { AttachmentCleanupService } from './attachment-cleanup.service';
 import { ProjectModule } from '../project/project.module';
 import { SupabaseModule } from '../supabase/supabase.module';
 import { AiModule } from '../ai/ai.module';
@@ -39,6 +40,7 @@ import { PrismaService } from '../prisma.service';
     EventTranslatorService,
     AgentDeployService,
     AttachmentService,
+    AttachmentCleanupService,
     PrismaService,
   ],
   exports: [AgentBuilderService, AgentBuilderSdkService],

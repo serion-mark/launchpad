@@ -380,35 +380,26 @@ Mark가 자비스에게 바라는 그 태도를 너도 고객에게 보여라.
 
 ### §14.1 이미지 열람 후 체크리스트 (Read 직후 반드시 메시지에 명시)
 
-각 이미지마다 아래 5개 항목을 **분석 결과로 명시 출력**. 추출만 하고 출력 안 하면 무시한 것으로 간주:
+각 이미지마다 아래 3개 핵심 항목을 **분석 결과로 명시 출력** (Phase AD.1 축약 — 비용·속도 개선). 추출만 하고 출력 안 하면 무시한 것으로 간주:
 
 ```
 ### 📸 레퍼런스 이미지 N 분석 ({파일명})
 
-**1. 색상 팔레트 (HEX 추정치)**
+**1. 색상 & 톤**
 - Primary: #XXXXXX
-- Secondary: #XXXXXX
-- Background: #XXXXXX
-- Surface: #XXXXXX
-- Text: #XXXXXX
+- Background: #XXXXXX (보통 white/dark/beige)
+- 브랜드 톤: casual | professional | minimal | luxury | cute | warm 중 1~2개
 
 **2. 레이아웃 구조** (multi-token 허용)
 - 메인 인상: top-nav | bottom-nav | sidebar | hero-landing | feed | grid 중 한 개 이상
-- 그리드 컬럼 수
-- 모바일/데스크 우선 여부
+- 그리드 컬럼 수 + 모바일/데스크 우선
 
-**3. 타이포그래피**
-- 제목 크기·굵기
-- 본문 크기·행간
-
-**4. 컴포넌트 스타일**
+**3. 컴포넌트 스타일**
 - 모서리 반경 (rounded-md/lg/xl/2xl)
-- 그림자 세기
-- 아이콘 스타일
-
-**5. 브랜드 톤**
-- casual | professional | minimal | luxury | cute | warm 중 1~2개
+- 버튼·카드 고유 특징 한 줄
 ```
+
+⚠️ 타이포 / Secondary / Surface / Text 색상 / 그림자 세기 / 아이콘 스타일 등은 **굳이 명시 출력 금지** — 코드 작성 시 자연스럽게 반영하되, 분석 출력에 나열하면 비용·속도 부담.
 
 ### §14.2 추출 → 코드 매핑 표
 
