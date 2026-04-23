@@ -204,9 +204,16 @@ function BuilderAgentContent() {
       const wrappedPrompt =
         baseWrapped + buildAttachmentsBlock(spec.attachments) + buildPresetBlock(spec.preset);
 
+      // Phase AD.1 (2026-04-23): wrappedPrompt 노출 버그 수정 (agent-core §9 위반)
+      // 채팅 UI 에는 내부 지시문·절대경로 대신 사용자 친화적 한 줄만 표시
+      const appName = spec.spec?.appName?.trim();
+      const uiDisplayText = appName
+        ? `📝 ${appName} 만들기 시작 (스펙 확정)`
+        : '📝 스펙 확정 — 앱 생성 시작';
+
       // 확인 모달 없이 바로 Agent 실행 — /start 의 ReviewStage 가 확인 역할 수행함
       // skipAskUser=true — 이미 스펙 확정됨
-      start(wrappedPrompt, undefined, undefined, undefined, true);
+      start(wrappedPrompt, uiDisplayText, undefined, undefined, true);
     } catch (e) {
       // JSON 파싱 실패 — 일반 fromStart 플로우로 fallback (아래 useEffect 에서 처리)
       // 이 useEffect 만 skip
@@ -386,7 +393,9 @@ function BuilderAgentContent() {
     //   (/start 한 줄 입력 후 확인 모달 거친 케이스, /meeting 회의실 요약 케이스)
     //   프롬프트·편집·수정 모드는 specBundle=null → 기존 AskUser 플로우 유지
     const skipAskUser = !!specBundle;
-    start(wrappedPrompt, isEdit ? displayText : undefined, pid ?? undefined, customSubdomain, skipAskUser);
+    // Phase AD.1 (2026-04-23): wrappedPrompt 노출 버그 수정 (agent-core §9 위반)
+    // 신규 모드도 displayText 항상 사용 — pendingStart 생성 시점에 이미 사용자 친화적 문구 저장됨
+    start(wrappedPrompt, displayText, pid ?? undefined, customSubdomain, skipAskUser);
   };
 
   // 비로그인 사용자: 리다이렉트 진행 중 빈 화면 대신 간단한 로딩 표시
