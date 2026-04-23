@@ -91,6 +91,40 @@ export class AttachmentService {
     };
   }
 
+  /**
+   * Phase AD Step 1 (2026-04-23): 세션 시작 전 업로드
+   *   /start ReviewStage 또는 /meeting 종합보고서에서 Agent 시작 전에 이미지 업로드.
+   *   - 첫 호출: existingFolder 없음 → 백엔드가 `pre-session-<userId>-<timestamp>` 생성
+   *   - 두번째부터: 첫 응답의 sessionFolder 를 클라이언트가 다시 보내서 같은 폴더 누적
+   *   - cleanup: Phase A1 (24h cron, 별도 작업)
+   *   - 보안: existingFolder 가 본인 userId 로 시작하지 않으면 거부
+   */
+  async savePreSession(
+    userId: string,
+    file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
+    existingFolder?: string,
+  ): Promise<SavedAttachment & { sessionFolder: string }> {
+    if (!userId) {
+      throw new BadRequestException('userId 누락');
+    }
+    let sessionFolder: string;
+    if (existingFolder) {
+      const expectedPrefix = `pre-session-${userId}-`;
+      if (!existingFolder.startsWith(expectedPrefix)) {
+        throw new BadRequestException('잘못된 sessionFolder (소유자 불일치)');
+      }
+      const tail = existingFolder.slice(expectedPrefix.length);
+      if (!/^\d{10,16}$/.test(tail)) {
+        throw new BadRequestException('잘못된 sessionFolder (형식 오류)');
+      }
+      sessionFolder = existingFolder;
+    } else {
+      sessionFolder = `pre-session-${userId}-${Date.now()}`;
+    }
+    const saved = await this.save(sessionFolder, file);
+    return { ...saved, sessionFolder };
+  }
+
   /** 세션 종료 시 정리 — 운영 cleanup 용 (추후 cron 또는 runWithSDK finally) */
   async cleanupSession(sandboxSessionId: string): Promise<void> {
     const dir = path.join(this.root, sandboxSessionId);

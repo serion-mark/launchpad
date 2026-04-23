@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { EventEmitter } from 'events';
 import * as path from 'path';
+import * as fs from 'fs/promises';
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
 import { CreditService, type ModelTier as CreditModelTier } from '../credit/credit.service';
@@ -1026,6 +1027,173 @@ ${JSON.stringify(params.currentSpec, null, 2)}`;
           changes: [],
         };
       }
+    }
+  }
+
+  // ── Phase AD Step 10-1 (2026-04-23): 레퍼런스 이미지 자동 분석 + 충돌 감지 ────
+  //   ReviewStage 에서 이미지 업로드 직후 호출.
+  //   Sonnet Vision 1회 호출로 detected(추출 결과) + conflicts(스펙 vs 이미지) + suggestedMessage(자동 채팅 문구) 모두 생성.
+  //   사용자 과금 없음 (~$0.02/회 내부 부담).
+  //
+  //   보안: imagePath 는 반드시 `/tmp/foundry-attachments/pre-session-<userId>-<ts>/<file>` 형식.
+  //   다른 사용자의 폴더나 임의 절대 경로(예: /etc/passwd)는 ForbiddenException.
+  async analyzeReferenceImage(params: {
+    userId: string;
+    imagePath: string;
+    currentSpec: any;
+  }): Promise<{
+    detected: {
+      colors: { primary?: string; secondary?: string; background?: string; surface?: string; text?: string };
+      layout: string;
+      tone: string;
+      featureElements: string[];
+    };
+    conflicts: {
+      toneConflict: boolean;
+      featureMismatches: string[];
+    };
+    suggestedMessage: string;
+  }> {
+    const { userId, imagePath, currentSpec } = params;
+    if (!userId || !imagePath) {
+      throw new BadRequestException('userId / imagePath 필수');
+    }
+
+    // 1. 경로 보안 — pre-session 폴더만 허용 + 본인 userId
+    const ATTACH_ROOT = '/tmp/foundry-attachments';
+    const expectedPrefix = `${ATTACH_ROOT}/pre-session-${userId}-`;
+    const normalized = path.normalize(imagePath);
+    if (!normalized.startsWith(expectedPrefix)) {
+      throw new ForbiddenException('잘못된 imagePath (소유자 불일치 또는 경로 형식 오류)');
+    }
+    // path traversal 방어 — 정규화 후에도 .. 포함 시 거부
+    if (normalized.includes('..')) {
+      throw new ForbiddenException('잘못된 imagePath (..)');
+    }
+
+    // 2. 파일 읽기 + base64 (확장자로 mime 판단)
+    let buf: Buffer;
+    try {
+      buf = await fs.readFile(normalized);
+    } catch (e: any) {
+      throw new BadRequestException(`이미지 열람 실패: ${e?.message ?? 'unknown'}`);
+    }
+    const ext = path.extname(normalized).toLowerCase();
+    const mimeMap: Record<string, 'image/png' | 'image/jpeg' | 'image/webp'> = {
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.webp': 'image/webp',
+    };
+    const mediaType = mimeMap[ext];
+    if (!mediaType) {
+      throw new BadRequestException(`지원하지 않는 확장자: ${ext}`);
+    }
+    const b64 = buf.toString('base64');
+
+    // 3. currentSpec 안전 추출 (어떤 필드든 누락 가능)
+    const specName = currentSpec?.spec?.appName ?? '(이름 미정)';
+    const specTone = currentSpec?.spec?.designTone ?? '(미지정)';
+    const specFeatures: string[] = Array.isArray(currentSpec?.spec?.coreFeatures)
+      ? currentSpec.spec.coreFeatures
+      : [];
+    const specTarget = currentSpec?.strategy?.targetUser ?? '';
+
+    // 4. Sonnet Vision 호출 — 한 번에 detected + conflicts + suggestedMessage
+    const promptText = `이 웹/앱 화면 스크린샷을 분석하고, 동시에 아래 사용자 스펙과 비교해 충돌을 감지해줘.
+출력은 정확히 아래 JSON 스키마만. 다른 텍스트 절대 금지.
+
+[사용자 스펙]
+- 앱 이름: ${specName}
+- 디자인 톤: ${specTone}
+- 핵심 기능: ${specFeatures.length > 0 ? specFeatures.join(', ') : '(미지정)'}
+- 타겟: ${specTarget}
+
+[JSON 스키마]
+{
+  "detected": {
+    "colors": { "primary": "#XXXXXX", "secondary": "#XXXXXX", "background": "#XXXXXX", "surface": "#XXXXXX", "text": "#XXXXXX" },
+    "layout": "string (multi-token 가능, 예: 'top-nav | hero-landing')",
+    "tone": "casual | professional | minimal | luxury | cute | warm 중 1~2개",
+    "featureElements": ["검색바", "장바구니", "..."]
+  },
+  "conflicts": {
+    "toneConflict": boolean,
+    "featureMismatches": ["..."]
+  },
+  "suggestedMessage": "포비가 사용자에게 보낼 자연스러운 한국어 메시지 (1~3문장)"
+}
+
+[규칙]
+- detected.featureElements: 화면에서 보이는 UI 요소 키워드 (한국어, 5~10개)
+- conflicts.featureMismatches: 이미지에 있지만 스펙엔 없는 기능 (예: 이미지 카트 + 스펙 일정관리 → ["장바구니"])
+- conflicts.toneConflict: 이미지 톤과 스펙 designTone 이 명백히 충돌하면 true (예: '다크모드' vs '밝은 톤')
+- suggestedMessage:
+  · 친근한 1~3문장 (이모지 1~2개 OK)
+  · 무엇을 가져올지 + 무엇을 제외할지 명시
+  · 사용자 확인 요청 ("이대로 OK?" 또는 "수정할까요?")
+  · 예: "네이버 메인 같네요! 녹색 #03C75A + 상단 검색바는 가져올게요. 뉴스/쇼핑 탭은 스펙(반려동물 매칭)이랑 안 맞아서 제외할게요. 이대로 진행할까요?"
+- spec 정보가 모두 (미지정) 이면: conflicts 는 모두 빈 값, suggestedMessage 는 "이미지 분석했어요" 식으로 톤만 안내`;
+
+    const tryOnce = async () => {
+      const res = await this.anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1500,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } },
+              { type: 'text', text: promptText },
+            ],
+          },
+        ],
+      });
+      const text = res.content
+        .filter((b) => b.type === 'text')
+        .map((b) => (b as Anthropic.TextBlock).text)
+        .join('\n');
+      // Phase T 정신 — 정규식으로 첫 번째 JSON 블록만 추출 (Sonnet 이 뒤에 설명 덧붙이는 케이스 방어)
+      const match = text.match(/\{[\s\S]*\}/);
+      const jsonStr = match ? match[0] : text;
+      return { parsed: JSON.parse(jsonStr), usage: res.usage };
+    };
+
+    try {
+      const { parsed, usage } = await tryOnce();
+      const cost = (usage.input_tokens * 3) / 1_000_000 + (usage.output_tokens * 15) / 1_000_000;
+      this.logger.log(
+        `[analyze-image] success file=${path.basename(normalized)} in=${usage.input_tokens} out=${usage.output_tokens} cost≈$${cost.toFixed(4)}`,
+      );
+      return {
+        detected: {
+          colors: parsed.detected?.colors ?? {},
+          layout: typeof parsed.detected?.layout === 'string' ? parsed.detected.layout : '',
+          tone: typeof parsed.detected?.tone === 'string' ? parsed.detected.tone : '',
+          featureElements: Array.isArray(parsed.detected?.featureElements)
+            ? parsed.detected.featureElements.filter((x: any): x is string => typeof x === 'string')
+            : [],
+        },
+        conflicts: {
+          toneConflict: parsed.conflicts?.toneConflict === true,
+          featureMismatches: Array.isArray(parsed.conflicts?.featureMismatches)
+            ? parsed.conflicts.featureMismatches.filter((x: any): x is string => typeof x === 'string')
+            : [],
+        },
+        suggestedMessage:
+          typeof parsed.suggestedMessage === 'string' && parsed.suggestedMessage.length > 0
+            ? parsed.suggestedMessage
+            : '이미지 분석을 완료했어요. 디자인 요소만 참고해서 만들게요.',
+      };
+    } catch (err: any) {
+      this.logger.error(`[analyze-image] 실패: ${err?.message}`);
+      // fallback — 실패해도 진행 가능 (이미지만 사용)
+      return {
+        detected: { colors: {}, layout: '', tone: '', featureElements: [] },
+        conflicts: { toneConflict: false, featureMismatches: [] },
+        suggestedMessage:
+          '이미지 분석 중 일시 오류가 났어요. 그래도 진행은 가능해요 — 포비가 직접 이미지를 열어보고 디자인을 참고할게요.',
+      };
     }
   }
 

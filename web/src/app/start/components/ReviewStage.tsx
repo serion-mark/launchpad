@@ -11,8 +11,11 @@
 //   - 좌측 스펙 카드 실시간 반영
 //   - [이대로 시작] 누르면 onConfirm(spec) 호출 → 상위 page.tsx 가 /builder/agent 이동
 
-import { useEffect, useRef, useState } from 'react';
-import { authFetch } from '@/lib/api';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { authFetch, API_BASE, getToken } from '@/lib/api';
+import ImageUploader, { type UploadedAttachment } from '@/components/ImageUploader';
+import PresetSelectModal from './PresetSelectModal';
+import type { PortfolioApp } from '@/lib/portfolio-apps';
 
 export interface SpecBundle {
   spec: {
@@ -37,6 +40,17 @@ export interface SpecBundle {
   sourceType: 'prompt' | 'meeting';
   confidence: number;
   fallbackRequired?: boolean;
+  // Phase AD Step 3 (2026-04-23): 사용자 업로드 레퍼런스 이미지 절대 경로
+  // /tmp/foundry-attachments/pre-session-<userId>-<ts>/<uuid>.<ext>
+  // /builder/agent 진입 시 wrappedPrompt 에 §14 룰대로 주입됨
+  attachments?: string[];
+  // Phase AD Step 11-B/C (2026-04-23): 포트폴리오 프리셋 (이미지 없이 디자인 골격 선택)
+  preset?: {
+    name: string;
+    url: string;
+    layout: string;
+    screenshot: string;
+  };
 }
 
 type ChatMessage =
@@ -73,6 +87,94 @@ export default function ReviewStage({
   const [loading, setLoading] = useState(false);
   const [lastChanges, setLastChanges] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Phase AD Step 3 (2026-04-23): 세션 시작 전 이미지 업로드
+  // sessionFolder = 첫 업로드 응답으로 받은 폴더 ID, 이후 업로드부터 동봉해서 같은 폴더 누적
+  const [sessionFolder, setSessionFolder] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<string[]>([]);
+  const [uploadInProgress, setUploadInProgress] = useState(false);
+  // Phase AD Step 11-B (2026-04-23): 프리셋 선택 모달
+  const [presetModalOpen, setPresetModalOpen] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState<PortfolioApp | null>(null);
+
+  const uploadPreSession = useCallback(
+    async (file: File): Promise<UploadedAttachment> => {
+      setUploadInProgress(true);
+      try {
+        const token = getToken();
+        const fd = new FormData();
+        fd.append('file', file);
+        if (sessionFolder) fd.append('sessionFolder', sessionFolder);
+        const res = await fetch(`${API_BASE}/ai/agent-build/pre-session-attachments`, {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: fd,
+        });
+        if (!res.ok) {
+          const txt = await res.text().catch(() => res.statusText);
+          throw new Error(`업로드 실패: ${txt}`);
+        }
+        const data = await res.json();
+        if (!sessionFolder && typeof data.sessionFolder === 'string') {
+          setSessionFolder(data.sessionFolder);
+        }
+        return {
+          path: data.path,
+          filename: data.filename,
+          originalName: data.originalName,
+          size: data.size,
+        };
+      } finally {
+        setUploadInProgress(false);
+      }
+    },
+    [sessionFolder],
+  );
+
+  // Phase AD Step 10-2 (2026-04-23): 업로드 직후 자동 충돌 채팅
+  // ImageUploader.onUploadComplete 가 호출 → 이미지 분석 API → 포비 메시지 자동 추가
+  // 분석 실패해도 진행 가능 (이미지만 사용, 채팅 메시지 생략)
+  const [analyzing, setAnalyzing] = useState(false);
+  const handleImageAnalysis = useCallback(
+    async (uploaded: UploadedAttachment) => {
+      setAnalyzing(true);
+      try {
+        const res = await authFetch('/ai/analyze-reference-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imagePath: uploaded.path, currentSpec: spec }),
+        });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const data = await res.json();
+        if (typeof data.suggestedMessage === 'string' && data.suggestedMessage.length > 0) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: 'assistant',
+              text: `📸 ${uploaded.originalName} 분석 완료\n\n${data.suggestedMessage}`,
+              ts: Date.now(),
+            },
+          ]);
+        }
+      } catch (e: any) {
+        // 분석 실패해도 이미지는 wrappedPrompt 에 포함됨 — 무성으로 진행
+        // 단, 채팅에 짧은 안내 한 줄 (사용자 의문 방지)
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            text: `📸 ${uploaded.originalName} 받았어요. (분석은 일시 오류 — 포비가 직접 이미지 보고 만들게요)`,
+            ts: Date.now(),
+          },
+        ]);
+      } finally {
+        setAnalyzing(false);
+      }
+    },
+    [spec],
+  );
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -280,6 +382,35 @@ export default function ReviewStage({
           )}
         </div>
 
+        {/* Phase AD Step 3 — 참고 디자인 이미지 업로드 (디자인만 참조 안내) */}
+        <div className="border-t border-slate-200 px-5 py-4 dark:border-slate-800">
+          <h3 className="mb-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
+            📎 참고 디자인 이미지 (선택)
+          </h3>
+          <div className="mb-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+            💡 <strong>디자인만 참조돼요</strong>
+            <ul className="mt-1 ml-4 list-disc space-y-0.5">
+              <li>✅ 색상 / 레이아웃 / 폰트 / 컴포넌트 스타일</li>
+              <li>❌ 이미지 속 기능·메뉴·텍스트는 복제 안 됨</li>
+              <li>👉 &quot;네이버처럼&quot; 올리면 &quot;녹색 네비 톤&quot;만 가져옴 (뉴스/쇼핑 기능 X)</li>
+            </ul>
+            <div className="mt-1.5">기능 추가는 위의 <strong>스펙</strong>에 써주세요.</div>
+          </div>
+          <ImageUploader
+            onUpload={uploadPreSession}
+            onChange={setAttachments}
+            onUploadComplete={handleImageAnalysis}
+            disabled={loading}
+            title=""
+            helperText=""
+          />
+          {analyzing && (
+            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
+              🔍 포비가 이미지 분석 중... (약 5초)
+            </p>
+          )}
+        </div>
+
         {/* 하단 — 크레딧 + 시작 버튼 */}
         <div className="border-t border-slate-200 px-5 py-4 dark:border-slate-800">
           <div className="mb-3 flex items-center justify-between text-xs">
@@ -309,15 +440,73 @@ export default function ReviewStage({
             </button>
             <button
               type="button"
-              onClick={() => onConfirm(spec)}
-              disabled={!enoughCredit}
+              onClick={() => {
+                // Phase AD Step 11-B: 이미지·프리셋 둘 다 없으면 프리셋 모달 한 번 띄우기
+                if (attachments.length === 0 && !selectedPreset) {
+                  setPresetModalOpen(true);
+                  return;
+                }
+                onConfirm({
+                  ...spec,
+                  attachments,
+                  preset: selectedPreset
+                    ? {
+                        name: selectedPreset.name,
+                        url: selectedPreset.url,
+                        layout: selectedPreset.layout,
+                        screenshot: selectedPreset.screenshot,
+                      }
+                    : undefined,
+                });
+              }}
+              disabled={!enoughCredit || uploadInProgress}
               className="flex-[2] rounded-xl bg-blue-600 py-3 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
-              {enoughCredit ? '✅ 이대로 시작 →' : '⚠️ 크레딧 부족'}
+              {!enoughCredit
+                ? '⚠️ 크레딧 부족'
+                : uploadInProgress
+                  ? '⏳ 이미지 업로드 중...'
+                  : '✅ 이대로 시작 →'}
             </button>
           </div>
+
+          {/* 프리셋 선택 시 작은 안내 */}
+          {selectedPreset && (
+            <div className="mt-2 rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
+              🎨 디자인 프리셋: <strong>{selectedPreset.name}</strong> ({selectedPreset.layout})
+              <button
+                type="button"
+                onClick={() => setSelectedPreset(null)}
+                className="ml-2 text-blue-600 underline hover:text-blue-800"
+              >
+                해제
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Phase AD Step 11-B — 프리셋 모달 */}
+      <PresetSelectModal
+        isOpen={presetModalOpen}
+        onSelect={(preset) => {
+          setPresetModalOpen(false);
+          setSelectedPreset(preset);
+          // 모달에서 선택/건너뛰기 후 즉시 시작
+          onConfirm({
+            ...spec,
+            attachments,
+            preset: preset
+              ? {
+                  name: preset.name,
+                  url: preset.url,
+                  layout: preset.layout,
+                  screenshot: preset.screenshot,
+                }
+              : undefined,
+          });
+        }}
+      />
 
       {/* ═══ 우측: 채팅 수정 ═══ */}
       <div className="flex flex-col overflow-hidden rounded-2xl bg-white shadow-lg dark:bg-slate-900">

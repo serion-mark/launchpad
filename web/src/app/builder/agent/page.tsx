@@ -66,6 +66,48 @@ function buildWrappedFromRaw(raw: string, sourceType: 'prompt' | 'meeting'): str
   ].join('\n');
 }
 
+// Phase AD Step 5 (2026-04-23): 사용자 업로드 레퍼런스 이미지를 wrappedPrompt 에 부착
+//   - ReviewStage(spec.attachments) / /meeting(sessionStorage.meeting_attachments) 두 경로 공통 사용
+//   - agent-core §14 룰: 디자인만 참조 / 기능은 스펙 기준
+//   - Read 도구로 절대 경로 열람 지시 + 분석 체크리스트 환기
+function buildAttachmentsBlock(attachments?: string[] | null): string {
+  if (!attachments || attachments.length === 0) return '';
+  return [
+    '',
+    '## 📎 사용자 업로드 레퍼런스 이미지 (agent-core §14 — 반드시 Read 로 열람)',
+    '',
+    '아래 절대 경로 이미지들을 Read 도구로 열람하고 §14 룰대로 분석하세요:',
+    ...attachments.map((p) => `- ${p}`),
+    '',
+    '⚠️ 절대 원칙 — 디자인만 참조',
+    '- 색상·레이아웃·타이포·컴포넌트·톤 추출 OK',
+    '- 이미지 속 기능·메뉴·텍스트 복제 금지 (기능은 위 스펙 기준)',
+    '- §14.1 5개 항목 (색상/레이아웃/타이포/컴포넌트/톤) 분석 결과를 메시지에 명시',
+    '- 완료 보고에 "📎 반영한 레퍼런스" 블록 + "기능은 스펙 기준" 문구 필수 (§15)',
+  ].join('\n');
+}
+
+// Phase AD Step 11-C (2026-04-23): 포트폴리오 프리셋 지시문
+//   ReviewStage 에서 사용자가 포트폴리오 앱을 프리셋으로 선택한 경우
+//   → agent-core §14.5 의 7가지 레이아웃 룰 중 해당 타입 엄격 준수
+function buildPresetBlock(preset?: { name: string; url: string; layout: string } | null): string {
+  if (!preset) return '';
+  return [
+    '',
+    '## 🎨 디자인 프리셋 (agent-core §14.5 — 엄격 준수)',
+    '',
+    `- 레이아웃 타입: **${preset.layout}**`,
+    `- 참고 앱: ${preset.name} (${preset.url})`,
+    '',
+    `포비는 agent-core §14.5 의 '${preset.layout}' 룰을 엄격 준수해서`,
+    '레이아웃 골격(네비/그리드/주요 컴포넌트 위치)을 그대로 따르되,',
+    '기능·내용은 위 스펙 기준으로 매핑하세요.',
+    '',
+    '⚠️ 프리셋도 §14 절대 원칙 동일: 디자인 골격만 참조, 기능은 스펙 기준.',
+    '⚠️ 완료 보고에 §15.2 프리셋 포맷 사용 ("📎 디자인 프리셋: {타입} ({앱이름} 참고)")',
+  ].join('\n');
+}
+
 function BuilderAgentContent() {
   const router = useRouter();
   const pathname = usePathname();
@@ -148,13 +190,19 @@ function BuilderAgentContent() {
         // /start 우회 직접 hasFinalSpec=1 만 붙여 들어온 경우 — fallback 으로 일반 fromStart 플로우
         return;
       }
-      const spec: SpecBundle = JSON.parse(raw);
+      const spec: SpecBundle & {
+        attachments?: string[];
+        preset?: { name: string; url: string; layout: string };
+      } = JSON.parse(raw);
       sessionStorage.removeItem('start_final_spec');
       autoStartedRef.current = true;
 
-      const wrappedPrompt = spec.fallbackRequired
+      const baseWrapped = spec.fallbackRequired
         ? buildWrappedFromRaw(spec.raw, spec.sourceType)
         : buildWrappedFromSpec(spec);
+      // Phase AD Step 5/11-C — 레퍼런스 이미지 + 프리셋 지시 부착
+      const wrappedPrompt =
+        baseWrapped + buildAttachmentsBlock(spec.attachments) + buildPresetBlock(spec.preset);
 
       // 확인 모달 없이 바로 Agent 실행 — /start 의 ReviewStage 가 확인 역할 수행함
       // skipAskUser=true — 이미 스펙 확정됨
@@ -176,6 +224,8 @@ function BuilderAgentContent() {
     let sourceType: 'prompt' | 'meeting' = 'prompt';
     let displayText = '';
 
+    // Phase AD Step 5 — fromMeeting 진입 시 sessionStorage 의 meeting_attachments 도 함께 읽음
+    let meetingAttachments: string[] | undefined;
     if (fromMeeting) {
       const meetingContext = sessionStorage.getItem('meeting_context');
       if (!meetingContext) return;
@@ -183,6 +233,18 @@ function BuilderAgentContent() {
       sourceType = 'meeting';
       displayText = '🧠 AI 회의실 종합 보고서 기반으로 만들기';
       sessionStorage.removeItem('meeting_context');
+      const rawAttachments = sessionStorage.getItem('meeting_attachments');
+      if (rawAttachments) {
+        try {
+          const parsed = JSON.parse(rawAttachments);
+          if (Array.isArray(parsed)) {
+            meetingAttachments = parsed.filter((p): p is string => typeof p === 'string');
+          }
+        } catch {
+          // 무시 — attachments 없이 진행
+        }
+        sessionStorage.removeItem('meeting_attachments');
+      }
     } else if (fromStart && initialPrompt) {
       // Phase Q: hasFinalSpec 은 위 useEffect 에서 처리 — 여기는 fromStart 단독 진입만
       if (hasFinalSpec) return;
@@ -214,6 +276,8 @@ function BuilderAgentContent() {
     })
       .then(async (r) => (r.ok ? r.json() : null))
       .then((data: SpecBundle | null) => {
+        // Phase AD Step 5 — 모든 분기에서 meetingAttachments 부착
+        const attachBlock = buildAttachmentsBlock(meetingAttachments);
         if (!data) {
           // 네트워크 실패 — fallback UI 트리거
           setPendingStart((prev) => (prev ? {
@@ -227,21 +291,23 @@ function BuilderAgentContent() {
               confidence: 0,
               fallbackRequired: true,
             },
-            wrappedPrompt: buildWrappedFromRaw(rawInput, sourceType),
+            wrappedPrompt: buildWrappedFromRaw(rawInput, sourceType) + attachBlock,
           } : prev));
           return;
         }
         // 성공 — spec/strategy 주입
+        const baseWrapped = data.fallbackRequired
+          ? buildWrappedFromRaw(rawInput, sourceType)
+          : buildWrappedFromSpec(data);
         setPendingStart((prev) => (prev ? {
           ...prev,
           summaryLoading: false,
           specBundle: data,
-          wrappedPrompt: data.fallbackRequired
-            ? buildWrappedFromRaw(rawInput, sourceType)
-            : buildWrappedFromSpec(data),
+          wrappedPrompt: baseWrapped + attachBlock,
         } : prev));
       })
       .catch(() => {
+        const attachBlock = buildAttachmentsBlock(meetingAttachments);
         setPendingStart((prev) => (prev ? {
           ...prev,
           summaryLoading: false,
@@ -253,7 +319,7 @@ function BuilderAgentContent() {
             confidence: 0,
             fallbackRequired: true,
           },
-          wrappedPrompt: buildWrappedFromRaw(rawInput, sourceType),
+          wrappedPrompt: buildWrappedFromRaw(rawInput, sourceType) + attachBlock,
         } : prev));
       });
   }, [authChecked, fromMeeting, fromStart, hasFinalSpec, initialPrompt, projectId]);

@@ -196,7 +196,55 @@ export class AgentBuilderController {
     return this.agentBuilder.fixAutoConfirmAll(userId);
   }
 
-  // Phase I (2026-04-22): 답지 카드 이미지 첨부 업로드
+  // Phase AD Step 1 (2026-04-23): 세션 시작 전 이미지 업로드
+  //   /start ReviewStage 또는 /meeting 종합보고서에서 Agent 시작 전에 사용.
+  //   - 첫 호출: form-data 에 sessionFolder 없음 → 백엔드가 새 폴더 생성 + 응답
+  //   - 두번째부터: 첫 응답의 sessionFolder 를 form-data 에 동봉해서 같은 폴더 누적
+  //   - 동일 제한: 5MB / 장, 3장 / 세션, PNG/JPG/WEBP
+  //   - 저장 경로: /tmp/foundry-attachments/pre-session-<userId>-<timestamp>/<uuid>.<ext>
+  //   - 24h 후 cron cleanup (별도 작업)
+  @Post('agent-build/pre-session-attachments')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  async uploadPreSession(
+    @Req() req: any,
+    @UploadedFile() file: {
+      buffer: Buffer;
+      originalname: string;
+      mimetype: string;
+      size: number;
+    },
+    @Body() body: { sessionFolder?: string },
+  ) {
+    if (!file) {
+      throw new HttpException('파일 필수', HttpStatus.BAD_REQUEST);
+    }
+    const userId = String(req.user?.userId ?? '');
+    if (!userId || userId === 'anon') {
+      throw new HttpException('로그인 필요', HttpStatus.UNAUTHORIZED);
+    }
+    const existingFolder =
+      typeof body?.sessionFolder === 'string' && body.sessionFolder.trim().length > 0
+        ? body.sessionFolder.trim()
+        : undefined;
+    try {
+      const saved = await this.attachment.savePreSession(userId, file, existingFolder);
+      return {
+        ok: true,
+        path: saved.path,
+        filename: saved.filename,
+        originalName: saved.originalName,
+        size: saved.size,
+        sessionFolder: saved.sessionFolder,
+      };
+    } catch (err: any) {
+      throw new HttpException(
+        err?.message ?? '업로드 실패',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+  }
+
+  // Phase I (2026-04-22): 답지 카드 이미지 첨부 업로드 (Agent 진행 중 AskUser 경로)
   //   /builder/agent 세션 중 사용자가 레퍼런스 스크린샷을 올릴 때 사용.
   //   - sandboxSessionId: SSE 세션에서 받은 sessionId
   //   - form-data file: image/png,jpg,webp (5MB 이하, 세션당 3장)

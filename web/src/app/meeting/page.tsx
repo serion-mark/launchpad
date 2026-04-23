@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useCallback, useState, useRef, useEffect } from 'react';
 import { authFetch, getToken, API_BASE } from '@/lib/api';
 import MarkdownRenderer from '@/app/components/MarkdownRenderer';
 import Logo from '@/app/components/Logo';
 import ThemeToggle from '@/app/components/ThemeToggle';
+import ImageUploader, { type UploadedAttachment } from '@/components/ImageUploader';
 
 // ── 타입 ────────────────────────────────────────────────
 
@@ -74,6 +75,47 @@ export default function MeetingPage() {
   const [historyList, setHistoryList] = useState<{ id: string; topic: string; preset: string; tier: string; creditUsed: number; createdAt: string }[]>([]);
   const [viewingHistory, setViewingHistory] = useState<any | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Phase AD Step 4 (2026-04-23): 종합보고서 → 포비 직행 시 참고 디자인 이미지
+  // [포비에게 바로 맡기기] 버튼 위에 ImageUploader 노출
+  // sessionStorage('meeting_attachments') 로 /builder/agent 에 전달
+  const [meetingSessionFolder, setMeetingSessionFolder] = useState<string | null>(null);
+  const [meetingAttachments, setMeetingAttachments] = useState<string[]>([]);
+  const [meetingUploadInProgress, setMeetingUploadInProgress] = useState(false);
+
+  const uploadMeetingPreSession = useCallback(
+    async (file: File): Promise<UploadedAttachment> => {
+      setMeetingUploadInProgress(true);
+      try {
+        const token = getToken();
+        const fd = new FormData();
+        fd.append('file', file);
+        if (meetingSessionFolder) fd.append('sessionFolder', meetingSessionFolder);
+        const res = await fetch(`${API_BASE}/ai/agent-build/pre-session-attachments`, {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: fd,
+        });
+        if (!res.ok) {
+          const txt = await res.text().catch(() => res.statusText);
+          throw new Error(`업로드 실패: ${txt}`);
+        }
+        const data = await res.json();
+        if (!meetingSessionFolder && typeof data.sessionFolder === 'string') {
+          setMeetingSessionFolder(data.sessionFolder);
+        }
+        return {
+          path: data.path,
+          filename: data.filename,
+          originalName: data.originalName,
+          size: data.size,
+        };
+      } finally {
+        setMeetingUploadInProgress(false);
+      }
+    },
+    [meetingSessionFolder],
+  );
 
   const isRunning = phase !== 'idle' && phase !== 'done' && phase !== 'error' && phase !== 'pre_question';
 
@@ -351,10 +393,16 @@ export default function MeetingPage() {
 
   // Phase 4 (2026-04-22): 회의 종합 보고서를 바로 Agent Mode 로 넘기기
   //   /start 질문지 건너뛰고 포비에게 직접 맡김. meeting_context 를 읽어 첫 prompt 로.
+  // Phase AD Step 4 (2026-04-23): meeting_attachments 도 함께 sessionStorage 저장
   const goToAgent = () => {
     const report = messages.find(m => m.phase === 'report');
     if (report) {
       sessionStorage.setItem('meeting_context', report.content);
+    }
+    if (meetingAttachments.length > 0) {
+      sessionStorage.setItem('meeting_attachments', JSON.stringify(meetingAttachments));
+    } else {
+      sessionStorage.removeItem('meeting_attachments');
     }
     window.location.href = '/builder/agent?fromMeeting=1';
   };
@@ -851,6 +899,28 @@ export default function MeetingPage() {
             {/* 완료 후 액션 버튼 */}
             {phase === 'done' && (
               <>
+                {/* Phase AD Step 4 — 참고 디자인 이미지 업로드 (디자인만 참조) */}
+                <div className="mt-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] p-4">
+                  <h3 className="mb-2 text-sm font-semibold text-[var(--text-primary)]">
+                    📎 참고 디자인 이미지 (선택)
+                  </h3>
+                  <div className="mb-3 rounded-lg bg-amber-100/90 dark:bg-amber-900/30 p-3 text-xs text-amber-900 dark:text-amber-200">
+                    💡 <strong>디자인만 참조돼요</strong>
+                    <ul className="mt-1 ml-4 list-disc space-y-0.5">
+                      <li>✅ 색상 / 레이아웃 / 폰트 / 컴포넌트 스타일</li>
+                      <li>❌ 이미지 속 기능·메뉴·텍스트는 복제 안 됨</li>
+                      <li>👉 &quot;네이버처럼&quot; 올리면 &quot;녹색 네비 톤&quot;만 가져옴 (뉴스/쇼핑 기능 X)</li>
+                    </ul>
+                    <div className="mt-1.5">기능은 위의 <strong>회의 결과</strong> 기준으로 만들어요.</div>
+                  </div>
+                  <ImageUploader
+                    onUpload={uploadMeetingPreSession}
+                    onChange={setMeetingAttachments}
+                    title=""
+                    helperText=""
+                  />
+                </div>
+
                 <div className="flex gap-3 pt-4">
                   <button
                     onClick={copyReport}
@@ -860,10 +930,11 @@ export default function MeetingPage() {
                   </button>
                   <button
                     onClick={goToAgent}
-                    className="flex-1 rounded-xl bg-gradient-to-r from-[#3182f6] to-[#6366f1] py-3 text-sm font-bold text-white hover:brightness-110 transition-all"
+                    disabled={meetingUploadInProgress}
+                    className="flex-1 rounded-xl bg-gradient-to-r from-[#3182f6] to-[#6366f1] py-3 text-sm font-bold text-white hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     title="회의 결과를 포비에게 바로 전달 (질문지 건너뜀)"
                   >
-                    🌗 포비에게 바로 맡기기
+                    {meetingUploadInProgress ? '⏳ 이미지 업로드 중...' : '🌗 포비에게 바로 맡기기'}
                   </button>
                   <button
                     onClick={goToStart}

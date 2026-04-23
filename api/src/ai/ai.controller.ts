@@ -86,6 +86,30 @@ export class AiController {
     });
   }
 
+  // ── Phase AD Step 10-1 (2026-04-23): 레퍼런스 이미지 자동 분석 ───────
+  //   body: { imagePath: string, currentSpec: any }
+  //   return: { detected, conflicts, suggestedMessage }
+  //   사용자 과금 없음 (~$0.02/회 내부 부담)
+  //   보안: imagePath 는 본인 pre-session 폴더만 (service 에서 검증)
+  @Post('analyze-reference-image')
+  analyzeReferenceImage(
+    @Req() req: any,
+    @Body() body: { imagePath: string; currentSpec: any },
+  ) {
+    const userId = String(req.user?.userId ?? '');
+    if (!userId || userId === 'anon') {
+      return { detected: { colors: {}, layout: '', tone: '', featureElements: [] }, conflicts: { toneConflict: false, featureMismatches: [] }, suggestedMessage: '로그인 필요' };
+    }
+    if (!body?.imagePath || typeof body.imagePath !== 'string') {
+      return { detected: { colors: {}, layout: '', tone: '', featureElements: [] }, conflicts: { toneConflict: false, featureMismatches: [] }, suggestedMessage: 'imagePath 필수' };
+    }
+    return this.aiService.analyzeReferenceImage({
+      userId,
+      imagePath: body.imagePath,
+      currentSpec: body.currentSpec ?? null,
+    });
+  }
+
   // ── Phase L (2026-04-22): 확인 스테이지 채팅 수정 ──────────────────
   //   body: { currentSpec, userRequest, chatHistory }
   //   return: { message, updatedSpec, changes }
